@@ -84,7 +84,7 @@ export default function ProductForm() {
       return;
     }
 
-    const sizesData = (data.sizes as SizePrice[]) || [];
+    const sizesData = (data.sizes as unknown as SizePrice[]) || [];
 
     setFormData({
       name: data.name,
@@ -156,7 +156,7 @@ export default function ProductForm() {
         description: formData.description || null,
         image_url: imageUrl || null,
         in_stock: formData.in_stock,
-        sizes: formData.sizes as unknown as Record<string, unknown>[],
+        sizes: JSON.parse(JSON.stringify(formData.sizes)),
       };
 
       if (isEditing) {

@@ -75,7 +75,7 @@ export default function AdminProducts() {
     } else {
       const mapped = (data || []).map((p) => ({
         ...p,
-        sizes: (p.sizes as ProductSize[]) || [],
+        sizes: (p.sizes as unknown as ProductSize[]) || [],
       }));
       setProducts(mapped);
     }
