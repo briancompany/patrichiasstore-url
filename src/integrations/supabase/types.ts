@@ -142,6 +142,47 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          mpesa_code: string
+          order_id: string
+          verified_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          mpesa_code: string
+          order_id: string
+          verified_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          mpesa_code?: string
+          order_id?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_chart: {
         Row: {
           created_at: string

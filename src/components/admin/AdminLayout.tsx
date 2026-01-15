@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   AlertTriangle,
+  CreditCard,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -28,6 +29,7 @@ const navItems = [
   { name: 'Schools', path: '/admin/schools', icon: School },
   { name: 'Pricing', path: '/admin/pricing', icon: Tag },
   { name: 'Orders', path: '/admin/orders', icon: ClipboardList },
+  { name: 'Payments', path: '/admin/payments', icon: CreditCard },
   { name: 'Users', path: '/admin/users', icon: Users },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
   { name: 'Settings', path: '/admin/settings', icon: Settings },

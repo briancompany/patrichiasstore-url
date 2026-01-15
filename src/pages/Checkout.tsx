@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, ChevronRight, Loader2, MessageCircle, CreditCard } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -40,8 +40,6 @@ interface LocationState {
   printingRequired: boolean;
 }
 
-type OrderMethod = 'whatsapp' | 'mpesa';
-
 const WHATSAPP_NUMBER = '254726075180';
 
 export default function Checkout() {
@@ -54,7 +52,6 @@ export default function Checkout() {
   const printingRequired = state?.printingRequired || false;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderMethod, setOrderMethod] = useState<OrderMethod | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -77,35 +74,6 @@ export default function Checkout() {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
-  };
-
-  const generateOrderMessage = () => {
-    let message = `🛒 *New Order from Patrichia's Store*\n\n`;
-    message += `👤 *Customer:* ${formData.fullName}\n`;
-    message += `📱 *Phone:* ${formData.phone}\n`;
-    message += `🏫 *School:* ${selectedSchool?.name || 'N/A'}\n`;
-    message += `📍 *Delivery:* ${formData.deliveryType === 'pickup' ? 'Pickup at Store F47, Uhuru Market' : formData.location}\n\n`;
-    
-    message += `📦 *Order Items:*\n`;
-    cart.forEach((item, index) => {
-      message += `${index + 1}. ${item.product.name} - Size ${item.selectedSize} × ${item.quantity} = Ksh ${item.price.toLocaleString()}`;
-      if (item.printingRequired) message += ` (+ Logo)`;
-      message += `\n`;
-    });
-    
-    message += `\n💰 *Total: Ksh ${cartTotal.toLocaleString()}*`;
-    
-    if (formData.notes) {
-      message += `\n\n📝 *Notes:* ${formData.notes}`;
-    }
-    
-    return encodeURIComponent(message);
-  };
-
-  const handleWhatsAppOrder = () => {
-    const message = generateOrderMessage();
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
-    toast.success('Opening WhatsApp to complete your order!');
   };
 
   const saveWebSchool = async (): Promise<string | null> => {
@@ -146,12 +114,6 @@ export default function Checkout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (orderMethod === 'whatsapp') {
-      handleWhatsAppOrder();
-      return;
-    }
-
-    // M-Pesa flow - create order in database
     setIsSubmitting(true);
 
     try {
@@ -207,6 +169,7 @@ export default function Checkout() {
           trackingCode: trackingError ? null : trackingCode,
           total: cartTotal,
           customerName: formData.fullName,
+          customerPhone: formData.phone,
         },
       });
     } catch (error) {
@@ -220,7 +183,6 @@ export default function Checkout() {
   const isFormValid =
     formData.fullName &&
     formData.phone &&
-    orderMethod &&
     (formData.deliveryType === 'pickup' || formData.location);
 
   if (cart.length === 0) {
@@ -334,54 +296,6 @@ export default function Checkout() {
               </CardContent>
             </Card>
 
-            {/* Order Method Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle>How would you like to order?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <RadioGroup
-                  value={orderMethod || ''}
-                  onValueChange={(value) => setOrderMethod(value as OrderMethod)}
-                  className="space-y-3"
-                >
-                  <label
-                    className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      orderMethod === 'whatsapp'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-border hover:border-green-500/50'
-                    }`}
-                  >
-                    <RadioGroupItem value="whatsapp" />
-                    <MessageCircle className="h-6 w-6 text-green-600" />
-                    <div className="flex-1">
-                      <p className="font-medium">Order via WhatsApp</p>
-                      <p className="text-sm text-muted-foreground">
-                        Send order directly to our WhatsApp and pay on delivery
-                      </p>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                      orderMethod === 'mpesa'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <RadioGroupItem value="mpesa" />
-                    <CreditCard className="h-6 w-6 text-primary" />
-                    <div className="flex-1">
-                      <p className="font-medium">Pay with M-Pesa</p>
-                      <p className="text-sm text-muted-foreground">
-                        Pay via Paybill and get order confirmation
-                      </p>
-                    </div>
-                  </label>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
             {/* Delivery Options */}
             <Card>
               <CardHeader>
@@ -442,22 +356,33 @@ export default function Checkout() {
               </CardContent>
             </Card>
 
+            {/* Payment Info */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">M-Pesa Payment</p>
+                    <p className="text-sm text-muted-foreground">
+                      After submitting, you'll be directed to pay via M-Pesa Paybill. 
+                      Paste your confirmation SMS to instantly verify payment.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Submit */}
             <Button
               type="submit"
               disabled={!isFormValid || isSubmitting}
-              className={`w-full ${orderMethod === 'whatsapp' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+              className="w-full"
               size="lg"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Placing Order...
-                </>
-              ) : orderMethod === 'whatsapp' ? (
-                <>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Send Order via WhatsApp
                 </>
               ) : (
                 <>
@@ -466,6 +391,19 @@ export default function Checkout() {
                 </>
               )}
             </Button>
+
+            {/* Help */}
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                className="text-muted-foreground"
+                onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello! I need help with my order.')}`, '_blank')}
+              >
+                <Phone className="h-4 w-4 mr-1" />
+                Need help? Contact us on WhatsApp
+              </Button>
+            </div>
           </form>
         </div>
       </div>
