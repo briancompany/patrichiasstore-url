@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Globe, Database, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { searchSchools, type SchoolResult, type WebSchoolResult, type DBSchoolResult } from '@/lib/api/schoolSearch';
 
 interface ProductSize {
   size: string;
@@ -29,10 +30,12 @@ interface Product {
   schools?: { id: string; name: string; logo_url: string | null } | null;
 }
 
-interface School {
-  id: string;
+interface SelectedSchool {
+  id?: string;
   name: string;
   logo_url: string | null;
+  isFromWeb: boolean;
+  uniformTypes?: string[];
 }
 
 interface CartItem {
@@ -50,8 +53,9 @@ export default function UniformShop() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('search');
   const [searchQuery, setSearchQuery] = useState('');
-  const [schools, setSchools] = useState<School[]>([]);
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [searchResults, setSearchResults] = useState<SchoolResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<SelectedSchool | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -60,25 +64,35 @@ export default function UniformShop() {
   const [quantity, setQuantity] = useState(1);
   const [printingRequired, setPrintingRequired] = useState<boolean | null>(null);
 
-  // Fetch all schools on mount
-  useEffect(() => {
-    fetchSchools();
+  // Debounced search
+  const handleSearch = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await searchSchools(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search error:', error);
+      toast.error('Error searching for schools');
+    } finally {
+      setIsSearching(false);
+    }
   }, []);
 
-  const fetchSchools = async () => {
-    const { data } = await supabase.from('schools').select('*').order('name');
-    setSchools(data || []);
-  };
+  // Debounce the search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 500);
 
-  // Filter schools based on search
-  const filteredSchools = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    return schools.filter((school) =>
-      school.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [schools, searchQuery]);
+    return () => clearTimeout(timer);
+  }, [searchQuery, handleSearch]);
 
-  // Fetch products when school is selected
+  // Fetch products when school is selected from DB
   const fetchProductsForSchool = async (schoolId: string) => {
     setIsLoading(true);
     const { data, error } = await supabase
@@ -100,10 +114,56 @@ export default function UniformShop() {
     setIsLoading(false);
   };
 
-  const handleSchoolSelect = (school: School) => {
-    setSelectedSchool(school);
-    fetchProductsForSchool(school.id);
-    setStep('products');
+  // Create generic products for web school (no products in DB yet)
+  const createGenericProducts = (school: WebSchoolResult): Product[] => {
+    const uniformTypes = school.uniformTypes.length > 0 
+      ? school.uniformTypes 
+      : ['tshirt', 'tracksuit', 'socks'];
+
+    const typeInfo: Record<string, { name: string; prices: ProductSize[] }> = {
+      tshirt: { name: 'T-Shirt', prices: [{ size: 'S', price: 800 }, { size: 'M', price: 850 }, { size: 'L', price: 900 }, { size: 'XL', price: 950 }] },
+      tracksuit: { name: 'Tracksuit', prices: [{ size: 'S', price: 2500 }, { size: 'M', price: 2600 }, { size: 'L', price: 2700 }, { size: 'XL', price: 2800 }] },
+      socks: { name: 'Socks', prices: [{ size: 'One Size', price: 350 }] },
+      shorts: { name: 'Shorts', prices: [{ size: 'S', price: 600 }, { size: 'M', price: 650 }, { size: 'L', price: 700 }] },
+      skirt: { name: 'Skirt', prices: [{ size: 'S', price: 700 }, { size: 'M', price: 750 }, { size: 'L', price: 800 }] },
+      sweater: { name: 'Sweater', prices: [{ size: 'S', price: 1500 }, { size: 'M', price: 1600 }, { size: 'L', price: 1700 }] },
+    };
+
+    return uniformTypes.map((type, index) => ({
+      id: `web-${type}-${index}`,
+      name: `${school.name} ${typeInfo[type]?.name || 'Uniform'}`,
+      type,
+      description: `Official ${typeInfo[type]?.name || 'uniform'} for ${school.name}`,
+      image_url: null,
+      sizes: typeInfo[type]?.prices || [{ size: 'M', price: 1000 }],
+      in_stock: true,
+      school_id: null,
+    }));
+  };
+
+  const handleSchoolSelect = (school: SchoolResult) => {
+    if (school.isFromWeb) {
+      // Web school - create generic products
+      setSelectedSchool({
+        name: school.name,
+        logo_url: school.logo || null,
+        isFromWeb: true,
+        uniformTypes: school.uniformTypes,
+      });
+      setProducts(createGenericProducts(school));
+      setStep('products');
+    } else {
+      // DB school - fetch actual products
+      const dbSchool = school as DBSchoolResult;
+      setSelectedSchool({
+        id: dbSchool.id,
+        name: dbSchool.name,
+        logo_url: dbSchool.logo_url,
+        isFromWeb: false,
+      });
+      fetchProductsForSchool(dbSchool.id);
+      setStep('products');
+    }
   };
 
   const handleAddToCart = () => {
@@ -244,47 +304,79 @@ export default function UniformShop() {
               />
             </div>
 
-            {filteredSchools.length > 0 && (
+            {isSearching && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Searching schools...</span>
+              </div>
+            )}
+
+            {!isSearching && searchResults.length > 0 && (
               <Card>
                 <CardContent className="p-2">
-                  {filteredSchools.map((school) => (
-                    <button
-                      key={school.id}
-                      onClick={() => handleSchoolSelect(school)}
-                      className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
-                    >
-                      {school.logo_url ? (
-                        <img
-                          src={school.logo_url}
-                          alt={school.name}
-                          className="w-12 h-12 rounded-full object-cover bg-muted"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-primary font-bold text-lg">
-                            {school.name.charAt(0)}
-                          </span>
+                  {searchResults.map((school, index) => {
+                    const isWeb = school.isFromWeb;
+                    const webSchool = isWeb ? (school as WebSchoolResult) : null;
+                    const dbSchool = !isWeb ? (school as DBSchoolResult) : null;
+                    
+                    return (
+                      <button
+                        key={isWeb ? `web-${index}` : dbSchool?.id}
+                        onClick={() => handleSchoolSelect(school)}
+                        className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
+                      >
+                        {isWeb ? (
+                          webSchool?.logo ? (
+                            <img
+                              src={webSchool.logo}
+                              alt={school.name}
+                              className="w-12 h-12 rounded-full object-cover bg-muted"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                              <Globe className="h-6 w-6 text-blue-600" />
+                            </div>
+                          )
+                        ) : dbSchool?.logo_url ? (
+                          <img
+                            src={dbSchool.logo_url}
+                            alt={school.name}
+                            className="w-12 h-12 rounded-full object-cover bg-muted"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Database className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-semibold">{school.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {isWeb ? (
+                              <>
+                                <Globe className="h-3 w-3 inline mr-1" />
+                                Found online - {webSchool?.uniformTypes?.join(', ') || 'uniforms available'}
+                              </>
+                            ) : (
+                              'Click to view uniforms'
+                            )}
+                          </p>
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <p className="font-semibold">{school.name}</p>
-                        <p className="text-sm text-muted-foreground">Click to view uniforms</p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </button>
-                  ))}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
 
-            {searchQuery && filteredSchools.length === 0 && (
+            {!isSearching && searchQuery.length >= 3 && searchResults.length === 0 && (
               <Card>
                 <CardContent className="py-8 text-center">
                   <p className="text-muted-foreground">
                     No schools found matching "{searchQuery}"
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Please check the spelling or contact us for assistance
+                    Try a different spelling or contact us for assistance
                   </p>
                 </CardContent>
               </Card>
