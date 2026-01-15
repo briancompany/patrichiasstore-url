@@ -18,8 +18,10 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          logo_url: string | null
           order_id: string
           price_at_purchase: number
+          printing_required: boolean
           product_id: string | null
           product_name: string
           quantity: number
@@ -29,8 +31,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          logo_url?: string | null
           order_id: string
           price_at_purchase: number
+          printing_required?: boolean
           product_id?: string | null
           product_name: string
           quantity?: number
@@ -40,8 +44,10 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          logo_url?: string | null
           order_id?: string
           price_at_purchase?: number
+          printing_required?: boolean
           product_id?: string | null
           product_name?: string
           quantity?: number
@@ -61,6 +67,35 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_tracking: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          tracking_code: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          tracking_code: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          tracking_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_tracking_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -214,7 +249,12 @@ export type Database = {
     }
     Enums: {
       delivery_type: "pickup" | "delivery"
-      order_status: "pending" | "ready" | "completed"
+      order_status:
+        | "pending"
+        | "ready"
+        | "completed"
+        | "awaiting_payment"
+        | "confirmed"
       uniform_type:
         | "tshirt"
         | "tracksuit"
@@ -352,7 +392,13 @@ export const Constants = {
   public: {
     Enums: {
       delivery_type: ["pickup", "delivery"],
-      order_status: ["pending", "ready", "completed"],
+      order_status: [
+        "pending",
+        "ready",
+        "completed",
+        "awaiting_payment",
+        "confirmed",
+      ],
       uniform_type: [
         "tshirt",
         "tracksuit",
