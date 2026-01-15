@@ -3,7 +3,9 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -23,36 +25,69 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Edit, Trash2, School, Upload, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, School, Upload, Loader2, Package, ChevronRight, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface SchoolData {
   id: string;
   name: string;
   logo_url: string | null;
+  productCount?: number;
 }
+
+interface UniformType {
+  type: string;
+  label: string;
+}
+
+const UNIFORM_TYPES: UniformType[] = [
+  { type: 'tshirt', label: 'T-Shirt' },
+  { type: 'tracksuit', label: 'Tracksuit' },
+  { type: 'socks', label: 'Socks' },
+  { type: 'shorts', label: 'Shorts' },
+  { type: 'skirt', label: 'Skirt' },
+  { type: 'sweater', label: 'Sweater' },
+  { type: 'other', label: 'Other Uniform' },
+];
 
 export default function AdminSchools() {
   const [schools, setSchools] = useState<SchoolData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [uniformDialogOpen, setUniformDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingSchool, setEditingSchool] = useState<SchoolData | null>(null);
+  const [selectedSchoolForUniforms, setSelectedSchoolForUniforms] = useState<SchoolData | null>(null);
   const [formData, setFormData] = useState({ name: '', logo_url: '' });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [selectedUniformTypes, setSelectedUniformTypes] = useState<string[]>([]);
+  const [existingUniformTypes, setExistingUniformTypes] = useState<string[]>([]);
 
   useEffect(() => {
     fetchSchools();
   }, []);
 
   const fetchSchools = async () => {
-    const { data, error } = await supabase.from('schools').select('*').order('name');
+    const { data, error } = await supabase
+      .from('schools')
+      .select('*')
+      .order('name');
 
     if (error) {
       toast.error('Error fetching schools');
     } else {
-      setSchools(data || []);
+      // Fetch product counts for each school
+      const schoolsWithCounts = await Promise.all(
+        (data || []).map(async (school) => {
+          const { count } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('school_id', school.id);
+          return { ...school, productCount: count || 0 };
+        })
+      );
+      setSchools(schoolsWithCounts);
     }
     setIsLoading(false);
   };
@@ -114,15 +149,14 @@ export default function AdminSchools() {
 
         if (error) throw error;
         toast.success('School updated');
-        setSchools(schools.map((s) => (s.id === editingSchool.id ? { ...s, ...schoolData } : s)));
       } else {
         const { data, error } = await supabase.from('schools').insert(schoolData).select().single();
 
         if (error) throw error;
         toast.success('School added');
-        setSchools([...schools, data]);
       }
 
+      await fetchSchools();
       resetForm();
     } catch (error) {
       console.error('Error saving school:', error);
@@ -150,6 +184,80 @@ export default function AdminSchools() {
     setDialogOpen(true);
   };
 
+  const openUniformDialog = async (school: SchoolData) => {
+    setSelectedSchoolForUniforms(school);
+    
+    // Fetch existing uniform types for this school
+    const { data: products } = await supabase
+      .from('products')
+      .select('type')
+      .eq('school_id', school.id);
+
+    const existingTypes = [...new Set((products || []).map(p => p.type))];
+    setExistingUniformTypes(existingTypes);
+    setSelectedUniformTypes([]);
+    setUniformDialogOpen(true);
+  };
+
+  const handleAddUniforms = async () => {
+    if (!selectedSchoolForUniforms || selectedUniformTypes.length === 0) return;
+
+    setIsSaving(true);
+    try {
+      // Fetch pricing chart for default prices
+      const { data: pricingData } = await supabase
+        .from('pricing_chart')
+        .select('*');
+
+      const pricingMap: Record<string, { size: string; price: number }[]> = {};
+      (pricingData || []).forEach((p: { uniform_type: string; size: string; price: number }) => {
+        if (!pricingMap[p.uniform_type]) pricingMap[p.uniform_type] = [];
+        pricingMap[p.uniform_type].push({ size: p.size, price: p.price });
+      });
+
+      const defaultSizes = [
+        { size: 'S', price: 1000 },
+        { size: 'M', price: 1000 },
+        { size: 'L', price: 1000 },
+        { size: 'XL', price: 1000 },
+      ];
+
+      const typeNames: Record<string, string> = {
+        tshirt: 'T-Shirt',
+        tracksuit: 'Tracksuit',
+        socks: 'Socks',
+        shorts: 'Shorts',
+        skirt: 'Skirt',
+        sweater: 'Sweater',
+        other: 'Uniform',
+      };
+
+      type UniformTypeEnum = 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'other';
+
+      const productsToInsert = selectedUniformTypes.map((type) => ({
+        name: `${selectedSchoolForUniforms.name} ${typeNames[type] || 'Uniform'}`,
+        type: type as UniformTypeEnum,
+        school_id: selectedSchoolForUniforms.id,
+        sizes: pricingMap[type] || defaultSizes,
+        in_stock: true,
+        description: `Official ${typeNames[type] || 'uniform'} for ${selectedSchoolForUniforms.name}`,
+      }));
+
+      const { error } = await supabase.from('products').insert(productsToInsert);
+
+      if (error) throw error;
+
+      toast.success(`Added ${selectedUniformTypes.length} uniform types`);
+      await fetchSchools();
+      setUniformDialogOpen(false);
+    } catch (error) {
+      console.error('Error adding uniforms:', error);
+      toast.error('Error adding uniforms');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingSchool(null);
     setFormData({ name: '', logo_url: '' });
@@ -174,7 +282,7 @@ export default function AdminSchools() {
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Schools</h1>
-            <p className="text-muted-foreground">Manage schools and their logos</p>
+            <p className="text-muted-foreground">Manage schools, logos and uniforms</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -239,6 +347,59 @@ export default function AdminSchools() {
           </Dialog>
         </div>
 
+        {/* Add Uniforms Dialog */}
+        <Dialog open={uniformDialogOpen} onOpenChange={setUniformDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Uniforms for {selectedSchoolForUniforms?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Select the uniform types to add. Prices will be taken from your pricing chart.
+              </p>
+              <div className="space-y-3">
+                {UNIFORM_TYPES.map((uniform) => {
+                  const isExisting = existingUniformTypes.includes(uniform.type);
+                  return (
+                    <div key={uniform.type} className="flex items-center gap-3">
+                      <Checkbox
+                        id={uniform.type}
+                        checked={selectedUniformTypes.includes(uniform.type)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedUniformTypes([...selectedUniformTypes, uniform.type]);
+                          } else {
+                            setSelectedUniformTypes(selectedUniformTypes.filter(t => t !== uniform.type));
+                          }
+                        }}
+                        disabled={isExisting}
+                      />
+                      <Label htmlFor={uniform.type} className={isExisting ? 'text-muted-foreground' : ''}>
+                        {uniform.label}
+                        {isExisting && (
+                          <Badge variant="secondary" className="ml-2">Already added</Badge>
+                        )}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setUniformDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleAddUniforms} 
+                  disabled={isSaving || selectedUniformTypes.length === 0}
+                >
+                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add {selectedUniformTypes.length} Uniform{selectedUniformTypes.length !== 1 ? 's' : ''}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {schools.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -254,9 +415,9 @@ export default function AdminSchools() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {schools.map((school) => (
-              <Card key={school.id}>
+              <Card key={school.id} className="group hover:shadow-lg transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 mb-4">
                     <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
                       {school.logo_url ? (
                         <img
@@ -268,49 +429,82 @@ export default function AdminSchools() {
                         <School className="h-8 w-8 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{school.name}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{school.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          <Package className="h-3 w-3 mr-1" />
+                          {school.productCount} uniforms
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(school)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete School</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{school.name}"? Products linked to
-                              this school will be unlinked.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteSchool(school.id)}
-                              className="bg-destructive hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => openUniformDialog(school)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Uniforms
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(school)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete School</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{school.name}"? Products linked to
+                            this school will be unlinked.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteSchool(school.id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        {/* Info Card */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Globe className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h4 className="font-semibold">Auto-Save from Web Search</h4>
+                <p className="text-sm text-muted-foreground mt-1">
+                  When customers order from a school found via web search, that school is automatically saved here for future orders.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

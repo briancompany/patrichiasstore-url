@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MapPin, Phone, Clock, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 
-const WHATSAPP_NUMBER = '254700000000';
+const WHATSAPP_NUMBER = '254726075180';
 
 const contactInfo = [
   {
@@ -17,7 +17,7 @@ const contactInfo = [
   {
     icon: Phone,
     title: 'Phone',
-    details: ['+254 700 000 000'],
+    details: ['+254 726 075 180'],
   },
   {
     icon: Clock,

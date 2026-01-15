@@ -49,7 +49,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="h-5 w-5 flex-shrink-0" />
-                <span className="text-primary-foreground/80">+254 700 000 000</span>
+                <span className="text-primary-foreground/80">+254 726 075 180</span>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="h-5 w-5 flex-shrink-0" />
