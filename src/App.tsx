@@ -27,6 +27,7 @@ import AdminDiscounts from "./pages/admin/Discounts";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminSettings from "./pages/admin/Settings";
 import PricingChart from "./pages/admin/PricingChart";
+import AdminPayments from "./pages/admin/Payments";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/pricing" element={<PricingChart />} />
+            <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, MessageSquare, ClipboardPaste, Download, AlertCircle, FileText } from 'lucide-react';
+import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,6 +14,7 @@ interface LocationState {
   trackingCode: string | null;
   total: number;
   customerName: string;
+  customerPhone?: string;
 }
 
 // Parse M-Pesa confirmation message
@@ -39,11 +40,17 @@ export default function Payment() {
   const [mpesaMessage, setMpesaMessage] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'whatsapp' | null>(null);
+  const [orderDetails, setOrderDetails] = useState<LocationState | null>(null);
 
   const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
   const WHATSAPP_NUMBER = '254726075180';
+
+  useEffect(() => {
+    if (state) {
+      setOrderDetails(state);
+    }
+  }, [state]);
 
   const copyToClipboard = async (text: string, type: 'paybill' | 'account') => {
     try {
@@ -77,7 +84,7 @@ export default function Payment() {
       return;
     }
 
-    if (!state) return;
+    if (!orderDetails) return;
 
     setIsVerifying(true);
 
@@ -96,8 +103,8 @@ export default function Payment() {
       return;
     }
 
-    if (parsed.amount < state.total) {
-      toast.error(`Amount Ksh ${parsed.amount} is less than required Ksh ${state.total}`);
+    if (parsed.amount < orderDetails.total) {
+      toast.error(`Amount Ksh ${parsed.amount.toLocaleString()} is less than required Ksh ${orderDetails.total.toLocaleString()}`);
       setIsVerifying(false);
       return;
     }
@@ -108,20 +115,36 @@ export default function Payment() {
       return;
     }
 
-    // Update order status
     try {
-      const { error } = await supabase
+      // Update order status
+      const { error: orderError } = await supabase
         .from('orders')
         .update({ 
           status: 'confirmed',
-          notes: `M-Pesa Confirmation: ${parsed.confirmCode}`
+          notes: `M-Pesa Code: ${parsed.confirmCode}`
         })
-        .eq('id', state.orderId);
+        .eq('id', orderDetails.orderId);
 
-      if (error) throw error;
+      if (orderError) throw orderError;
+
+      // Record payment for admin
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          order_id: orderDetails.orderId,
+          amount: parsed.amount,
+          mpesa_code: parsed.confirmCode,
+          customer_name: orderDetails.customerName,
+          customer_phone: orderDetails.customerPhone || null,
+        });
+
+      if (paymentError) {
+        console.error('Payment record error:', paymentError);
+        // Don't fail the verification if payment record fails
+      }
 
       setPaymentVerified(true);
-      toast.success('Payment verified successfully! You can now download your receipt.');
+      toast.success('Payment verified successfully! Download your receipt below.');
     } catch (error) {
       console.error('Error updating order:', error);
       toast.error('Failed to verify payment. Please contact support.');
@@ -131,17 +154,17 @@ export default function Payment() {
   };
 
   const generateReceipt = () => {
-    if (!state) return;
+    if (!orderDetails) return;
 
     const receiptContent = `
 ╔══════════════════════════════════════════╗
 ║         PATRICHIA'S STORE                ║
 ║           OFFICIAL RECEIPT               ║
 ╠══════════════════════════════════════════╣
-║ Customer: ${state.customerName.padEnd(28)}║
-║ Order ID: ${state.orderId.slice(0, 8).padEnd(28)}║
-║ Tracking: ${(state.trackingCode || 'N/A').padEnd(28)}║
-║ Amount: Ksh ${state.total.toLocaleString().padEnd(25)}║
+║ Customer: ${orderDetails.customerName.padEnd(28)}║
+║ Order ID: ${orderDetails.orderId.slice(0, 8).padEnd(28)}║
+║ Tracking: ${(orderDetails.trackingCode || 'N/A').padEnd(28)}║
+║ Amount: Ksh ${orderDetails.total.toLocaleString().padEnd(25)}║
 ║ Status: PAID                             ║
 ║ Date: ${new Date().toLocaleDateString().padEnd(30)}║
 ╠══════════════════════════════════════════╣
@@ -154,7 +177,7 @@ export default function Payment() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `receipt-${state.trackingCode || state.orderId.slice(0, 8)}.txt`;
+    a.download = `receipt-${orderDetails.trackingCode || orderDetails.orderId.slice(0, 8)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -162,33 +185,16 @@ export default function Payment() {
     toast.success('Receipt downloaded!');
   };
 
-  const handleWhatsAppPayment = () => {
-    if (!state) return;
-
-    const message = encodeURIComponent(
-      `Hello Patrichia's Store!\n\n` +
-      `I would like to pay for my order:\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `👤 Name: ${state.customerName}\n` +
-      `🔖 Tracking: ${state.trackingCode || 'N/A'}\n` +
-      `💰 Amount: Ksh ${state.total.toLocaleString()}\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `Please guide me on how to complete payment.`
-    );
-
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
-  };
-
   const handleSendComplaint = () => {
-    if (!state) return;
+    if (!orderDetails) return;
 
     const message = encodeURIComponent(
       `Hello Patrichia's Store!\n\n` +
       `I have a complaint regarding my order:\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `👤 Name: ${state.customerName}\n` +
-      `🔖 Tracking: ${state.trackingCode || 'N/A'}\n` +
-      `💰 Amount: Ksh ${state.total.toLocaleString()}\n` +
+      `👤 Name: ${orderDetails.customerName}\n` +
+      `🔖 Tracking: ${orderDetails.trackingCode || 'N/A'}\n` +
+      `💰 Amount: Ksh ${orderDetails.total.toLocaleString()}\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `My complaint:\n[Please describe your issue here]\n\n` +
       `I have attached my receipt for reference.`
@@ -197,7 +203,7 @@ export default function Payment() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
-  if (!state) {
+  if (!orderDetails) {
     return (
       <Layout>
         <div className="container-shop py-8">
@@ -222,13 +228,21 @@ export default function Payment() {
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Success Header */}
           <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-              <Check className="h-8 w-8 text-green-600" />
+            <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${paymentVerified ? 'bg-green-100' : 'bg-primary/10'}`}>
+              {paymentVerified ? (
+                <Check className="h-8 w-8 text-green-600" />
+              ) : (
+                <CreditCard className="h-8 w-8 text-primary" />
+              )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Order Placed Successfully!</h1>
+              <h1 className="text-2xl font-bold text-foreground">
+                {paymentVerified ? 'Payment Confirmed!' : 'Complete Your Payment'}
+              </h1>
               <p className="text-muted-foreground">
-                Hi {state.customerName}, please complete payment to confirm your order
+                {paymentVerified 
+                  ? 'Thank you! Your order has been confirmed.' 
+                  : `Hi ${orderDetails.customerName}, pay via M-Pesa and paste the confirmation message.`}
               </p>
             </div>
           </div>
@@ -240,7 +254,7 @@ export default function Payment() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Amount</p>
                   <p className="text-2xl font-bold text-primary">
-                    Ksh {state.total.toLocaleString()}
+                    Ksh {orderDetails.total.toLocaleString()}
                   </p>
                 </div>
                 <Badge 
@@ -260,59 +274,19 @@ export default function Payment() {
                   )}
                 </Badge>
               </div>
-              {state.trackingCode && (
+              {orderDetails.trackingCode && (
                 <div className="mt-3 pt-3 border-t">
                   <p className="text-sm text-muted-foreground">Order Tracking Code:</p>
-                  <p className="font-mono font-bold text-lg">{state.trackingCode}</p>
+                  <p className="font-mono font-bold text-lg">{orderDetails.trackingCode}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Payment Method Selection */}
-          {!paymentVerified && !paymentMethod && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Choose Payment Method
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  onClick={() => setPaymentMethod('mpesa')}
-                  className="w-full h-auto py-4 flex items-center gap-4"
-                  variant="outline"
-                >
-                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold">Pay via M-Pesa</p>
-                    <p className="text-sm text-muted-foreground">Paybill & verify with SMS</p>
-                  </div>
-                </Button>
-
-                <Button
-                  onClick={handleWhatsAppPayment}
-                  className="w-full h-auto py-4 flex items-center gap-4"
-                  variant="outline"
-                >
-                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                    <MessageSquare className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold">Pay via WhatsApp</p>
-                    <p className="text-sm text-muted-foreground">Get guidance from our team</p>
-                  </div>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* M-Pesa Payment Details */}
-          {!paymentVerified && paymentMethod === 'mpesa' && (
+          {/* M-Pesa Payment Flow - Show when not verified */}
+          {!paymentVerified && (
             <>
+              {/* Payment Details */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -370,7 +344,7 @@ export default function Payment() {
                     <div>
                       <p className="text-sm text-muted-foreground">Amount to Pay</p>
                       <p className="text-3xl font-bold text-primary font-mono">
-                        Ksh {state.total.toLocaleString()}
+                        Ksh {orderDetails.total.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -384,7 +358,7 @@ export default function Payment() {
                         'Select Lipa na M-Pesa → Pay Bill',
                         `Enter Business Number: ${PAYBILL_NUMBER}`,
                         `Enter Account Number: ${ACCOUNT_NUMBER}`,
-                        `Enter Amount: Ksh ${state.total.toLocaleString()}`,
+                        `Enter Amount: Ksh ${orderDetails.total.toLocaleString()}`,
                         'Enter your M-Pesa PIN and confirm',
                       ].map((step, index) => (
                         <div key={index} className="flex items-start gap-3">
@@ -416,16 +390,14 @@ export default function Payment() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={handlePasteMessage}
-                        className="flex items-center gap-2"
-                      >
-                        <ClipboardPaste className="h-4 w-4" />
-                        Paste Message
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handlePasteMessage}
+                      className="flex items-center gap-2"
+                    >
+                      <ClipboardPaste className="h-4 w-4" />
+                      Paste Message
+                    </Button>
                     <Textarea
                       placeholder="Paste your M-Pesa confirmation SMS here... e.g., 'XYZ123ABC Confirmed. Ksh1,000.00 sent to...'"
                       value={mpesaMessage}
@@ -438,16 +410,9 @@ export default function Payment() {
                     onClick={verifyMpesaPayment}
                     disabled={isVerifying || !mpesaMessage.trim()}
                     className="w-full"
+                    size="lg"
                   >
                     {isVerifying ? 'Verifying...' : 'Verify Payment'}
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    onClick={() => setPaymentMethod(null)}
-                    className="w-full"
-                  >
-                    ← Choose Different Payment Method
                   </Button>
                 </CardContent>
               </Card>
@@ -471,6 +436,7 @@ export default function Payment() {
                 <Button
                   onClick={generateReceipt}
                   className="w-full bg-green-600 hover:bg-green-700"
+                  size="lg"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt
@@ -486,57 +452,8 @@ export default function Payment() {
                     className="w-full border-green-600 text-green-700 hover:bg-green-100"
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Send Complaint with Receipt
+                    Send Complaint via WhatsApp
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* What Happens Next */}
-          {!paymentVerified && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  What Happens Next?
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary">1</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Complete your payment</p>
-                    <p className="text-sm text-muted-foreground">
-                      Choose M-Pesa or WhatsApp above
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary">2</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Verify payment instantly</p>
-                    <p className="text-sm text-muted-foreground">
-                      Paste your M-Pesa SMS to auto-verify
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-primary">3</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Download your receipt</p>
-                    <p className="text-sm text-muted-foreground">
-                      Keep it for tracking and complaints
-                    </p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -563,9 +480,9 @@ export default function Payment() {
           </Card>
 
           {/* Track Order Button */}
-          {state.trackingCode && (
+          {orderDetails.trackingCode && (
             <Button variant="outline" asChild className="w-full">
-              <Link to={`/track-order?code=${state.trackingCode}`}>
+              <Link to={`/track-order?code=${orderDetails.trackingCode}`}>
                 Track Your Order
               </Link>
             </Button>
