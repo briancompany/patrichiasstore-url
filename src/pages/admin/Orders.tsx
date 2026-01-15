@@ -71,13 +71,19 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
-  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed') => {
+  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed' | 'confirmed') => {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
 
     if (error) {
       toast.error('Error updating order');
     } else {
-      toast.success(`Order marked as ${status}`);
+      const statusMessages: Record<string, string> = {
+        pending: 'Payment verified - order is pending',
+        ready: 'Order is ready',
+        completed: 'Order completed',
+        confirmed: 'Payment confirmed',
+      };
+      toast.success(statusMessages[status] || `Order marked as ${status}`);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status } : o)));
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status });
@@ -95,14 +101,34 @@ export default function AdminOrders() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'awaiting_payment':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'ready':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'confirmed':
       case 'completed':
         return 'bg-green-100 text-green-800 border-green-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'awaiting_payment':
+        return 'Awaiting Payment';
+      case 'pending':
+        return 'Pending';
+      case 'ready':
+        return 'Ready';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'completed':
+        return 'Completed';
+      default:
+        return status;
     }
   };
 
@@ -194,8 +220,10 @@ export default function AdminOrders() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
@@ -223,7 +251,7 @@ export default function AdminOrders() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-lg">{order.customer_name}</h3>
-                        <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
+                        <Badge className={getStatusColor(order.status)}>{getStatusLabel(order.status)}</Badge>
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -346,6 +374,24 @@ export default function AdminOrders() {
                         <Printer className="h-4 w-4" />
                       </Button>
 
+                      {order.status === 'awaiting_payment' && (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                        >
+                          Confirm Payment
+                        </Button>
+                      )}
+                      {order.status === 'confirmed' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updateOrderStatus(order.id, 'ready')}
+                        >
+                          Mark Ready
+                        </Button>
+                      )}
                       {order.status === 'pending' && (
                         <Button
                           size="sm"

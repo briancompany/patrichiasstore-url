@@ -1,13 +1,27 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
-import { products, schools, uniformTypes } from '@/data/products';
+import { products, uniformTypes } from '@/data/products';
 import { Product, CartItem } from '@/types/product';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
+import { ShoppingCart, X, Search, ChevronRight } from 'lucide-react';
+
+interface DBSchool {
+  id: string;
+  name: string;
+  logo_url: string | null;
+}
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -16,6 +30,29 @@ export default function Shop() {
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('type') || 'all');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [dbSchools, setDbSchools] = useState<DBSchool[]>([]);
+  const [showSchoolSearch, setShowSchoolSearch] = useState(false);
+
+  // Fetch schools from database
+  useEffect(() => {
+    const fetchSchools = async () => {
+      const { data } = await supabase.from('schools').select('id, name, logo_url').order('name');
+      setDbSchools(data || []);
+    };
+    fetchSchools();
+  }, []);
+
+  // Filter database schools based on search
+  const filteredDbSchools = useMemo(() => {
+    if (!schoolSearch.trim()) return [];
+    return dbSchools.filter((school) =>
+      school.name.toLowerCase().includes(schoolSearch.toLowerCase())
+    );
+  }, [dbSchools, schoolSearch]);
+
+  // Get unique schools from static products
+  const staticSchools = useMemo(() => [...new Set(products.map((p) => p.school))], []);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -51,6 +88,12 @@ export default function Shop() {
     navigate('/order', { state: { cart } });
   };
 
+  const handleGoToUniformShop = (schoolId?: string) => {
+    navigate('/uniform-shop');
+    setShowSchoolSearch(false);
+    setSchoolSearch('');
+  };
+
   const typeLabels: Record<string, string> = {
     all: 'All Types',
     tshirt: 'T-Shirts',
@@ -70,6 +113,88 @@ export default function Shop() {
           <p className="text-muted-foreground">Browse our collection and add items to your order</p>
         </div>
 
+        {/* Search for School CTA */}
+        <Card className="mb-6 bg-primary/5 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Looking for your school's uniforms?</p>
+                <p className="text-sm text-muted-foreground">
+                  Search by school name to find all available uniforms with logo printing option
+                </p>
+              </div>
+              <Button onClick={() => setShowSchoolSearch(!showSchoolSearch)} className="gap-2">
+                <Search className="h-4 w-4" />
+                Search School
+              </Button>
+            </div>
+
+            {/* School Search Input */}
+            {showSchoolSearch && (
+              <div className="mt-4 space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={schoolSearch}
+                    onChange={(e) => setSchoolSearch(e.target.value)}
+                    placeholder="Type your school name..."
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
+
+                {filteredDbSchools.length > 0 && (
+                  <div className="bg-background rounded-lg border divide-y">
+                    {filteredDbSchools.map((school) => (
+                      <button
+                        key={school.id}
+                        onClick={() => handleGoToUniformShop(school.id)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
+                      >
+                        {school.logo_url ? (
+                          <img
+                            src={school.logo_url}
+                            alt={school.name}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-primary font-bold">
+                              {school.name.charAt(0)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium">{school.name}</p>
+                          <p className="text-xs text-muted-foreground">Click to view uniforms</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {schoolSearch && filteredDbSchools.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No schools found. Try a different search or{' '}
+                    <button
+                      onClick={() => handleGoToUniformShop()}
+                      className="text-primary underline"
+                    >
+                      browse all products
+                    </button>
+                  </p>
+                )}
+
+                <Button onClick={() => handleGoToUniformShop()} variant="outline" className="w-full">
+                  Go to Advanced Uniform Shop
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <Select value={selectedSchool} onValueChange={setSelectedSchool}>
@@ -78,7 +203,7 @@ export default function Shop() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Schools</SelectItem>
-              {schools.map((school) => (
+              {staticSchools.map((school) => (
                 <SelectItem key={school} value={school}>
                   {school}
                 </SelectItem>
