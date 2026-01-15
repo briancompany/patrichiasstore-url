@@ -63,6 +63,30 @@ export default function UniformShop() {
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [printingRequired, setPrintingRequired] = useState<boolean | null>(null);
+  const [pricingChart, setPricingChart] = useState<Record<string, ProductSize[]>>({});
+
+  // Fetch pricing chart on mount
+  useEffect(() => {
+    const fetchPricingChart = async () => {
+      const { data, error } = await supabase
+        .from('pricing_chart')
+        .select('*')
+        .order('uniform_type')
+        .order('size');
+
+      if (!error && data) {
+        const grouped: Record<string, ProductSize[]> = {};
+        data.forEach((item: { uniform_type: string; size: string; price: number }) => {
+          if (!grouped[item.uniform_type]) {
+            grouped[item.uniform_type] = [];
+          }
+          grouped[item.uniform_type].push({ size: item.size, price: item.price });
+        });
+        setPricingChart(grouped);
+      }
+    };
+    fetchPricingChart();
+  }, []);
 
   // Debounced search
   const handleSearch = useCallback(async (query: string) => {
@@ -120,7 +144,8 @@ export default function UniformShop() {
       ? school.uniformTypes 
       : ['tshirt', 'tracksuit', 'socks'];
 
-    const typeInfo: Record<string, { name: string; prices: ProductSize[] }> = {
+    // Default prices if no pricing chart is configured
+    const defaultPrices: Record<string, { name: string; prices: ProductSize[] }> = {
       tshirt: { name: 'T-Shirt', prices: [{ size: 'S', price: 800 }, { size: 'M', price: 850 }, { size: 'L', price: 900 }, { size: 'XL', price: 950 }] },
       tracksuit: { name: 'Tracksuit', prices: [{ size: 'S', price: 2500 }, { size: 'M', price: 2600 }, { size: 'L', price: 2700 }, { size: 'XL', price: 2800 }] },
       socks: { name: 'Socks', prices: [{ size: 'One Size', price: 350 }] },
@@ -129,16 +154,33 @@ export default function UniformShop() {
       sweater: { name: 'Sweater', prices: [{ size: 'S', price: 1500 }, { size: 'M', price: 1600 }, { size: 'L', price: 1700 }] },
     };
 
-    return uniformTypes.map((type, index) => ({
-      id: `web-${type}-${index}`,
-      name: `${school.name} ${typeInfo[type]?.name || 'Uniform'}`,
-      type,
-      description: `Official ${typeInfo[type]?.name || 'uniform'} for ${school.name}`,
-      image_url: null,
-      sizes: typeInfo[type]?.prices || [{ size: 'M', price: 1000 }],
-      in_stock: true,
-      school_id: null,
-    }));
+    const typeNames: Record<string, string> = {
+      tshirt: 'T-Shirt',
+      tracksuit: 'Tracksuit',
+      socks: 'Socks',
+      shorts: 'Shorts',
+      skirt: 'Skirt',
+      sweater: 'Sweater',
+      other: 'Uniform',
+    };
+
+    return uniformTypes.map((type, index) => {
+      // Use pricing chart if available, otherwise use defaults
+      const prices = pricingChart[type] && pricingChart[type].length > 0
+        ? pricingChart[type]
+        : defaultPrices[type]?.prices || [{ size: 'M', price: 1000 }];
+
+      return {
+        id: `web-${type}-${index}`,
+        name: `${school.name} ${typeNames[type] || 'Uniform'}`,
+        type,
+        description: `Official ${typeNames[type] || 'uniform'} for ${school.name}`,
+        image_url: null,
+        sizes: prices,
+        in_stock: true,
+        school_id: null,
+      };
+    });
   };
 
   const handleSchoolSelect = (school: SchoolResult) => {
@@ -260,6 +302,11 @@ export default function UniformShop() {
     return Math.min(...sizes.map((s) => s.price));
   };
 
+  const formatUniformTypes = (types: string[] | undefined): string => {
+    if (!types || types.length === 0) return 'Uniforms available';
+    return types.map(t => typeLabels[t] || t).join(', ');
+  };
+
   return (
     <Layout>
       <div className="container-shop py-8">
@@ -354,7 +401,7 @@ export default function UniformShop() {
                             {isWeb ? (
                               <>
                                 <Globe className="h-3 w-3 inline mr-1" />
-                                Found online - {webSchool?.uniformTypes?.join(', ') || 'uniforms available'}
+                                Found online - {formatUniformTypes(webSchool?.uniformTypes)}
                               </>
                             ) : (
                               'Click to view uniforms'
