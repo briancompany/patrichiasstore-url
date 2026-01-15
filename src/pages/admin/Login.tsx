@@ -52,7 +52,7 @@ export default function AdminLogin() {
       return;
     }
 
-    toast.success('Account created! You can now log in. Ask the store owner to grant you admin access.');
+    toast.success('Account created! You can now log in.');
     setIsLoading(false);
   };
 
@@ -155,7 +155,7 @@ export default function AdminLogin() {
                     Create Account
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    After signing up, the store owner will need to grant you admin access.
+                    Your account will be reviewed for admin access.
                   </p>
                 </form>
               </TabsContent>

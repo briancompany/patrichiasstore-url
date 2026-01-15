@@ -63,6 +63,8 @@ export default function AdminSchools() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedUniformTypes, setSelectedUniformTypes] = useState<string[]>([]);
   const [existingUniformTypes, setExistingUniformTypes] = useState<string[]>([]);
+  const [uniformImages, setUniformImages] = useState<Record<string, File>>({});
+  const [uniformImagePreviews, setUniformImagePreviews] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchSchools();
@@ -196,7 +198,41 @@ export default function AdminSchools() {
     const existingTypes = [...new Set((products || []).map(p => p.type))];
     setExistingUniformTypes(existingTypes);
     setSelectedUniformTypes([]);
+    setUniformImages({});
+    setUniformImagePreviews({});
     setUniformDialogOpen(true);
+  };
+
+  const handleUniformImageChange = (type: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUniformImages(prev => ({ ...prev, [type]: file }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUniformImagePreviews(prev => ({ ...prev, [type]: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadUniformImage = async (type: string): Promise<string | null> => {
+    const file = uniformImages[type];
+    if (!file) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${type}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error('Error uploading uniform image:', uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+    return urlData.publicUrl;
   };
 
   const handleAddUniforms = async () => {
@@ -204,6 +240,14 @@ export default function AdminSchools() {
 
     setIsSaving(true);
     try {
+      // Upload all uniform images first
+      const imageUrls: Record<string, string | null> = {};
+      for (const type of selectedUniformTypes) {
+        if (uniformImages[type]) {
+          imageUrls[type] = await uploadUniformImage(type);
+        }
+      }
+
       // Fetch pricing chart for default prices
       const { data: pricingData } = await supabase
         .from('pricing_chart')
@@ -241,6 +285,7 @@ export default function AdminSchools() {
         sizes: pricingMap[type] || defaultSizes,
         in_stock: true,
         description: `Official ${typeNames[type] || 'uniform'} for ${selectedSchoolForUniforms.name}`,
+        image_url: imageUrls[type] || null,
       }));
 
       const { error } = await supabase.from('products').insert(productsToInsert);
@@ -250,6 +295,8 @@ export default function AdminSchools() {
       toast.success(`Added ${selectedUniformTypes.length} uniform types`);
       await fetchSchools();
       setUniformDialogOpen(false);
+      setUniformImages({});
+      setUniformImagePreviews({});
     } catch (error) {
       console.error('Error adding uniforms:', error);
       toast.error('Error adding uniforms');
@@ -349,37 +396,75 @@ export default function AdminSchools() {
 
         {/* Add Uniforms Dialog */}
         <Dialog open={uniformDialogOpen} onOpenChange={setUniformDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Uniforms for {selectedSchoolForUniforms?.name}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Select the uniform types to add. Prices will be taken from your pricing chart.
+                Select uniform types and optionally upload images. Prices from your pricing chart.
               </p>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {UNIFORM_TYPES.map((uniform) => {
                   const isExisting = existingUniformTypes.includes(uniform.type);
+                  const isSelected = selectedUniformTypes.includes(uniform.type);
                   return (
-                    <div key={uniform.type} className="flex items-center gap-3">
-                      <Checkbox
-                        id={uniform.type}
-                        checked={selectedUniformTypes.includes(uniform.type)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedUniformTypes([...selectedUniformTypes, uniform.type]);
-                          } else {
-                            setSelectedUniformTypes(selectedUniformTypes.filter(t => t !== uniform.type));
-                          }
-                        }}
-                        disabled={isExisting}
-                      />
-                      <Label htmlFor={uniform.type} className={isExisting ? 'text-muted-foreground' : ''}>
-                        {uniform.label}
-                        {isExisting && (
-                          <Badge variant="secondary" className="ml-2">Already added</Badge>
-                        )}
-                      </Label>
+                    <div key={uniform.type} className={`p-3 rounded-lg border ${isSelected ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id={uniform.type}
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedUniformTypes([...selectedUniformTypes, uniform.type]);
+                            } else {
+                              setSelectedUniformTypes(selectedUniformTypes.filter(t => t !== uniform.type));
+                              // Remove image if deselected
+                              const newImages = { ...uniformImages };
+                              delete newImages[uniform.type];
+                              setUniformImages(newImages);
+                              const newPreviews = { ...uniformImagePreviews };
+                              delete newPreviews[uniform.type];
+                              setUniformImagePreviews(newPreviews);
+                            }
+                          }}
+                          disabled={isExisting}
+                        />
+                        <Label htmlFor={uniform.type} className={`flex-1 ${isExisting ? 'text-muted-foreground' : ''}`}>
+                          {uniform.label}
+                          {isExisting && (
+                            <Badge variant="secondary" className="ml-2">Already added</Badge>
+                          )}
+                        </Label>
+                      </div>
+                      
+                      {/* Image Upload for selected types */}
+                      {isSelected && !isExisting && (
+                        <div className="mt-3 ml-7">
+                          <div className="flex items-center gap-3">
+                            {uniformImagePreviews[uniform.type] ? (
+                              <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                                <img src={uniformImagePreviews[uniform.type]} alt={uniform.label} className="w-full h-full object-cover" />
+                              </div>
+                            ) : null}
+                            <div className="flex-1">
+                              <Label htmlFor={`img-${uniform.type}`} className="cursor-pointer">
+                                <div className="border-2 border-dashed border-border rounded-lg p-2 text-center hover:border-primary/50 transition-colors text-xs">
+                                  <Upload className="h-4 w-4 mx-auto text-muted-foreground mb-1" />
+                                  {uniformImagePreviews[uniform.type] ? 'Change image' : 'Upload image (optional)'}
+                                </div>
+                              </Label>
+                              <Input
+                                id={`img-${uniform.type}`}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleUniformImageChange(uniform.type, e)}
+                                className="hidden"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -499,13 +499,35 @@ export default function UniformShop() {
                         </Button>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {currentProduct.image_url && (
+                        {currentProduct.image_url ? (
                           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
                             <img
                               src={currentProduct.image_url}
                               alt={currentProduct.name}
                               className="w-full h-full object-cover"
                             />
+                          </div>
+                        ) : (
+                          <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center">
+                            <div className="text-5xl mb-2">
+                              {currentProduct.type === 'tshirt' && '👕'}
+                              {currentProduct.type === 'tracksuit' && '🥋'}
+                              {currentProduct.type === 'socks' && '🧦'}
+                              {currentProduct.type === 'shorts' && '🩳'}
+                              {currentProduct.type === 'skirt' && '👗'}
+                              {currentProduct.type === 'sweater' && '🧥'}
+                              {currentProduct.type === 'other' && '👔'}
+                            </div>
+                            <span className="text-sm font-medium text-primary">
+                              {typeLabels[currentProduct.type]}
+                            </span>
+                            {selectedSchool?.logo_url && (
+                              <img 
+                                src={selectedSchool.logo_url} 
+                                alt="School logo" 
+                                className="w-16 h-16 rounded-full mt-3 border-2 border-primary/20 object-cover"
+                              />
+                            )}
                           </div>
                         )}
 
@@ -581,7 +603,7 @@ export default function UniformShop() {
                       className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => setCurrentProduct(product)}
                     >
-                      <div className="aspect-square bg-muted">
+                      <div className="aspect-square bg-muted relative overflow-hidden">
                         {product.image_url ? (
                           <img
                             src={product.image_url}
@@ -589,8 +611,26 @@ export default function UniformShop() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                            No Image
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 text-primary p-4">
+                            <div className="text-4xl mb-2">
+                              {product.type === 'tshirt' && '👕'}
+                              {product.type === 'tracksuit' && '🥋'}
+                              {product.type === 'socks' && '🧦'}
+                              {product.type === 'shorts' && '🩳'}
+                              {product.type === 'skirt' && '👗'}
+                              {product.type === 'sweater' && '🧥'}
+                              {product.type === 'other' && '👔'}
+                            </div>
+                            <span className="text-sm font-medium text-center">
+                              {typeLabels[product.type]}
+                            </span>
+                            {selectedSchool?.logo_url && (
+                              <img 
+                                src={selectedSchool.logo_url} 
+                                alt="School logo" 
+                                className="w-12 h-12 rounded-full mt-2 border-2 border-primary/20 object-cover"
+                              />
+                            )}
                           </div>
                         )}
                       </div>
