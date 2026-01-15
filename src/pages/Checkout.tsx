@@ -108,6 +108,41 @@ export default function Checkout() {
     toast.success('Opening WhatsApp to complete your order!');
   };
 
+  const saveWebSchool = async (): Promise<string | null> => {
+    // If school is from web and hasn't been saved yet, save it to DB
+    if (selectedSchool?.isFromWeb && selectedSchool.name) {
+      try {
+        // Check if school already exists
+        const { data: existing } = await supabase
+          .from('schools')
+          .select('id')
+          .eq('name', selectedSchool.name)
+          .maybeSingle();
+
+        if (existing) {
+          return existing.id;
+        }
+
+        // Save new school
+        const { data: newSchool, error } = await supabase
+          .from('schools')
+          .insert({
+            name: selectedSchool.name,
+            logo_url: selectedSchool.logo_url || null,
+          })
+          .select()
+          .single();
+
+        if (!error && newSchool) {
+          return newSchool.id;
+        }
+      } catch (error) {
+        console.log('Could not save school:', error);
+      }
+    }
+    return selectedSchool?.id || null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -120,6 +155,9 @@ export default function Checkout() {
     setIsSubmitting(true);
 
     try {
+      // Save web school if applicable (for future searches)
+      await saveWebSchool();
+
       // Create the order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
