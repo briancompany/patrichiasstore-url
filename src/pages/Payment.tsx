@@ -4,8 +4,10 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, MessageSquare, ClipboardPaste, Download, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LocationState {
   orderId: string;
@@ -14,15 +16,34 @@ interface LocationState {
   customerName: string;
 }
 
+// Parse M-Pesa confirmation message
+const parseMpesaMessage = (message: string) => {
+  // Pattern: "XYZ123ABC Confirmed. Ksh1,000.00 sent to..."
+  const amountMatch = message.match(/Ksh[\s]?([\d,]+(?:\.\d{2})?)/i);
+  const confirmCodeMatch = message.match(/^([A-Z0-9]{10})/);
+  const confirmedMatch = message.toLowerCase().includes('confirmed');
+  
+  return {
+    amount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : null,
+    confirmCode: confirmCodeMatch ? confirmCodeMatch[1] : null,
+    isConfirmed: confirmedMatch,
+  };
+};
+
 export default function Payment() {
   const location = useLocation();
   const state = location.state as LocationState | null;
 
   const [copiedPaybill, setCopiedPaybill] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [mpesaMessage, setMpesaMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'whatsapp' | null>(null);
 
   const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
+  const WHATSAPP_NUMBER = '254726075180';
 
   const copyToClipboard = async (text: string, type: 'paybill' | 'account') => {
     try {
@@ -38,6 +59,142 @@ export default function Payment() {
     } catch (error) {
       toast.error('Failed to copy');
     }
+  };
+
+  const handlePasteMessage = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setMpesaMessage(text);
+      toast.success('Message pasted!');
+    } catch (error) {
+      toast.error('Failed to paste. Please paste manually.');
+    }
+  };
+
+  const verifyMpesaPayment = async () => {
+    if (!mpesaMessage.trim()) {
+      toast.error('Please paste your M-Pesa confirmation message');
+      return;
+    }
+
+    if (!state) return;
+
+    setIsVerifying(true);
+
+    const parsed = parseMpesaMessage(mpesaMessage);
+
+    // Validate the message
+    if (!parsed.isConfirmed) {
+      toast.error('This does not appear to be a valid M-Pesa confirmation message');
+      setIsVerifying(false);
+      return;
+    }
+
+    if (!parsed.amount) {
+      toast.error('Could not detect the amount in the message');
+      setIsVerifying(false);
+      return;
+    }
+
+    if (parsed.amount < state.total) {
+      toast.error(`Amount Ksh ${parsed.amount} is less than required Ksh ${state.total}`);
+      setIsVerifying(false);
+      return;
+    }
+
+    if (!parsed.confirmCode) {
+      toast.error('Could not detect M-Pesa confirmation code');
+      setIsVerifying(false);
+      return;
+    }
+
+    // Update order status
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'confirmed',
+          notes: `M-Pesa Confirmation: ${parsed.confirmCode}`
+        })
+        .eq('id', state.orderId);
+
+      if (error) throw error;
+
+      setPaymentVerified(true);
+      toast.success('Payment verified successfully! You can now download your receipt.');
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast.error('Failed to verify payment. Please contact support.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const generateReceipt = () => {
+    if (!state) return;
+
+    const receiptContent = `
+╔══════════════════════════════════════════╗
+║         PATRICHIA'S STORE                ║
+║           OFFICIAL RECEIPT               ║
+╠══════════════════════════════════════════╣
+║ Customer: ${state.customerName.padEnd(28)}║
+║ Order ID: ${state.orderId.slice(0, 8).padEnd(28)}║
+║ Tracking: ${(state.trackingCode || 'N/A').padEnd(28)}║
+║ Amount: Ksh ${state.total.toLocaleString().padEnd(25)}║
+║ Status: PAID                             ║
+║ Date: ${new Date().toLocaleDateString().padEnd(30)}║
+╠══════════════════════════════════════════╣
+║ Thank you for shopping with us!          ║
+║ Contact: 0726075180                      ║
+╚══════════════════════════════════════════╝
+    `.trim();
+
+    const blob = new Blob([receiptContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${state.trackingCode || state.orderId.slice(0, 8)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Receipt downloaded!');
+  };
+
+  const handleWhatsAppPayment = () => {
+    if (!state) return;
+
+    const message = encodeURIComponent(
+      `Hello Patrichia's Store!\n\n` +
+      `I would like to pay for my order:\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 Name: ${state.customerName}\n` +
+      `🔖 Tracking: ${state.trackingCode || 'N/A'}\n` +
+      `💰 Amount: Ksh ${state.total.toLocaleString()}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Please guide me on how to complete payment.`
+    );
+
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+  };
+
+  const handleSendComplaint = () => {
+    if (!state) return;
+
+    const message = encodeURIComponent(
+      `Hello Patrichia's Store!\n\n` +
+      `I have a complaint regarding my order:\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 Name: ${state.customerName}\n` +
+      `🔖 Tracking: ${state.trackingCode || 'N/A'}\n` +
+      `💰 Amount: Ksh ${state.total.toLocaleString()}\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `My complaint:\n[Please describe your issue here]\n\n` +
+      `I have attached my receipt for reference.`
+    );
+
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   if (!state) {
@@ -86,9 +243,21 @@ export default function Payment() {
                     Ksh {state.total.toLocaleString()}
                   </p>
                 </div>
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Awaiting Payment
+                <Badge 
+                  variant={paymentVerified ? "default" : "secondary"} 
+                  className={`flex items-center gap-1 ${paymentVerified ? 'bg-green-600' : ''}`}
+                >
+                  {paymentVerified ? (
+                    <>
+                      <Check className="h-3 w-3" />
+                      Paid
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-3 w-3" />
+                      Awaiting Payment
+                    </>
+                  )}
                 </Badge>
               </div>
               {state.trackingCode && (
@@ -100,141 +269,278 @@ export default function Payment() {
             </CardContent>
           </Card>
 
-          {/* Payment Instructions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-muted rounded-lg p-6 space-y-6">
-                {/* Paybill Number */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Paybill Number</p>
-                    <p className="text-3xl font-bold font-mono">{PAYBILL_NUMBER}</p>
+          {/* Payment Method Selection */}
+          {!paymentVerified && !paymentMethod && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Choose Payment Method
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  onClick={() => setPaymentMethod('mpesa')}
+                  className="w-full h-auto py-4 flex items-center gap-4"
+                  variant="outline"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <CreditCard className="h-6 w-6 text-green-600" />
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(PAYBILL_NUMBER, 'paybill')}
-                    className="h-12 w-12"
-                  >
-                    {copiedPaybill ? (
-                      <Check className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Copy className="h-5 w-5" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t" />
-
-                {/* Account Number */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Account Number</p>
-                    <p className="text-3xl font-bold font-mono">{ACCOUNT_NUMBER}</p>
+                  <div className="text-left flex-1">
+                    <p className="font-semibold">Pay via M-Pesa</p>
+                    <p className="text-sm text-muted-foreground">Paybill & verify with SMS</p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => copyToClipboard(ACCOUNT_NUMBER, 'account')}
-                    className="h-12 w-12"
-                  >
-                    {copiedAccount ? (
-                      <Check className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Copy className="h-5 w-5" />
-                    )}
-                  </Button>
-                </div>
+                </Button>
 
-                {/* Divider */}
-                <div className="border-t" />
+                <Button
+                  onClick={handleWhatsAppPayment}
+                  className="w-full h-auto py-4 flex items-center gap-4"
+                  variant="outline"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <MessageSquare className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-semibold">Pay via WhatsApp</p>
+                    <p className="text-sm text-muted-foreground">Get guidance from our team</p>
+                  </div>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-                {/* Amount */}
-                <div>
-                  <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                  <p className="text-3xl font-bold text-primary font-mono">
-                    Ksh {state.total.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Steps */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">How to Pay via M-Pesa</h3>
-                <div className="space-y-3">
-                  {[
-                    'Go to M-Pesa on your phone',
-                    'Select Lipa na M-Pesa → Pay Bill',
-                    `Enter Business Number: ${PAYBILL_NUMBER}`,
-                    `Enter Account Number: ${ACCOUNT_NUMBER}`,
-                    `Enter Amount: Ksh ${state.total.toLocaleString()}`,
-                    'Enter your M-Pesa PIN and confirm',
-                  ].map((step, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-primary">{index + 1}</span>
+          {/* M-Pesa Payment Details */}
+          {!paymentVerified && paymentMethod === 'mpesa' && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    M-Pesa Payment Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-muted rounded-lg p-6 space-y-6">
+                    {/* Paybill Number */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Paybill Number</p>
+                        <p className="text-3xl font-bold font-mono">{PAYBILL_NUMBER}</p>
                       </div>
-                      <p className="text-sm">{step}</p>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(PAYBILL_NUMBER, 'paybill')}
+                        className="h-12 w-12"
+                      >
+                        {copiedPaybill ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <Copy className="h-5 w-5" />
+                        )}
+                      </Button>
                     </div>
-                  ))}
+
+                    <div className="border-t" />
+
+                    {/* Account Number */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Account Number</p>
+                        <p className="text-3xl font-bold font-mono">{ACCOUNT_NUMBER}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(ACCOUNT_NUMBER, 'account')}
+                        className="h-12 w-12"
+                      >
+                        {copiedAccount ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <Copy className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="border-t" />
+
+                    {/* Amount */}
+                    <div>
+                      <p className="text-sm text-muted-foreground">Amount to Pay</p>
+                      <p className="text-3xl font-bold text-primary font-mono">
+                        Ksh {state.total.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">How to Pay via M-Pesa</h3>
+                    <div className="space-y-3">
+                      {[
+                        'Go to M-Pesa on your phone',
+                        'Select Lipa na M-Pesa → Pay Bill',
+                        `Enter Business Number: ${PAYBILL_NUMBER}`,
+                        `Enter Account Number: ${ACCOUNT_NUMBER}`,
+                        `Enter Amount: Ksh ${state.total.toLocaleString()}`,
+                        'Enter your M-Pesa PIN and confirm',
+                      ].map((step, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-medium text-primary">{index + 1}</span>
+                          </div>
+                          <p className="text-sm">{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Paste M-Pesa Message */}
+              <Card className="border-primary">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardPaste className="h-5 w-5" />
+                    Verify Your Payment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-muted/50 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">
+                      After paying, you'll receive an SMS from M-Pesa. Paste that message below to instantly verify your payment and download your receipt.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handlePasteMessage}
+                        className="flex items-center gap-2"
+                      >
+                        <ClipboardPaste className="h-4 w-4" />
+                        Paste Message
+                      </Button>
+                    </div>
+                    <Textarea
+                      placeholder="Paste your M-Pesa confirmation SMS here... e.g., 'XYZ123ABC Confirmed. Ksh1,000.00 sent to...'"
+                      value={mpesaMessage}
+                      onChange={(e) => setMpesaMessage(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={verifyMpesaPayment}
+                    disabled={isVerifying || !mpesaMessage.trim()}
+                    className="w-full"
+                  >
+                    {isVerifying ? 'Verifying...' : 'Verify Payment'}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    onClick={() => setPaymentMethod(null)}
+                    className="w-full"
+                  >
+                    ← Choose Different Payment Method
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {/* Payment Verified - Download Receipt */}
+          {paymentVerified && (
+            <Card className="border-green-500 bg-green-50">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <Check className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-green-800">Payment Verified!</h3>
+                    <p className="text-sm text-green-700">Your order has been confirmed</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                <Button
+                  onClick={generateReceipt}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Receipt
+                </Button>
+
+                <div className="pt-4 border-t border-green-200">
+                  <p className="text-sm text-green-700 mb-3">
+                    Have an issue? Send your complaint with the receipt:
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={handleSendComplaint}
+                    className="w-full border-green-600 text-green-700 hover:bg-green-100"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Send Complaint with Receipt
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* What Happens Next */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                What Happens Next?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">1</span>
+          {!paymentVerified && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  What Happens Next?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-primary">1</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">Complete your payment</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose M-Pesa or WhatsApp above
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">Complete your M-Pesa payment</p>
-                  <p className="text-sm text-muted-foreground">
-                    Use the details above to make your payment
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">2</span>
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-primary">2</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">Verify payment instantly</p>
+                    <p className="text-sm text-muted-foreground">
+                      Paste your M-Pesa SMS to auto-verify
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">We verify your payment</p>
-                  <p className="text-sm text-muted-foreground">
-                    Our team will confirm your payment (usually within 1 hour)
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">3</span>
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-primary">3</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">Download your receipt</p>
+                    <p className="text-sm text-muted-foreground">
+                      Keep it for tracking and complaints
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">Receive your receipt</p>
-                  <p className="text-sm text-muted-foreground">
-                    Once confirmed, you'll get a receipt via SMS/WhatsApp
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Contact Support */}
           <Card className="bg-muted border-none">
@@ -249,7 +555,7 @@ export default function Payment() {
                 </p>
               </div>
               <Button variant="outline" asChild>
-                <a href="https://wa.me/254726075180" target="_blank" rel="noopener noreferrer">
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer">
                   WhatsApp
                 </a>
               </Button>

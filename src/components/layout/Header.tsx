@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ShoppingBag, User, Package } from 'lucide-react';
+import { Menu, X, ShoppingBag, User, Package, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 const navLinks = [
   { name: 'Home', path: '/' },
@@ -19,7 +20,55 @@ const navLinks = [
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
+    // Check if already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+
+    if (!isStandalone) {
+      setIsInstallable(true);
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      toast.info('To install: Tap the Share button, then "Add to Home Screen"', {
+        duration: 5000,
+      });
+      return;
+    }
+
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        toast.success('App installed successfully!');
+      }
+      setDeferredPrompt(null);
+    } else {
+      toast.info('App is ready to install from your browser menu', {
+        duration: 5000,
+      });
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
@@ -47,7 +96,20 @@ export function Header() {
           </nav>
 
           {/* Right Icons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Download App Button */}
+            {isInstallable && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleInstallClick}
+                className="text-primary hover:bg-primary/10"
+                title="Install App"
+              >
+                <Download className="h-5 w-5" />
+              </Button>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -100,6 +162,18 @@ export function Header() {
                   {link.name}
                 </Link>
               ))}
+              {isInstallable && (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleInstallClick();
+                  }}
+                  className="py-2 px-4 rounded-lg transition-colors text-primary hover:bg-primary/10 flex items-center gap-2 text-left"
+                >
+                  <Download className="h-4 w-4" />
+                  Install App
+                </button>
+              )}
               <Link
                 to="/admin/login"
                 onClick={() => setIsOpen(false)}
