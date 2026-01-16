@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -31,13 +31,14 @@ interface SelectedSchool {
   id?: string;
   name: string;
   logo_url?: string | null;
-  isFromWeb?: boolean;
+  isFromDB?: boolean;
 }
 
 interface LocationState {
   cart: CartItem[];
   school: SelectedSchool | null;
   printingRequired: boolean;
+  isNewSchool?: boolean;
 }
 
 const WHATSAPP_NUMBER = '254726075180';
@@ -50,6 +51,7 @@ export default function Checkout() {
   const cart = state?.cart || [];
   const selectedSchool = state?.school;
   const printingRequired = state?.printingRequired || false;
+  const isNewSchool = state?.isNewSchool || !selectedSchool?.isFromDB;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -76,51 +78,13 @@ export default function Checkout() {
     return code;
   };
 
-  const saveWebSchool = async (): Promise<string | null> => {
-    // If school is from web and hasn't been saved yet, save it to DB
-    if (selectedSchool?.isFromWeb && selectedSchool.name) {
-      try {
-        // Check if school already exists
-        const { data: existing } = await supabase
-          .from('schools')
-          .select('id')
-          .eq('name', selectedSchool.name)
-          .maybeSingle();
-
-        if (existing) {
-          return existing.id;
-        }
-
-        // Save new school
-        const { data: newSchool, error } = await supabase
-          .from('schools')
-          .insert({
-            name: selectedSchool.name,
-            logo_url: selectedSchool.logo_url || null,
-          })
-          .select()
-          .single();
-
-        if (!error && newSchool) {
-          return newSchool.id;
-        }
-      } catch (error) {
-        console.log('Could not save school:', error);
-      }
-    }
-    return selectedSchool?.id || null;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     setIsSubmitting(true);
 
     try {
-      // Save web school if applicable (for future searches)
-      await saveWebSchool();
-
-      // Create the order
+      // Create the order with new school flag
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -131,7 +95,9 @@ export default function Checkout() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
-          status: 'awaiting_payment',
+          status: isNewSchool ? 'new_school_setup' : 'awaiting_payment',
+          is_new_school: isNewSchool,
+          linked_school_id: selectedSchool?.id || null,
         })
         .select()
         .single();
@@ -141,7 +107,7 @@ export default function Checkout() {
       // Create order items
       const orderItems = cart.map((item) => ({
         order_id: orderData.id,
-        product_id: item.product.id.startsWith('web-') ? null : item.product.id,
+        product_id: item.product.id.startsWith('custom-') ? null : item.product.id,
         product_name: item.product.name,
         school_name: selectedSchool?.name || null,
         size: item.selectedSize,
@@ -170,6 +136,7 @@ export default function Checkout() {
           total: cartTotal,
           customerName: formData.fullName,
           customerPhone: formData.phone,
+          isNewSchool,
         },
       });
     } catch (error) {
@@ -218,12 +185,33 @@ export default function Checkout() {
             </div>
           </div>
 
+          {/* New School Info Banner */}
+          {isNewSchool && (
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-800">New School Order</p>
+                  <p className="text-sm text-amber-700">
+                    Your order for "{selectedSchool?.name}" will be tagged for admin review. 
+                    We'll set up the school profile and contact you if we need the school logo.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Order Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5" />
                 Order Summary
+                {isNewSchool && (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 ml-2">
+                    New School
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
