@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Globe, Database, Loader2 } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School } from 'lucide-react';
 import { toast } from 'sonner';
-import { searchSchools, type SchoolResult, type WebSchoolResult, type DBSchoolResult } from '@/lib/api/schoolSearch';
+import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 
 interface ProductSize {
   size: string;
@@ -34,8 +34,7 @@ interface SelectedSchool {
   id?: string;
   name: string;
   logo_url: string | null;
-  isFromWeb: boolean;
-  uniformTypes?: string[];
+  isFromDB: boolean;
 }
 
 interface CartItem {
@@ -64,6 +63,8 @@ export default function UniformShop() {
   const [quantity, setQuantity] = useState(1);
   const [printingRequired, setPrintingRequired] = useState<boolean | null>(null);
   const [pricingChart, setPricingChart] = useState<Record<string, ProductSize[]>>({});
+  const [showCustomOrderFlow, setShowCustomOrderFlow] = useState(false);
+  const [customSchoolName, setCustomSchoolName] = useState('');
 
   // Fetch pricing chart on mount
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function UniformShop() {
   const handleSearch = useCallback(async (query: string) => {
     if (query.length < 3) {
       setSearchResults([]);
+      setShowCustomOrderFlow(false);
       return;
     }
 
@@ -99,6 +101,11 @@ export default function UniformShop() {
     try {
       const results = await searchSchools(query);
       setSearchResults(results);
+      // Show custom order flow if no results found
+      setShowCustomOrderFlow(results.length === 0);
+      if (results.length === 0) {
+        setCustomSchoolName(query);
+      }
     } catch (error) {
       console.error('Search error:', error);
       toast.error('Error searching for schools');
@@ -138,19 +145,15 @@ export default function UniformShop() {
     setIsLoading(false);
   };
 
-  // Create generic products for web school (no products in DB yet)
-  const createGenericProducts = (school: WebSchoolResult): Product[] => {
-    const uniformTypes = school.uniformTypes.length > 0 
-      ? school.uniformTypes 
-      : ['tshirt', 'tracksuit', 'socks'];
+  // Create standard products for unregistered schools
+  const createStandardProducts = (schoolName: string): Product[] => {
+    const uniformTypes = ['tshirt', 'tracksuit', 'socks', 'shorts', 'sweater'];
 
-    // Default prices if no pricing chart is configured
     const defaultPrices: Record<string, { name: string; prices: ProductSize[] }> = {
       tshirt: { name: 'T-Shirt', prices: [{ size: 'S', price: 800 }, { size: 'M', price: 850 }, { size: 'L', price: 900 }, { size: 'XL', price: 950 }] },
       tracksuit: { name: 'Tracksuit', prices: [{ size: 'S', price: 2500 }, { size: 'M', price: 2600 }, { size: 'L', price: 2700 }, { size: 'XL', price: 2800 }] },
       socks: { name: 'Socks', prices: [{ size: 'One Size', price: 350 }] },
       shorts: { name: 'Shorts', prices: [{ size: 'S', price: 600 }, { size: 'M', price: 650 }, { size: 'L', price: 700 }] },
-      skirt: { name: 'Skirt', prices: [{ size: 'S', price: 700 }, { size: 'M', price: 750 }, { size: 'L', price: 800 }] },
       sweater: { name: 'Sweater', prices: [{ size: 'S', price: 1500 }, { size: 'M', price: 1600 }, { size: 'L', price: 1700 }] },
     };
 
@@ -159,22 +162,19 @@ export default function UniformShop() {
       tracksuit: 'Tracksuit',
       socks: 'Socks',
       shorts: 'Shorts',
-      skirt: 'Skirt',
       sweater: 'Sweater',
-      other: 'Uniform',
     };
 
     return uniformTypes.map((type, index) => {
-      // Use pricing chart if available, otherwise use defaults
       const prices = pricingChart[type] && pricingChart[type].length > 0
         ? pricingChart[type]
         : defaultPrices[type]?.prices || [{ size: 'M', price: 1000 }];
 
       return {
-        id: `web-${type}-${index}`,
-        name: `${school.name} ${typeNames[type] || 'Uniform'}`,
+        id: `custom-${type}-${index}`,
+        name: `${schoolName} ${typeNames[type]}`,
         type,
-        description: `Official ${typeNames[type] || 'uniform'} for ${school.name}`,
+        description: `Standard ${typeNames[type]} for ${schoolName}`,
         image_url: null,
         sizes: prices,
         in_stock: true,
@@ -184,28 +184,30 @@ export default function UniformShop() {
   };
 
   const handleSchoolSelect = (school: SchoolResult) => {
-    if (school.isFromWeb) {
-      // Web school - create generic products
-      setSelectedSchool({
-        name: school.name,
-        logo_url: school.logo || null,
-        isFromWeb: true,
-        uniformTypes: school.uniformTypes,
-      });
-      setProducts(createGenericProducts(school));
-      setStep('products');
-    } else {
-      // DB school - fetch actual products
-      const dbSchool = school as DBSchoolResult;
-      setSelectedSchool({
-        id: dbSchool.id,
-        name: dbSchool.name,
-        logo_url: dbSchool.logo_url,
-        isFromWeb: false,
-      });
-      fetchProductsForSchool(dbSchool.id);
-      setStep('products');
+    // DB school - fetch actual products
+    setSelectedSchool({
+      id: school.id,
+      name: school.name,
+      logo_url: school.logo_url,
+      isFromDB: true,
+    });
+    fetchProductsForSchool(school.id);
+    setStep('products');
+  };
+
+  const handleCustomSchoolContinue = () => {
+    if (!customSchoolName.trim()) {
+      toast.error('Please enter a school name');
+      return;
     }
+    // Set up for unregistered school
+    setSelectedSchool({
+      name: customSchoolName.trim(),
+      logo_url: null,
+      isFromDB: false,
+    });
+    setProducts(createStandardProducts(customSchoolName.trim()));
+    setStep('products');
   };
 
   const handleAddToCart = () => {
@@ -236,7 +238,6 @@ export default function UniformShop() {
       ]);
     }
 
-    // Reset selection
     setCurrentProduct(null);
     setSelectedSize(null);
     setQuantity(1);
@@ -260,7 +261,6 @@ export default function UniformShop() {
 
   const handlePrintingConfirm = (needsPrinting: boolean) => {
     setPrintingRequired(needsPrinting);
-    // Update all cart items with printing info
     const updatedCart = cart.map((item) => ({
       ...item,
       printingRequired: needsPrinting,
@@ -283,6 +283,7 @@ export default function UniformShop() {
         cart,
         school: selectedSchool,
         printingRequired,
+        isNewSchool: !selectedSchool?.isFromDB,
       },
     });
   };
@@ -300,11 +301,6 @@ export default function UniformShop() {
   const getMinPrice = (sizes: ProductSize[]) => {
     if (!sizes || sizes.length === 0) return 0;
     return Math.min(...sizes.map((s) => s.price));
-  };
-
-  const formatUniformTypes = (types: string[] | undefined): string => {
-    if (!types || types.length === 0) return 'Uniforms available';
-    return types.map(t => typeLabels[t] || t).join(', ');
   };
 
   return (
@@ -358,73 +354,99 @@ export default function UniformShop() {
               </div>
             )}
 
+            {/* Registered Schools Results */}
             {!isSearching && searchResults.length > 0 && (
               <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    Registered Schools
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="p-2">
-                  {searchResults.map((school, index) => {
-                    const isWeb = school.isFromWeb;
-                    const webSchool = isWeb ? (school as WebSchoolResult) : null;
-                    const dbSchool = !isWeb ? (school as DBSchoolResult) : null;
-                    
-                    return (
-                      <button
-                        key={isWeb ? `web-${index}` : dbSchool?.id}
-                        onClick={() => handleSchoolSelect(school)}
-                        className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
-                      >
-                        {isWeb ? (
-                          webSchool?.logo ? (
-                            <img
-                              src={webSchool.logo}
-                              alt={school.name}
-                              className="w-12 h-12 rounded-full object-cover bg-muted"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                              <Globe className="h-6 w-6 text-blue-600" />
-                            </div>
-                          )
-                        ) : dbSchool?.logo_url ? (
-                          <img
-                            src={dbSchool.logo_url}
-                            alt={school.name}
-                            className="w-12 h-12 rounded-full object-cover bg-muted"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Database className="h-5 w-5 text-primary" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-semibold">{school.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {isWeb ? (
-                              <>
-                                <Globe className="h-3 w-3 inline mr-1" />
-                                Found online - {formatUniformTypes(webSchool?.uniformTypes)}
-                              </>
-                            ) : (
-                              'Click to view uniforms'
-                            )}
-                          </p>
+                  {searchResults.map((school) => (
+                    <button
+                      key={school.id}
+                      onClick={() => handleSchoolSelect(school)}
+                      className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
+                    >
+                      {school.logo_url ? (
+                        <img
+                          src={school.logo_url}
+                          alt={school.name}
+                          className="w-12 h-12 rounded-full object-cover bg-muted"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <School className="h-5 w-5 text-primary" />
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </button>
-                    );
-                  })}
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold">{school.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Click to view uniforms
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </button>
+                  ))}
                 </CardContent>
               </Card>
             )}
 
-            {!isSearching && searchQuery.length >= 3 && searchResults.length === 0 && (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <p className="text-muted-foreground">
-                    No schools found matching "{searchQuery}"
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Try a different spelling or contact us for assistance
-                  </p>
+            {/* Custom Order Flow for Unregistered Schools */}
+            {!isSearching && showCustomOrderFlow && searchQuery.length >= 3 && (
+              <Card className="border-amber-200 bg-amber-50/50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="font-semibold text-lg text-foreground">
+                          School Not Yet Registered
+                        </h3>
+                        <p className="text-muted-foreground mt-1">
+                          "{customSchoolName}" is not in our system yet, but you can still order uniforms!
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-4 space-y-3">
+                        <p className="text-sm font-medium text-foreground">
+                          ✓ Select from standard uniform options
+                        </p>
+                        <p className="text-sm font-medium text-foreground">
+                          ✓ Choose your sizes and quantities
+                        </p>
+                        <p className="text-sm font-medium text-foreground">
+                          ✓ Request logo printing (we'll contact you for the logo)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="schoolName" className="text-sm font-medium">
+                          Confirm school name
+                        </Label>
+                        <Input
+                          id="schoolName"
+                          value={customSchoolName}
+                          onChange={(e) => setCustomSchoolName(e.target.value)}
+                          placeholder="Enter exact school name"
+                          className="bg-white"
+                        />
+                      </div>
+
+                      <Button 
+                        onClick={handleCustomSchoolContinue}
+                        className="w-full"
+                        size="lg"
+                      >
+                        Continue with Custom Order
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -450,13 +472,32 @@ export default function UniformShop() {
               <Button variant="ghost" size="icon" onClick={() => setStep('search')}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                  {selectedSchool?.name} Uniforms
-                </h1>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-foreground">
+                    {selectedSchool?.name} Uniforms
+                  </h1>
+                  {!selectedSchool?.isFromDB && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                      Custom Order
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-muted-foreground">Select the uniforms you need</p>
               </div>
             </div>
+
+            {/* Info banner for unregistered schools */}
+            {!selectedSchool?.isFromDB && (
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                  <p className="text-sm text-amber-800">
+                    This school is not yet in our system. Your order will be marked for setup, and our team will add the school profile.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
@@ -726,7 +767,7 @@ export default function UniformShop() {
                   </label>
                 </RadioGroup>
 
-                {/* Show school logo if printing is selected */}
+                {/* Show school logo if printing is selected and logo exists */}
                 {printingRequired === true && selectedSchool?.logo_url && (
                   <div className="p-4 bg-muted rounded-lg">
                     <p className="text-sm font-medium mb-3">School Logo to be printed:</p>
@@ -752,12 +793,25 @@ export default function UniformShop() {
                   </div>
                 )}
 
+                {/* Info for unregistered schools needing printing */}
                 {printingRequired === true && !selectedSchool?.logo_url && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      ⚠️ No logo uploaded for this school yet. Our team will contact you about the
-                      logo after placing your order.
-                    </p>
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-amber-800">Logo Not Available</p>
+                        <p className="text-sm text-amber-700 mt-1">
+                          We don't have a logo for {selectedSchool?.name} yet. Our team will contact you to collect the school logo after you place your order.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleProceedToReview}
+                      className="w-full"
+                    >
+                      Continue - We'll Contact You for Logo
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
                   </div>
                 )}
 
@@ -784,6 +838,21 @@ export default function UniformShop() {
                 <p className="text-muted-foreground">Confirm your items before checkout</p>
               </div>
             </div>
+
+            {/* New school info banner */}
+            {!selectedSchool?.isFromDB && (
+              <Card className="bg-amber-50 border-amber-200">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                  <div>
+                    <p className="font-medium text-amber-800">New School Order</p>
+                    <p className="text-sm text-amber-700">
+                      This order will be tagged for school profile setup.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>
@@ -849,9 +918,12 @@ export default function UniformShop() {
                 <CardContent className="p-4 flex items-center gap-4">
                   <Printer className="h-8 w-8 text-primary" />
                   <div>
-                    <p className="font-semibold">Logo Printing Included</p>
+                    <p className="font-semibold">Logo Printing Requested</p>
                     <p className="text-sm text-muted-foreground">
-                      {selectedSchool.name} logo will be printed
+                      {selectedSchool.logo_url 
+                        ? `${selectedSchool.name} logo will be printed`
+                        : `Logo to be collected for ${selectedSchool.name}`
+                      }
                     </p>
                   </div>
                 </CardContent>

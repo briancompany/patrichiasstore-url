@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer } from 'lucide-react';
+import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface OrderItem {
@@ -29,6 +30,8 @@ interface OrderItem {
   size: string;
   quantity: number;
   price_at_purchase: number;
+  printing_required: boolean;
+  logo_url: string | null;
 }
 
 interface Order {
@@ -42,10 +45,13 @@ interface Order {
   total_amount: number;
   notes: string | null;
   created_at: string;
+  is_new_school: boolean;
+  linked_school_id: string | null;
   order_items?: OrderItem[];
 }
 
 export default function AdminOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,7 +77,7 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
-  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed' | 'confirmed') => {
+  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed' | 'confirmed' | 'awaiting_payment') => {
     const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
 
     if (error) {
@@ -82,6 +88,7 @@ export default function AdminOrders() {
         ready: 'Order is ready',
         completed: 'Order completed',
         confirmed: 'Payment confirmed',
+        awaiting_payment: 'Order updated to awaiting payment',
       };
       toast.success(statusMessages[status] || `Order marked as ${status}`);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status } : o)));
@@ -91,16 +98,33 @@ export default function AdminOrders() {
     }
   };
 
+  const handleCreateSchoolProfile = (order: Order) => {
+    // Navigate to schools page with pre-filled school name
+    navigate('/admin/schools', { 
+      state: { 
+        createSchool: true,
+        schoolName: order.customer_school,
+        orderId: order.id,
+      }
+    });
+  };
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer_phone.includes(searchQuery);
+      order.customer_phone.includes(searchQuery) ||
+      (order.customer_school?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
+  // Count new school orders
+  const newSchoolOrdersCount = orders.filter(o => o.is_new_school && o.status === 'new_school_setup').length;
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'new_school_setup':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'awaiting_payment':
         return 'bg-orange-100 text-orange-800 border-orange-300';
       case 'pending':
@@ -117,6 +141,8 @@ export default function AdminOrders() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'new_school_setup':
+        return 'New School – Setup Required';
       case 'awaiting_payment':
         return 'Awaiting Payment';
       case 'pending':
@@ -147,16 +173,19 @@ export default function AdminOrders() {
             .item { margin: 10px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; }
             .total { font-weight: bold; font-size: 16px; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            .new-school { background: #FEF3C7; padding: 10px; border-radius: 4px; margin: 10px 0; text-align: center; }
           </style>
         </head>
         <body>
           <h1>Patrichia's Store</h1>
           <h2>Uhuru Market, Store F47</h2>
+          ${order.is_new_school ? '<div class="new-school">⚠️ New School - Setup Required</div>' : ''}
           <div class="divider"></div>
           <div class="row"><span>Order ID:</span><span>${order.id.slice(0, 8).toUpperCase()}</span></div>
           <div class="row"><span>Date:</span><span>${new Date(order.created_at).toLocaleDateString()}</span></div>
           <div class="row"><span>Customer:</span><span>${order.customer_name}</span></div>
           <div class="row"><span>Phone:</span><span>${order.customer_phone}</span></div>
+          <div class="row"><span>School:</span><span>${order.customer_school || 'N/A'}</span></div>
           ${order.delivery_type === 'delivery' ? `<div class="row"><span>Delivery:</span><span>${order.delivery_location}</span></div>` : '<div class="row"><span>Pickup:</span><span>Store F47</span></div>'}
           <div class="divider"></div>
           <div class="items">
@@ -164,6 +193,7 @@ export default function AdminOrders() {
               <div class="item">
                 <div class="row"><strong>${item.product_name}</strong></div>
                 <div class="row"><span>Size: ${item.size} × ${item.quantity}</span><span>Ksh ${item.price_at_purchase.toLocaleString()}</span></div>
+                ${item.printing_required ? '<div class="row"><span>🖨️ Logo printing required</span></div>' : ''}
               </div>
             `).join('') || ''}
           </div>
@@ -203,23 +233,52 @@ export default function AdminOrders() {
           <p className="text-muted-foreground">Manage customer orders</p>
         </div>
 
+        {/* New School Orders Alert */}
+        {newSchoolOrdersCount > 0 && (
+          <Card className="bg-amber-50 border-amber-200">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-800">
+                    {newSchoolOrdersCount} New School {newSchoolOrdersCount === 1 ? 'Order' : 'Orders'} Pending Setup
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    These orders require school profile creation before processing
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                onClick={() => setFilterStatus('new_school_setup')}
+              >
+                View All
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or phone..."
+              placeholder="Search by name, phone, or school..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="new_school_setup">New School Setup</SelectItem>
               <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
@@ -245,19 +304,31 @@ export default function AdminOrders() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
-              <Card key={order.id}>
+              <Card key={order.id} className={order.is_new_school && order.status === 'new_school_setup' ? 'border-amber-200' : ''}>
                 <CardContent className="p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="font-semibold text-lg">{order.customer_name}</h3>
                         <Badge className={getStatusColor(order.status)}>{getStatusLabel(order.status)}</Badge>
+                        {order.is_new_school && (
+                          <Badge variant="outline" className="border-amber-300 text-amber-700">
+                            <School className="h-3 w-3 mr-1" />
+                            New School
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />
                           {order.customer_phone}
                         </span>
+                        {order.customer_school && (
+                          <span className="flex items-center gap-1">
+                            <School className="h-4 w-4" />
+                            {order.customer_school}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <MapPin className="h-4 w-4" />
                           {order.delivery_type === 'pickup'
@@ -286,12 +357,24 @@ export default function AdminOrders() {
                             View
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg">
+                        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Order Details</DialogTitle>
                           </DialogHeader>
                           {selectedOrder && (
                             <div className="space-y-4">
+                              {selectedOrder.is_new_school && (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                  <div className="flex items-center gap-2 text-amber-800">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <span className="font-medium">New School – Setup Required</span>
+                                  </div>
+                                  <p className="text-sm text-amber-700 mt-1">
+                                    Create the school profile to process this order.
+                                  </p>
+                                </div>
+                              )}
+                              
                               <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                   <p className="text-muted-foreground">Customer</p>
@@ -335,6 +418,12 @@ export default function AdminOrders() {
                                         <p className="text-sm text-muted-foreground">
                                           Size: {item.size} × {item.quantity}
                                         </p>
+                                        {item.printing_required && (
+                                          <Badge variant="secondary" className="mt-1">
+                                            <Printer className="h-3 w-3 mr-1" />
+                                            Logo printing
+                                          </Badge>
+                                        )}
                                       </div>
                                       <p className="font-medium">
                                         Ksh {item.price_at_purchase.toLocaleString()}
@@ -351,7 +440,7 @@ export default function AdminOrders() {
                                 </span>
                               </div>
 
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
                                 <Button
                                   variant="outline"
                                   className="flex-1"
@@ -360,6 +449,15 @@ export default function AdminOrders() {
                                   <Printer className="h-4 w-4 mr-1" />
                                   Print Receipt
                                 </Button>
+                                {selectedOrder.is_new_school && selectedOrder.status === 'new_school_setup' && (
+                                  <Button
+                                    className="flex-1 bg-amber-600 hover:bg-amber-700"
+                                    onClick={() => handleCreateSchoolProfile(selectedOrder)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Create School Profile
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           )}
@@ -373,6 +471,18 @@ export default function AdminOrders() {
                       >
                         <Printer className="h-4 w-4" />
                       </Button>
+
+                      {/* Create School Profile button for new school orders */}
+                      {order.is_new_school && order.status === 'new_school_setup' && (
+                        <Button
+                          size="sm"
+                          className="bg-amber-600 hover:bg-amber-700"
+                          onClick={() => handleCreateSchoolProfile(order)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create School Profile
+                        </Button>
+                      )}
 
                       {order.status === 'awaiting_payment' && (
                         <Button

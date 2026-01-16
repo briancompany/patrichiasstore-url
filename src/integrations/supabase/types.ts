@@ -109,6 +109,8 @@ export type Database = {
           delivery_location: string | null
           delivery_type: Database["public"]["Enums"]["delivery_type"]
           id: string
+          is_new_school: boolean
+          linked_school_id: string | null
           notes: string | null
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
@@ -122,6 +124,8 @@ export type Database = {
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
+          is_new_school?: boolean
+          linked_school_id?: string | null
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
@@ -135,12 +139,22 @@ export type Database = {
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
+          is_new_school?: boolean
+          linked_school_id?: string | null
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_linked_school_id_fkey"
+            columns: ["linked_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -323,6 +337,7 @@ export type Database = {
         | "completed"
         | "awaiting_payment"
         | "confirmed"
+        | "new_school_setup"
       uniform_type:
         | "tshirt"
         | "tracksuit"
@@ -466,6 +481,7 @@ export const Constants = {
         "completed",
         "awaiting_payment",
         "confirmed",
+        "new_school_setup",
       ],
       uniform_type: [
         "tshirt",
