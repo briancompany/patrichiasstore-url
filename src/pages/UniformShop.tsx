@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 
@@ -65,8 +65,9 @@ export default function UniformShop() {
   const [pricingChart, setPricingChart] = useState<Record<string, ProductSize[]>>({});
   const [showCustomOrderFlow, setShowCustomOrderFlow] = useState(false);
   const [customSchoolName, setCustomSchoolName] = useState('');
+  const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
 
-  // Fetch pricing chart on mount
+  // Fetch pricing chart and general products on mount
   useEffect(() => {
     const fetchPricingChart = async () => {
       const { data, error } = await supabase
@@ -86,7 +87,26 @@ export default function UniformShop() {
         setPricingChart(grouped);
       }
     };
+
+    const fetchGeneralProducts = async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .is('school_id', null)
+        .eq('in_stock', true)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const mapped = data.map((p) => ({
+          ...p,
+          sizes: (p.sizes as unknown as ProductSize[]) || [],
+        }));
+        setGeneralProducts(mapped);
+      }
+    };
+
     fetchPricingChart();
+    fetchGeneralProducts();
   }, []);
 
   // Debounced search
@@ -461,6 +481,184 @@ export default function UniformShop() {
                   <Button onClick={() => setStep('review')}>View Cart</Button>
                 </CardContent>
               </Card>
+            )}
+
+            {/* General Products Available to All */}
+            {generalProducts.length > 0 && searchQuery.length < 3 && (
+              <div className="mt-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-bold">General Products</h2>
+                </div>
+                <p className="text-muted-foreground mb-4">
+                  These products are available to all customers
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {generalProducts.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => {
+                        setCurrentProduct(product);
+                        setSelectedSchool(null);
+                      }}
+                    >
+                      <div className="aspect-square bg-muted relative overflow-hidden">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                            <Package className="h-12 w-12 text-primary/40" />
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold truncate">{product.name}</h3>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="secondary">{typeLabels[product.type]}</Badge>
+                          <span className="text-sm font-medium text-primary">
+                            From Ksh {getMinPrice(product.sizes).toLocaleString()}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Product Selection Modal for General Products */}
+            {currentProduct && !selectedSchool && (
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <Card className="w-full max-w-md">
+                  <CardHeader className="flex flex-row items-start justify-between">
+                    <div>
+                      <CardTitle>{currentProduct.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {typeLabels[currentProduct.type]}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setCurrentProduct(null);
+                        setSelectedSize(null);
+                        setQuantity(1);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {currentProduct.image_url ? (
+                      <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={currentProduct.image_url}
+                          alt={currentProduct.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center">
+                        <Package className="h-12 w-12 text-primary/40" />
+                      </div>
+                    )}
+
+                    <div>
+                      <Label className="text-sm font-medium">Select Size</Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {currentProduct.sizes.map((size) => (
+                          <button
+                            key={size.size}
+                            onClick={() => setSelectedSize(size)}
+                            className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                              selectedSize?.size === size.size
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <span className="font-medium">{size.size}</span>
+                            <span className="text-sm text-muted-foreground ml-2">
+                              Ksh {size.price.toLocaleString()}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Quantity</Label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="font-semibold text-lg w-8 text-center">{quantity}</span>
+                        <button
+                          onClick={() => setQuantity(quantity + 1)}
+                          className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {selectedSize && (
+                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                        <span className="font-medium">Total:</span>
+                        <span className="text-xl font-bold text-primary">
+                          Ksh {(selectedSize.price * quantity).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={() => {
+                        if (!currentProduct || !selectedSize) return;
+                        const existingIndex = cart.findIndex(
+                          (item) => item.product.id === currentProduct.id && item.selectedSize === selectedSize.size
+                        );
+                        const totalPrice = selectedSize.price * quantity;
+                        if (existingIndex >= 0) {
+                          const newCart = [...cart];
+                          newCart[existingIndex].quantity += quantity;
+                          newCart[existingIndex].price += totalPrice;
+                          setCart(newCart);
+                        } else {
+                          setCart([
+                            ...cart,
+                            {
+                              product: currentProduct,
+                              selectedSize: selectedSize.size,
+                              quantity,
+                              price: totalPrice,
+                              printingRequired: false,
+                              logoUrl: null,
+                            },
+                          ]);
+                        }
+                        setCurrentProduct(null);
+                        setSelectedSize(null);
+                        setQuantity(1);
+                        toast.success('Added to cart!');
+                      }}
+                      disabled={!selectedSize}
+                      className="w-full"
+                      size="lg"
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         )}
