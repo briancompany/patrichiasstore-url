@@ -32,6 +32,7 @@ const navItems = [
   { name: 'Payments', path: '/admin/payments', icon: CreditCard },
   { name: 'Users', path: '/admin/users', icon: Users },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
+  { name: 'Monitor', path: '/admin/monitor', icon: AlertTriangle },
   { name: 'Settings', path: '/admin/settings', icon: Settings },
 ];
 

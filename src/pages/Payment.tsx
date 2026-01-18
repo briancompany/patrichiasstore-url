@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import storeLogo from '@/assets/store-logo.png';
 
 interface LocationState {
   orderId: string;
@@ -156,28 +157,84 @@ export default function Payment() {
   const generateReceipt = () => {
     if (!orderDetails) return;
 
-    const receiptContent = `
-╔══════════════════════════════════════════╗
-║         PATRICHIA'S STORE                ║
-║           OFFICIAL RECEIPT               ║
-╠══════════════════════════════════════════╣
-║ Customer: ${orderDetails.customerName.padEnd(28)}║
-║ Order ID: ${orderDetails.orderId.slice(0, 8).padEnd(28)}║
-║ Tracking: ${(orderDetails.trackingCode || 'N/A').padEnd(28)}║
-║ Amount: Ksh ${orderDetails.total.toLocaleString().padEnd(25)}║
-║ Status: PAID                             ║
-║ Date: ${new Date().toLocaleDateString().padEnd(30)}║
-╠══════════════════════════════════════════╣
-║ Thank you for shopping with us!          ║
-║ Contact: 0726075180                      ║
-╚══════════════════════════════════════════╝
-    `.trim();
+    // Create a visual receipt as HTML and convert to downloadable format
+    const receiptHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Receipt - Patrichia's Store</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; max-width: 400px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #7c3aed; padding-bottom: 20px; }
+    .logo { width: 80px; height: 80px; margin: 0 auto 15px; }
+    .store-name { color: #7c3aed; font-size: 24px; font-weight: bold; margin: 0; }
+    .tagline { color: #666; font-size: 12px; }
+    .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+    .row { display: flex; justify-content: space-between; margin: 8px 0; }
+    .label { color: #666; }
+    .value { font-weight: bold; }
+    .total { font-size: 20px; color: #7c3aed; }
+    .status { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; display: inline-block; }
+    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #ccc; color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 5L90 25V75L50 95L10 75V25L50 5Z" fill="#7c3aed"/>
+        <text x="50" y="60" font-size="40" fill="white" text-anchor="middle" font-weight="bold">P</text>
+      </svg>
+    </div>
+    <h1 class="store-name">Patrichia's Store</h1>
+    <p class="tagline">Quality School Uniforms</p>
+  </div>
+  
+  <div class="section">
+    <div class="row">
+      <span class="label">Customer:</span>
+      <span class="value">${orderDetails.customerName}</span>
+    </div>
+    <div class="row">
+      <span class="label">Order ID:</span>
+      <span class="value">${orderDetails.orderId.slice(0, 8)}</span>
+    </div>
+    <div class="row">
+      <span class="label">Tracking:</span>
+      <span class="value">${orderDetails.trackingCode || 'N/A'}</span>
+    </div>
+    <div class="row">
+      <span class="label">Date:</span>
+      <span class="value">${new Date().toLocaleDateString()}</span>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="row">
+      <span class="label">Amount Paid:</span>
+      <span class="value total">Ksh ${orderDetails.total.toLocaleString()}</span>
+    </div>
+    <div class="row">
+      <span class="label">Status:</span>
+      <span class="status">PAID ✓</span>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>Thank you for shopping with us!</p>
+    <p>📍 Uhuru Market, Store F47</p>
+    <p>📞 0726075180</p>
+  </div>
+</body>
+</html>
+    `;
 
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
+    const blob = new Blob([receiptHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `receipt-${orderDetails.trackingCode || orderDetails.orderId.slice(0, 8)}.txt`;
+    a.download = `receipt-${orderDetails.trackingCode || orderDetails.orderId.slice(0, 8)}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
