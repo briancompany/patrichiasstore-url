@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -13,8 +14,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { CreditCard, Search, RefreshCw, Download } from 'lucide-react';
+import { CreditCard, Search, RefreshCw, Download, Plus, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -29,8 +38,23 @@ interface Payment {
   created_at: string;
 }
 
+interface PendingOrder {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminPayments() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showManualDialog, setShowManualDialog] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<PendingOrder | null>(null);
+  const [manualMpesaCode, setManualMpesaCode] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: payments, isLoading, refetch } = useQuery({
     queryKey: ['admin-payments'],
@@ -45,6 +69,21 @@ export default function AdminPayments() {
     },
   });
 
+  // Fetch orders awaiting payment (for manual verification)
+  const { data: pendingOrders } = useQuery({
+    queryKey: ['pending-payment-orders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .in('status', ['pending', 'awaiting_payment', 'new_school_setup'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as PendingOrder[];
+    },
+  });
+
   const filteredPayments = payments?.filter((payment) => {
     const search = searchTerm.toLowerCase();
     return (
@@ -56,6 +95,62 @@ export default function AdminPayments() {
   });
 
   const totalAmount = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+
+  const handleManualVerify = async () => {
+    if (!selectedOrder || !manualMpesaCode.trim()) {
+      toast.error('Please enter M-Pesa code');
+      return;
+    }
+
+    const amount = parseInt(manualAmount) || selectedOrder.total_amount;
+
+    setIsProcessing(true);
+
+    try {
+      // Update order status
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'confirmed',
+          notes: `Manual verification - M-Pesa Code: ${manualMpesaCode}`
+        })
+        .eq('id', selectedOrder.id);
+
+      if (orderError) throw orderError;
+
+      // Record payment
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          order_id: selectedOrder.id,
+          amount,
+          mpesa_code: manualMpesaCode,
+          customer_name: selectedOrder.customer_name,
+          customer_phone: selectedOrder.customer_phone || null,
+        });
+
+      if (paymentError) throw paymentError;
+
+      toast.success('Payment verified successfully!');
+      setShowManualDialog(false);
+      setSelectedOrder(null);
+      setManualMpesaCode('');
+      setManualAmount('');
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['pending-payment-orders'] });
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('Failed to verify payment');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const openManualVerify = (order: PendingOrder) => {
+    setSelectedOrder(order);
+    setManualAmount(order.total_amount.toString());
+    setShowManualDialog(true);
+  };
 
   const exportPayments = () => {
     if (!payments || payments.length === 0) {
@@ -92,7 +187,7 @@ export default function AdminPayments() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Payments</h1>
-            <p className="text-muted-foreground">View all verified M-Pesa payments</p>
+            <p className="text-muted-foreground">View and manage M-Pesa payments</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => refetch()}>
@@ -107,7 +202,7 @@ export default function AdminPayments() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
@@ -142,7 +237,54 @@ export default function AdminPayments() {
               </div>
             </CardContent>
           </Card>
+          <Card className="border-amber-200 bg-amber-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-amber-800">Awaiting Payment</CardTitle>
+              <CreditCard className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-700">
+                {pendingOrders?.length || 0}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Pending Orders - Manual Verification */}
+        {pendingOrders && pendingOrders.length > 0 && (
+          <Card className="border-amber-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-amber-800">
+                <Plus className="h-5 w-5" />
+                Orders Awaiting Payment (Manual Verification)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {pendingOrders.slice(0, 10).map((order) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
+                  >
+                    <div>
+                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.customer_phone} • Ksh {order.total_amount.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(order.created_at), 'MMM d, HH:mm')}
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={() => openManualVerify(order)}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Verify Payment
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search */}
         <div className="flex items-center gap-4">
@@ -207,6 +349,61 @@ export default function AdminPayments() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Manual Verification Dialog */}
+      <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manual Payment Verification</DialogTitle>
+            <DialogDescription>
+              Verify payment manually when the customer's M-Pesa paste failed
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="font-medium">{selectedOrder.customer_name}</p>
+                <p className="text-sm text-muted-foreground">{selectedOrder.customer_phone}</p>
+                <p className="text-lg font-bold text-primary mt-2">
+                  Expected: Ksh {selectedOrder.total_amount.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mpesaCode">M-Pesa Transaction Code</Label>
+                <Input
+                  id="mpesaCode"
+                  value={manualMpesaCode}
+                  onChange={(e) => setManualMpesaCode(e.target.value.toUpperCase())}
+                  placeholder="e.g., ABC123XYZ"
+                  className="font-mono"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount Received (Ksh)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={manualAmount}
+                  onChange={(e) => setManualAmount(e.target.value)}
+                  placeholder="Enter amount"
+                />
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowManualDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleManualVerify} disabled={isProcessing || !manualMpesaCode.trim()}>
+                  {isProcessing ? 'Verifying...' : 'Confirm Payment'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

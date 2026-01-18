@@ -71,7 +71,7 @@ export default function Index() {
               <Button asChild size="lg" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground text-lg px-8">
                 <Link to="/shop">Shop Now</Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 text-lg px-8">
+              <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg px-8 shadow-lg">
                 <Link to="/order">Place Order</Link>
               </Button>
             </div>
