@@ -10,6 +10,15 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import storeLogo from '@/assets/store-logo.png';
 
+interface OrderItem {
+  id: string;
+  product_name: string;
+  size: string;
+  quantity: number;
+  price_at_purchase: number;
+  color?: string | null;
+}
+
 interface LocationState {
   orderId: string;
   trackingCode: string | null;
@@ -42,6 +51,9 @@ export default function Payment() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [orderDetails, setOrderDetails] = useState<LocationState | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [complaintText, setComplaintText] = useState('');
+  const [showComplaintForm, setShowComplaintForm] = useState(false);
 
   const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
@@ -50,6 +62,18 @@ export default function Payment() {
   useEffect(() => {
     if (state) {
       setOrderDetails(state);
+      // Fetch order items
+      const fetchOrderItems = async () => {
+        const { data, error } = await supabase
+          .from('order_items')
+          .select('id, product_name, size, quantity, price_at_purchase, color')
+          .eq('order_id', state.orderId);
+        
+        if (!error && data) {
+          setOrderItems(data);
+        }
+      };
+      fetchOrderItems();
     }
   }, [state]);
 
@@ -157,6 +181,14 @@ export default function Payment() {
   const generateReceipt = () => {
     if (!orderDetails) return;
 
+    const itemsHTML = orderItems.map(item => `
+      <div class="row">
+        <span>${item.product_name} (${item.size})${item.color ? ` - ${item.color}` : ''}</span>
+        <span>×${item.quantity}</span>
+        <span class="value">Ksh ${item.price_at_purchase.toLocaleString()}</span>
+      </div>
+    `).join('');
+
     // Create a visual receipt as HTML and convert to downloadable format
     const receiptHTML = `
 <!DOCTYPE html>
@@ -165,17 +197,19 @@ export default function Payment() {
   <meta charset="UTF-8">
   <title>Receipt - Patrichia's Store</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 40px; max-width: 400px; margin: 0 auto; }
+    body { font-family: Arial, sans-serif; padding: 40px; max-width: 450px; margin: 0 auto; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #7c3aed; padding-bottom: 20px; }
     .logo { width: 80px; height: 80px; margin: 0 auto 15px; }
     .store-name { color: #7c3aed; font-size: 24px; font-weight: bold; margin: 0; }
     .tagline { color: #666; font-size: 12px; }
     .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
-    .row { display: flex; justify-content: space-between; margin: 8px 0; }
+    .row { display: flex; justify-content: space-between; margin: 8px 0; gap: 10px; }
     .label { color: #666; }
     .value { font-weight: bold; }
     .total { font-size: 20px; color: #7c3aed; }
     .status { background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; display: inline-block; }
+    .items-section { margin: 20px 0; padding: 15px; background: #f0f0ff; border-radius: 8px; }
+    .items-title { font-weight: bold; margin-bottom: 10px; color: #7c3aed; }
     .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #ccc; color: #666; font-size: 12px; }
   </style>
 </head>
@@ -208,6 +242,11 @@ export default function Payment() {
       <span class="label">Date:</span>
       <span class="value">${new Date().toLocaleDateString()}</span>
     </div>
+  </div>
+
+  <div class="items-section">
+    <p class="items-title">📦 Items Ordered</p>
+    ${itemsHTML || '<p>No items</p>'}
   </div>
   
   <div class="section">
@@ -244,20 +283,30 @@ export default function Payment() {
 
   const handleSendComplaint = () => {
     if (!orderDetails) return;
+    if (!complaintText.trim()) {
+      toast.error('Please describe your complaint');
+      return;
+    }
+
+    const itemsList = orderItems.map(item => 
+      `• ${item.product_name} (${item.size}) ×${item.quantity}${item.color ? ` - ${item.color}` : ''}`
+    ).join('\n');
 
     const message = encodeURIComponent(
-      `Hello Patrichia's Store!\n\n` +
-      `I have a complaint regarding my order:\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `👤 Name: ${orderDetails.customerName}\n` +
+      `🚨 COMPLAINT - Patrichia's Store\n\n` +
+      `👤 Customer: ${orderDetails.customerName}\n` +
       `🔖 Tracking: ${orderDetails.trackingCode || 'N/A'}\n` +
       `💰 Amount: Ksh ${orderDetails.total.toLocaleString()}\n` +
+      `📅 Date: ${new Date().toLocaleDateString()}\n\n` +
+      `📦 Items:\n${itemsList}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `📝 COMPLAINT:\n${complaintText}\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `My complaint:\n[Please describe your issue here]\n\n` +
-      `I have attached my receipt for reference.`
+      `⚠️ Please download and attach my receipt PDF from the website.`
     );
 
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+    toast.success('Opening WhatsApp... Don\'t forget to attach your receipt!');
   };
 
   if (!orderDetails) {
@@ -501,16 +550,50 @@ export default function Payment() {
 
                 <div className="pt-4 border-t border-green-200">
                   <p className="text-sm text-green-700 mb-3">
-                    Have an issue? Send your complaint with the receipt:
+                    Have an issue? Download your receipt first, then send a complaint:
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={handleSendComplaint}
-                    className="w-full border-green-600 text-green-700 hover:bg-green-100"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Send Complaint via WhatsApp
-                  </Button>
+                  
+                  {!showComplaintForm ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowComplaintForm(true)}
+                      className="w-full border-green-600 text-green-700 hover:bg-green-100"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Send Complaint
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Describe your complaint in detail..."
+                        value={complaintText}
+                        onChange={(e) => setComplaintText(e.target.value)}
+                        className="min-h-[100px] bg-white"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowComplaintForm(false);
+                            setComplaintText('');
+                          }}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleSendComplaint}
+                          disabled={!complaintText.trim()}
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                        >
+                          Send via WhatsApp
+                        </Button>
+                      </div>
+                      <p className="text-xs text-green-600">
+                        💡 Tip: Download your receipt above and attach it to WhatsApp for faster resolution.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
