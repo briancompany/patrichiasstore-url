@@ -538,13 +538,26 @@ export default function UniformShop() {
             )}
 
             {cart.length > 0 && (
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShoppingCart className="h-5 w-5 text-primary" />
-                    <span className="font-medium">{cart.length} items in cart</span>
+              <Card className="bg-accent/10 border-accent border-2 shadow-lg">
+                <CardContent className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                      <ShoppingCart className="h-5 w-5 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-lg">{cart.length} items in cart</span>
+                      <p className="text-sm text-muted-foreground">
+                        Ksh {cartTotal.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <Button onClick={() => setStep('review')}>View Cart</Button>
+                  <Button 
+                    onClick={() => setStep('review')} 
+                    className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold h-12 px-6"
+                  >
+                    View Cart
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -716,11 +729,11 @@ export default function UniformShop() {
                         toast.success('Added to cart!');
                       }}
                       disabled={!selectedSize}
-                      className="w-full"
+                      className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
                       size="lg"
                     >
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      Add to Cart - Ksh {selectedSize ? (selectedSize.price * quantity).toLocaleString() : '0'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -947,18 +960,18 @@ export default function UniformShop() {
                         <Button
                           onClick={handleAddToCart}
                           disabled={!selectedSize || uploadingSample}
-                          className="w-full"
+                          className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
                           size="lg"
                         >
                           {uploadingSample ? (
                             <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                               Uploading...
                             </>
                           ) : (
                             <>
-                              <ShoppingCart className="h-4 w-4 mr-2" />
-                              Add to Cart
+                              <ShoppingCart className="h-5 w-5 mr-2" />
+                              Add to Cart - Ksh {selectedSize ? (selectedSize.price * quantity).toLocaleString() : '0'}
                             </>
                           )}
                         </Button>
@@ -1017,22 +1030,28 @@ export default function UniformShop() {
                   ))}
                 </div>
 
-                {/* Cart Summary */}
+                {/* Cart Summary - Fixed at bottom for easy access */}
                 {cart.length > 0 && (
-                  <Card className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 bg-card border-primary/20 shadow-lg z-40">
-                    <CardContent className="p-4">
+                  <Card className="fixed bottom-0 left-0 right-0 md:bottom-4 md:left-auto md:right-8 md:w-96 md:rounded-lg rounded-none bg-card border-t-2 md:border-2 border-accent shadow-2xl z-50">
+                    <CardContent className="p-4 safe-area-bottom">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <ShoppingCart className="h-5 w-5 text-primary" />
-                          <span className="font-semibold">{cart.length} items</span>
+                          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                            <ShoppingCart className="h-5 w-5 text-accent-foreground" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-lg">{cart.length} items</span>
+                            <p className="text-sm text-muted-foreground">in your cart</p>
+                          </div>
                         </div>
-                        <span className="font-bold text-primary">
+                        <span className="font-bold text-xl text-accent">
                           Ksh {cartTotal.toLocaleString()}
                         </span>
                       </div>
-                      <Button onClick={handleProceedToPrinting} className="w-full">
-                        Continue
-                        <ChevronRight className="h-4 w-4 ml-2" />
+                      <Button onClick={handleProceedToPrinting} className="w-full h-12 text-lg bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
+                        <ShoppingCart className="h-5 w-5 mr-2" />
+                        Continue to Checkout
+                        <ChevronRight className="h-5 w-5 ml-2" />
                       </Button>
                     </CardContent>
                   </Card>
