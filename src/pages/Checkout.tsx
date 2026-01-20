@@ -25,6 +25,8 @@ interface CartItem {
   price: number;
   printingRequired: boolean;
   logoUrl: string | null;
+  color?: string;
+  sampleImageUrl?: string;
 }
 
 interface SelectedSchool {
@@ -115,6 +117,8 @@ export default function Checkout() {
         price_at_purchase: item.price,
         printing_required: item.printingRequired,
         logo_url: item.logoUrl,
+        color: item.color || null,
+        sample_image_url: item.sampleImageUrl || null,
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);

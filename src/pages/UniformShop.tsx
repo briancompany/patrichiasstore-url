@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image } from 'lucide-react';
 import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 
@@ -44,6 +44,8 @@ interface CartItem {
   price: number;
   printingRequired: boolean;
   logoUrl: string | null;
+  color?: string;
+  sampleImageUrl?: string;
 }
 
 type Step = 'search' | 'products' | 'printing' | 'review';
@@ -66,6 +68,9 @@ export default function UniformShop() {
   const [showCustomOrderFlow, setShowCustomOrderFlow] = useState(false);
   const [customSchoolName, setCustomSchoolName] = useState('');
   const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
+  const [selectedColor, setSelectedColor] = useState('');
+  const [sampleImage, setSampleImage] = useState<File | null>(null);
+  const [uploadingSample, setUploadingSample] = useState(false);
 
   // Fetch pricing chart and general products on mount
   useEffect(() => {
@@ -230,16 +235,50 @@ export default function UniformShop() {
     setStep('products');
   };
 
-  const handleAddToCart = () => {
+  const handleUploadSampleImage = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingSample(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `sample-${Date.now()}.${fileExt}`;
+      const filePath = `samples/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl.publicUrl;
+    } catch (error) {
+      console.error('Error uploading sample:', error);
+      toast.error('Failed to upload sample image');
+      return null;
+    } finally {
+      setUploadingSample(false);
+    }
+  };
+
+  const handleAddToCart = async () => {
     if (!currentProduct || !selectedSize) return;
 
+    let sampleImageUrl: string | null = null;
+    if (sampleImage) {
+      sampleImageUrl = await handleUploadSampleImage(sampleImage);
+    }
+
     const existingIndex = cart.findIndex(
-      (item) => item.product.id === currentProduct.id && item.selectedSize === selectedSize.size
+      (item) => item.product.id === currentProduct.id && 
+                item.selectedSize === selectedSize.size &&
+                item.color === selectedColor
     );
 
     const totalPrice = selectedSize.price * quantity;
 
-    if (existingIndex >= 0) {
+    if (existingIndex >= 0 && !sampleImageUrl) {
       const newCart = [...cart];
       newCart[existingIndex].quantity += quantity;
       newCart[existingIndex].price += totalPrice;
@@ -254,6 +293,8 @@ export default function UniformShop() {
           price: totalPrice,
           printingRequired: false,
           logoUrl: null,
+          color: selectedColor || undefined,
+          sampleImageUrl: sampleImageUrl || undefined,
         },
       ]);
     }
@@ -261,6 +302,8 @@ export default function UniformShop() {
     setCurrentProduct(null);
     setSelectedSize(null);
     setQuantity(1);
+    setSelectedColor('');
+    setSampleImage(null);
     toast.success('Added to cart!');
   };
 
@@ -279,14 +322,37 @@ export default function UniformShop() {
     setPrintingRequired(null);
   };
 
+  // Items that should NOT have logo printed (e.g., shorts, skirts, dresses, trousers)
+  const noLogoTypes = ['shorts', 'skirt', 'dress', 'trousers'];
+  
   const handlePrintingConfirm = (needsPrinting: boolean) => {
     setPrintingRequired(needsPrinting);
-    const updatedCart = cart.map((item) => ({
-      ...item,
-      printingRequired: needsPrinting,
-      logoUrl: needsPrinting ? selectedSchool?.logo_url || null : null,
-    }));
+    // Auto-apply logo to eligible items only
+    const updatedCart = cart.map((item) => {
+      const canHaveLogo = !noLogoTypes.includes(item.product.type);
+      return {
+        ...item,
+        printingRequired: needsPrinting && canHaveLogo,
+        logoUrl: needsPrinting && canHaveLogo ? selectedSchool?.logo_url || null : null,
+      };
+    });
     setCart(updatedCart);
+  };
+
+  const toggleItemPrinting = (index: number) => {
+    const item = cart[index];
+    const canHaveLogo = !noLogoTypes.includes(item.product.type);
+    if (!canHaveLogo) {
+      toast.error(`${item.product.name} cannot have logo printed`);
+      return;
+    }
+    const newCart = [...cart];
+    newCart[index] = {
+      ...newCart[index],
+      printingRequired: !newCart[index].printingRequired,
+      logoUrl: !newCart[index].printingRequired ? selectedSchool?.logo_url || null : null,
+    };
+    setCart(newCart);
   };
 
   const handleProceedToReview = () => {
@@ -792,6 +858,64 @@ export default function UniformShop() {
                           </div>
                         </div>
 
+                        {/* Color Selection */}
+                        <div>
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            Choose Color (Optional)
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {['White', 'Black', 'Navy', 'Red', 'Green', 'Yellow', 'Grey', 'Maroon', 'Blue'].map((color) => (
+                              <button
+                                key={color}
+                                onClick={() => setSelectedColor(selectedColor === color ? '' : color)}
+                                className={`px-3 py-1.5 rounded-lg border-2 text-sm transition-colors ${
+                                  selectedColor === color
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border hover:border-primary/50'
+                                }`}
+                              >
+                                {color}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Sample Image Upload */}
+                        <div>
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            Upload Sample Image (Optional)
+                          </Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Upload a reference image of the uniform style you want
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setSampleImage(e.target.files?.[0] || null)}
+                              className="flex-1"
+                            />
+                            {sampleImage && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setSampleImage(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          {sampleImage && (
+                            <div className="mt-2 p-2 bg-muted rounded-lg">
+                              <p className="text-sm text-muted-foreground">
+                                📎 {sampleImage.name}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-medium">Quantity</Label>
                           <div className="flex items-center gap-3">
@@ -822,12 +946,21 @@ export default function UniformShop() {
 
                         <Button
                           onClick={handleAddToCart}
-                          disabled={!selectedSize}
+                          disabled={!selectedSize || uploadingSample}
                           className="w-full"
                           size="lg"
                         >
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          Add to Cart
+                          {uploadingSample ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="h-4 w-4 mr-2" />
+                              Add to Cart
+                            </>
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
@@ -965,49 +1098,46 @@ export default function UniformShop() {
                   </label>
                 </RadioGroup>
 
-                {/* Show school logo if printing is selected and logo exists */}
-                {printingRequired === true && selectedSchool?.logo_url && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium mb-3">School Logo to be printed:</p>
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={selectedSchool.logo_url}
-                        alt={selectedSchool.name}
-                        className="w-20 h-20 rounded-lg object-cover bg-background"
-                      />
-                      <div>
-                        <p className="font-semibold">{selectedSchool.name}</p>
-                        <p className="text-sm text-muted-foreground">Official school logo</p>
-                      </div>
+                {/* Per-item logo selection when printing is enabled */}
+                {printingRequired === true && (
+                  <div className="space-y-4">
+                    <p className="text-sm font-medium">Select items for logo printing:</p>
+                    <div className="space-y-2">
+                      {cart.map((item, index) => {
+                        const canHaveLogo = !noLogoTypes.includes(item.product.type);
+                        return (
+                          <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${item.printingRequired ? 'bg-primary/5 border-primary' : 'bg-muted'}`}>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{item.product.name}</p>
+                              <p className="text-xs text-muted-foreground">Size: {item.selectedSize} × {item.quantity}</p>
+                            </div>
+                            {canHaveLogo ? (
+                              <Button
+                                variant={item.printingRequired ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => toggleItemPrinting(index)}
+                              >
+                                {item.printingRequired ? <><Check className="h-3 w-3 mr-1" /> Logo</> : 'Add Logo'}
+                              </Button>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">No Logo</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <Button
-                      variant="outline"
-                      className="mt-4 w-full"
-                      onClick={handleProceedToReview}
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Confirm Logo & Continue
-                    </Button>
-                  </div>
-                )}
-
-                {/* Info for unregistered schools needing printing */}
-                {printingRequired === true && !selectedSchool?.logo_url && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-amber-800">Logo Not Available</p>
-                        <p className="text-sm text-amber-700 mt-1">
-                          We don't have a logo for {selectedSchool?.name} yet. Our team will contact you to collect the school logo after you place your order.
-                        </p>
+                    
+                    {selectedSchool?.logo_url ? (
+                      <div className="p-3 bg-muted rounded-lg flex items-center gap-3">
+                        <img src={selectedSchool.logo_url} alt="Logo" className="w-12 h-12 rounded object-cover" />
+                        <p className="text-sm">{selectedSchool.name} logo</p>
                       </div>
-                    </div>
-                    <Button
-                      onClick={handleProceedToReview}
-                      className="w-full"
-                    >
-                      Continue - We'll Contact You for Logo
+                    ) : (
+                      <p className="text-sm text-amber-600">⚠️ Logo will be collected after order</p>
+                    )}
+                    
+                    <Button onClick={handleProceedToReview} className="w-full" size="lg">
+                      Continue to Review
                       <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
                   </div>
@@ -1078,6 +1208,18 @@ export default function UniformShop() {
                         <p className="text-sm text-muted-foreground">
                           Size: {item.selectedSize} × {item.quantity}
                         </p>
+                        {item.color && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Palette className="h-3 w-3" />
+                            Color: {item.color}
+                          </p>
+                        )}
+                        {item.sampleImageUrl && (
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            <Upload className="h-3 w-3 mr-1" />
+                            Sample Attached
+                          </Badge>
+                        )}
                         {item.printingRequired && (
                           <Badge variant="secondary" className="mt-1">
                             <Printer className="h-3 w-3 mr-1" />

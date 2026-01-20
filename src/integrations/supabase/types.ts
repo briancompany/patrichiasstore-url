@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       order_items: {
         Row: {
+          color: string | null
           created_at: string
           id: string
           logo_url: string | null
@@ -25,10 +26,12 @@ export type Database = {
           product_id: string | null
           product_name: string
           quantity: number
+          sample_image_url: string | null
           school_name: string | null
           size: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -38,10 +41,12 @@ export type Database = {
           product_id?: string | null
           product_name: string
           quantity?: number
+          sample_image_url?: string | null
           school_name?: string | null
           size: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -51,6 +56,7 @@ export type Database = {
           product_id?: string | null
           product_name?: string
           quantity?: number
+          sample_image_url?: string | null
           school_name?: string | null
           size?: string
         }
