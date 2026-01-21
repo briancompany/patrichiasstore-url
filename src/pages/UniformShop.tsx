@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
+import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
+import { showCartConfirmation } from '@/components/CartConfirmationToast';
 
 interface ProductSize {
   size: string;
@@ -277,6 +279,7 @@ export default function UniformShop() {
     );
 
     const totalPrice = selectedSize.price * quantity;
+    let newCartCount = cart.length;
 
     if (existingIndex >= 0 && !sampleImageUrl) {
       const newCart = [...cart];
@@ -297,14 +300,22 @@ export default function UniformShop() {
           sampleImageUrl: sampleImageUrl || undefined,
         },
       ]);
+      newCartCount = cart.length + 1;
     }
+
+    // Show enhanced cart confirmation
+    showCartConfirmation({
+      productName: currentProduct.name,
+      quantity,
+      totalPrice,
+      cartCount: newCartCount,
+    });
 
     setCurrentProduct(null);
     setSelectedSize(null);
     setQuantity(1);
     setSelectedColor('');
     setSampleImage(null);
-    toast.success('Added to cart!');
   };
 
   const removeFromCart = (index: number) => {
@@ -793,32 +804,51 @@ export default function UniformShop() {
               </Card>
             ) : (
               <>
-                {/* Product Selection Modal */}
+                {/* Product Selection Modal - Redesigned with fixed bottom action bar */}
                 {currentProduct && (
-                  <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <Card className="w-full max-w-md">
-                      <CardHeader className="flex flex-row items-start justify-between">
-                        <div>
-                          <CardTitle>{currentProduct.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            {typeLabels[currentProduct.type]}
-                          </p>
+                  <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end md:items-center justify-center">
+                    <Card className="w-full max-w-md md:m-4 rounded-t-2xl md:rounded-2xl max-h-[90vh] md:max-h-[85vh] flex flex-col">
+                      {/* Header */}
+                      <CardHeader className="flex flex-row items-start justify-between pb-2 shrink-0">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{currentProduct.name}</CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary">{typeLabels[currentProduct.type]}</Badge>
+                            {selectedSchool?.logo_url && selectedSchool.isFromDB && (
+                              <SchoolLogoViewer 
+                                logoUrl={selectedSchool.logo_url} 
+                                schoolName={selectedSchool.name}
+                                trigger={
+                                  <button className="flex items-center gap-1 text-xs text-primary hover:underline">
+                                    <ZoomIn className="h-3 w-3" />
+                                    View Logo
+                                  </button>
+                                }
+                              />
+                            )}
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="shrink-0"
                           onClick={() => {
                             setCurrentProduct(null);
                             setSelectedSize(null);
                             setQuantity(1);
+                            setSelectedColor('');
+                            setSampleImage(null);
                           }}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-5 w-5" />
                         </Button>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      
+                      {/* Scrollable Content */}
+                      <CardContent className="flex-1 overflow-y-auto space-y-3 pb-4">
+                        {/* Product Image - Compact */}
                         {currentProduct.image_url ? (
-                          <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                          <div className="aspect-[16/10] rounded-lg overflow-hidden bg-muted">
                             <img
                               src={currentProduct.image_url}
                               alt={currentProduct.name}
@@ -826,8 +856,8 @@ export default function UniformShop() {
                             />
                           </div>
                         ) : (
-                          <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-center justify-center">
-                            <div className="text-5xl mb-2">
+                          <div className="aspect-[16/10] rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center gap-4">
+                            <div className="text-4xl">
                               {currentProduct.type === 'tshirt' && '👕'}
                               {currentProduct.type === 'tracksuit' && '🥋'}
                               {currentProduct.type === 'socks' && '🧦'}
@@ -836,55 +866,70 @@ export default function UniformShop() {
                               {currentProduct.type === 'sweater' && '🧥'}
                               {currentProduct.type === 'other' && '👔'}
                             </div>
-                            <span className="text-sm font-medium text-primary">
-                              {typeLabels[currentProduct.type]}
-                            </span>
                             {selectedSchool?.logo_url && (
                               <img 
                                 src={selectedSchool.logo_url} 
                                 alt="School logo" 
-                                className="w-16 h-16 rounded-full mt-3 border-2 border-primary/20 object-cover"
+                                className="w-14 h-14 rounded-full border-2 border-primary/20 object-cover"
                               />
                             )}
                           </div>
                         )}
 
+                        {/* Size Selection */}
                         <div>
-                          <Label className="text-sm font-medium">Select Size</Label>
-                          <div className="flex flex-wrap gap-2 mt-2">
+                          <Label className="text-sm font-medium">Size *</Label>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
                             {currentProduct.sizes.map((size) => (
                               <button
                                 key={size.size}
                                 onClick={() => setSelectedSize(size)}
-                                className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                                className={`px-3 py-1.5 rounded-lg border-2 transition-colors text-sm ${
                                   selectedSize?.size === size.size
-                                    ? 'border-primary bg-primary/10 text-primary'
+                                    ? 'border-primary bg-primary/10 text-primary font-semibold'
                                     : 'border-border hover:border-primary/50'
                                 }`}
                               >
-                                <span className="font-medium">{size.size}</span>
-                                <span className="text-sm text-muted-foreground ml-2">
-                                  Ksh {size.price.toLocaleString()}
-                                </span>
+                                {size.size} <span className="text-xs opacity-70">Ksh {size.price.toLocaleString()}</span>
                               </button>
                             ))}
                           </div>
                         </div>
 
-                        {/* Color Selection */}
+                        {/* Quantity */}
+                        <div className="flex items-center justify-between py-1">
+                          <Label className="text-sm font-medium">Quantity</Label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="font-semibold text-lg w-8 text-center">{quantity}</span>
+                            <button
+                              onClick={() => setQuantity(quantity + 1)}
+                              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Color Selection - Compact */}
                         <div>
-                          <Label className="text-sm font-medium flex items-center gap-2">
-                            <Palette className="h-4 w-4" />
-                            Choose Color (Optional)
+                          <Label className="text-sm font-medium flex items-center gap-1">
+                            <Palette className="h-3.5 w-3.5" />
+                            Color (Optional)
                           </Label>
-                          <div className="flex flex-wrap gap-2 mt-2">
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
                             {['White', 'Black', 'Navy', 'Red', 'Green', 'Yellow', 'Grey', 'Maroon', 'Blue'].map((color) => (
                               <button
                                 key={color}
                                 onClick={() => setSelectedColor(selectedColor === color ? '' : color)}
-                                className={`px-3 py-1.5 rounded-lg border-2 text-sm transition-colors ${
+                                className={`px-2.5 py-1 rounded-lg border text-xs transition-colors ${
                                   selectedColor === color
-                                    ? 'border-primary bg-primary/10 text-primary'
+                                    ? 'border-primary bg-primary/10 text-primary font-medium'
                                     : 'border-border hover:border-primary/50'
                                 }`}
                               >
@@ -894,26 +939,24 @@ export default function UniformShop() {
                           </div>
                         </div>
 
-                        {/* Sample Image Upload */}
+                        {/* Sample Image Upload - Compact */}
                         <div>
-                          <Label className="text-sm font-medium flex items-center gap-2">
-                            <Image className="h-4 w-4" />
-                            Upload Sample Image (Optional)
+                          <Label className="text-sm font-medium flex items-center gap-1">
+                            <Image className="h-3.5 w-3.5" />
+                            Sample Image (Optional)
                           </Label>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Upload a reference image of the uniform style you want
-                          </p>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 mt-1.5">
                             <Input
                               type="file"
                               accept="image/*"
                               onChange={(e) => setSampleImage(e.target.files?.[0] || null)}
-                              className="flex-1"
+                              className="flex-1 text-sm h-9"
                             />
                             {sampleImage && (
                               <Button
                                 variant="outline"
                                 size="icon"
+                                className="h-9 w-9"
                                 onClick={() => setSampleImage(null)}
                               >
                                 <X className="h-4 w-4" />
@@ -921,46 +964,25 @@ export default function UniformShop() {
                             )}
                           </div>
                           {sampleImage && (
-                            <div className="mt-2 p-2 bg-muted rounded-lg">
-                              <p className="text-sm text-muted-foreground">
-                                📎 {sampleImage.name}
-                              </p>
-                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              📎 {sampleImage.name}
+                            </p>
                           )}
                         </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">Quantity</Label>
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </button>
-                            <span className="font-semibold text-lg w-8 text-center">{quantity}</span>
-                            <button
-                              onClick={() => setQuantity(quantity + 1)}
-                              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
+                      </CardContent>
+                      
+                      {/* Fixed Bottom Action Bar */}
+                      <div className="border-t bg-card p-4 shrink-0 safe-area-bottom">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm text-muted-foreground">Total Price:</span>
+                          <span className="text-2xl font-bold text-primary">
+                            Ksh {selectedSize ? (selectedSize.price * quantity).toLocaleString() : '0'}
+                          </span>
                         </div>
-
-                        {selectedSize && (
-                          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                            <span className="font-medium">Total:</span>
-                            <span className="text-xl font-bold text-primary">
-                              Ksh {(selectedSize.price * quantity).toLocaleString()}
-                            </span>
-                          </div>
-                        )}
-
                         <Button
                           onClick={handleAddToCart}
                           disabled={!selectedSize || uploadingSample}
-                          className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+                          className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
                           size="lg"
                         >
                           {uploadingSample ? (
@@ -971,11 +993,11 @@ export default function UniformShop() {
                           ) : (
                             <>
                               <ShoppingCart className="h-5 w-5 mr-2" />
-                              Add to Cart - Ksh {selectedSize ? (selectedSize.price * quantity).toLocaleString() : '0'}
+                              Add to Cart
                             </>
                           )}
                         </Button>
-                      </CardContent>
+                      </div>
                     </Card>
                   </div>
                 )}

@@ -11,7 +11,7 @@ export function WhatsAppButton() {
   return (
     <button
       onClick={handleClick}
-      className="floating-whatsapp"
+      className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-14 h-14 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center animate-bounce-gentle"
       aria-label="Order on WhatsApp"
     >
       <MessageCircle className="h-7 w-7" />

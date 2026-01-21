@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, ShoppingBag } from 'lucide-react';
+import { MapPin, Phone, Clock, ShoppingBag, Mail, Code } from 'lucide-react';
+import { DeveloperProfileDialog } from '../DeveloperProfileDialog';
 
 export function Footer() {
   return (
@@ -59,8 +60,38 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/20 mt-8 pt-8 text-center text-primary-foreground/60">
-          <p>© {new Date().getFullYear()} Patrichia's Store. All rights reserved.</p>
+        <div className="border-t border-primary-foreground/20 mt-8 pt-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-primary-foreground/60">
+              © {new Date().getFullYear()} Patrichia's Store. All rights reserved.
+            </p>
+            
+            {/* Developer Credit */}
+            <div className="bg-primary-foreground/10 rounded-lg p-4 max-w-md">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Code className="h-4 w-4 text-primary-foreground/80" />
+                <span className="font-medium text-primary-foreground/90">
+                  Website designed and developed by Brian Mutie
+                </span>
+              </div>
+              <p className="text-sm text-primary-foreground/70 mb-2">
+                Professional Web Developer | Digital Business Solutions
+              </p>
+              <p className="text-xs text-primary-foreground/60 mb-3">
+                I create clean, fast, and user-friendly websites that help businesses grow and operate smoothly online.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-sm">
+                <a 
+                  href="mailto:brianmutie777@gmail.com" 
+                  className="flex items-center gap-1 text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                >
+                  <Mail className="h-4 w-4" />
+                  brianmutie777@gmail.com
+                </a>
+                <DeveloperProfileDialog />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
