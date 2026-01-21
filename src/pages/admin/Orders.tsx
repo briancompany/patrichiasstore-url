@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus } from 'lucide-react';
+import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface OrderItem {
@@ -32,6 +32,8 @@ interface OrderItem {
   price_at_purchase: number;
   printing_required: boolean;
   logo_url: string | null;
+  color: string | null;
+  sample_image_url: string | null;
 }
 
 interface Order {
@@ -407,27 +409,62 @@ export default function AdminOrders() {
 
                               <div>
                                 <p className="text-sm text-muted-foreground mb-2">Items</p>
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   {selectedOrder.order_items?.map((item) => (
                                     <div
                                       key={item.id}
-                                      className="flex justify-between p-2 bg-muted rounded"
+                                      className="p-3 bg-muted rounded-lg space-y-2"
                                     >
-                                      <div>
-                                        <p className="font-medium">{item.product_name}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                          Size: {item.size} × {item.quantity}
+                                      <div className="flex justify-between">
+                                        <div>
+                                          <p className="font-medium">{item.product_name}</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            Size: {item.size} × {item.quantity}
+                                          </p>
+                                          {item.color && (
+                                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                                              <Palette className="h-3 w-3" />
+                                              Color: {item.color}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <p className="font-medium">
+                                          Ksh {item.price_at_purchase.toLocaleString()}
                                         </p>
+                                      </div>
+                                      
+                                      <div className="flex flex-wrap gap-2">
                                         {item.printing_required && (
-                                          <Badge variant="secondary" className="mt-1">
+                                          <Badge variant="secondary">
                                             <Printer className="h-3 w-3 mr-1" />
                                             Logo printing
                                           </Badge>
                                         )}
+                                        
+                                        {item.sample_image_url && (
+                                          <a
+                                            href={item.sample_image_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                          >
+                                            <ImageIcon className="h-3 w-3" />
+                                            View Sample
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        )}
                                       </div>
-                                      <p className="font-medium">
-                                        Ksh {item.price_at_purchase.toLocaleString()}
-                                      </p>
+                                      
+                                      {item.sample_image_url && (
+                                        <div className="mt-2">
+                                          <img
+                                            src={item.sample_image_url}
+                                            alt="Customer sample"
+                                            className="w-20 h-20 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => window.open(item.sample_image_url!, '_blank')}
+                                          />
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
