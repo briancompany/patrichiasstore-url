@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { products, uniformTypes } from '@/data/products';
-import { Product, CartItem } from '@/types/product';
+import { Product, CartItem, ProductSize } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { ShoppingCart, X, Search, ChevronRight } from 'lucide-react';
+import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
 
 interface DBSchool {
   id: string;
@@ -33,14 +33,48 @@ export default function Shop() {
   const [schoolSearch, setSchoolSearch] = useState('');
   const [dbSchools, setDbSchools] = useState<DBSchool[]>([]);
   const [showSchoolSearch, setShowSchoolSearch] = useState(false);
+  const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
+  const [loadingGeneral, setLoadingGeneral] = useState(true);
 
-  // Fetch schools from database
+  // Fetch schools and general products from database
   useEffect(() => {
-    const fetchSchools = async () => {
-      const { data } = await supabase.from('schools').select('id, name, logo_url').order('name');
-      setDbSchools(data || []);
+    const fetchData = async () => {
+      // Fetch schools
+      const { data: schoolsData } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .order('name');
+      setDbSchools(schoolsData || []);
+
+      // Fetch general products (products with no school_id)
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name, description, image_url, type, sizes, in_stock, school_id')
+        .is('school_id', null)
+        .eq('in_stock', true)
+        .order('name');
+
+      if (productsData) {
+        const mapped: Product[] = productsData.map((p) => {
+          const sizesArray = Array.isArray(p.sizes) 
+            ? (p.sizes as { size: string; price: number }[]) 
+            : [];
+          return {
+            id: p.id,
+            name: p.name,
+            school: 'General',
+            type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
+            image: p.image_url || '/placeholder.svg',
+            sizes: sizesArray,
+            inStock: p.in_stock,
+            description: p.description || undefined,
+          };
+        });
+        setGeneralProducts(mapped);
+      }
+      setLoadingGeneral(false);
     };
-    fetchSchools();
+    fetchData();
   }, []);
 
   // Filter database schools based on search
@@ -51,16 +85,27 @@ export default function Shop() {
     );
   }, [dbSchools, schoolSearch]);
 
-  // Get unique schools from static products
-  const staticSchools = useMemo(() => [...new Set(products.map((p) => p.school))], []);
+  // Get unique schools from static products plus "General" if we have general products
+  const staticSchools = useMemo(() => {
+    const schools = [...new Set(products.map((p) => p.school))];
+    if (generalProducts.length > 0 && !schools.includes('General')) {
+      schools.unshift('General');
+    }
+    return schools;
+  }, [generalProducts]);
+
+  // Combine general products with static products
+  const allProducts = useMemo(() => {
+    return [...generalProducts, ...products];
+  }, [generalProducts]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    return allProducts.filter((product) => {
       const schoolMatch = selectedSchool === 'all' || product.school === selectedSchool;
       const typeMatch = selectedType === 'all' || product.type === selectedType;
       return schoolMatch && typeMatch;
     });
-  }, [selectedSchool, selectedType]);
+  }, [allProducts, selectedSchool, selectedType]);
 
   const handleAddToCart = (product: Product, size: string, quantity: number, price: number) => {
     const existingIndex = cart.findIndex(
@@ -276,16 +321,64 @@ export default function Shop() {
           </div>
         )}
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-          ))}
-        </div>
+        {/* General Products Section */}
+        {generalProducts.length > 0 && selectedSchool === 'all' && (
+          <div className="mb-10">
+            <div className="flex items-center gap-3 mb-6">
+              <Package className="h-6 w-6 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">General Products</h2>
+              <span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-medium">
+                Available for all
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {generalProducts
+                .filter(p => selectedType === 'all' || p.type === selectedType)
+                .map((product) => (
+                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+                ))}
+            </div>
+          </div>
+        )}
 
-        {filteredProducts.length === 0 && (
+        {/* School Products Grid */}
+        {selectedSchool !== 'General' && (
+          <>
+            {selectedSchool === 'all' && generalProducts.length > 0 && (
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-xl font-bold text-foreground">School-Specific Products</h2>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {(selectedSchool === 'all' ? products : filteredProducts.filter(p => p.school !== 'General'))
+                .filter(p => selectedType === 'all' || p.type === selectedType)
+                .map((product) => (
+                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+                ))}
+            </div>
+          </>
+        )}
+
+        {/* Selected General filter */}
+        {selectedSchool === 'General' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {generalProducts
+              .filter(p => selectedType === 'all' || p.type === selectedType)
+              .map((product) => (
+                <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+              ))}
+          </div>
+        )}
+
+        {filteredProducts.length === 0 && generalProducts.length === 0 && !loadingGeneral && (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No products found matching your filters.</p>
+          </div>
+        )}
+
+        {loadingGeneral && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">Loading products...</p>
           </div>
         )}
       </div>
