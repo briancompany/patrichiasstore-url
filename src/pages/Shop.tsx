@@ -129,7 +129,8 @@ export default function Shop() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
-  const handleProceedToOrder = () => {
+  const handleProceedToCheckout = () => {
+    // Navigate to Order page (which now goes to payment, not WhatsApp)
     navigate('/order', { state: { cart } });
   };
 
@@ -315,8 +316,8 @@ export default function Shop() {
               <span className="font-semibold text-lg">Total:</span>
               <span className="price-tag text-xl">Ksh {cartTotal.toLocaleString()}</span>
             </div>
-            <Button onClick={handleProceedToOrder} className="w-full mt-4 btn-primary">
-              Proceed to Order
+            <Button onClick={handleProceedToCheckout} className="w-full mt-4 btn-primary">
+              Proceed to Payment
             </Button>
           </div>
         )}

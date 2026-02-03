@@ -1,26 +1,30 @@
 import { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from '@/types/product';
-import { MessageCircle, ShoppingBag } from 'lucide-react';
-
-const WHATSAPP_NUMBER = '254700000000';
+import { CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Order() {
   const location = useLocation();
+  const navigate = useNavigate();
   const cartItems: CartItem[] = location.state?.cart || [];
   
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
     school: '',
     deliveryType: 'pickup' as 'pickup' | 'delivery',
     location: '',
+    notes: '',
   });
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
@@ -30,45 +34,85 @@ export default function Order() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const generateWhatsAppMessage = () => {
-    const itemsList = cartItems
-      .map(
-        (item) =>
-          `• ${item.product.name} (${item.product.school})\n  Size: ${item.selectedSize}, Qty: ${item.quantity}, Price: Ksh ${item.price.toLocaleString()}`
-      )
-      .join('\n\n');
-
-    const message = `Hello Patrichia's Store! 👋
-
-I would like to place an order:
-
-*Customer Details:*
-Name: ${formData.fullName}
-Phone: ${formData.phone}
-School: ${formData.school}
-
-*Order Items:*
-${itemsList}
-
-*Total: Ksh ${cartTotal.toLocaleString()}*
-
-*Delivery:* ${formData.deliveryType === 'pickup' ? 'Pickup at Store F47, Uhuru Market' : `Delivery to: ${formData.location}`}
-
-Thank you! 🙏`;
-
-    return encodeURIComponent(message);
+  const generateTrackingCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'PS-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const message = generateWhatsAppMessage();
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+    setIsSubmitting(true);
+
+    try {
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_name: formData.fullName,
+          customer_phone: formData.phone,
+          customer_school: formData.school || null,
+          delivery_type: formData.deliveryType,
+          delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
+          notes: formData.notes || null,
+          total_amount: cartTotal,
+          status: 'awaiting_payment',
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = cartItems.map((item) => ({
+        order_id: orderData.id,
+        product_id: item.product.id,
+        product_name: item.product.name,
+        school_name: item.product.school || null,
+        size: item.selectedSize,
+        quantity: item.quantity,
+        price_at_purchase: item.price,
+        printing_required: false,
+        logo_url: null,
+        color: null,
+        sample_image_url: null,
+      }));
+
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Generate tracking code
+      const trackingCode = generateTrackingCode();
+      const { error: trackingError } = await supabase.from('order_tracking').insert({
+        order_id: orderData.id,
+        tracking_code: trackingCode,
+      });
+
+      // Navigate to payment page
+      navigate('/payment', {
+        state: {
+          orderId: orderData.id,
+          trackingCode: trackingError ? null : trackingCode,
+          total: cartTotal,
+          customerName: formData.fullName,
+          customerPhone: formData.phone,
+        },
+      });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Error placing order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid =
     formData.fullName &&
     formData.phone &&
-    formData.school &&
     (formData.deliveryType === 'pickup' || formData.location);
 
   return (
@@ -76,7 +120,7 @@ Thank you! 🙏`;
       <div className="container-shop py-8">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-2">Place Your Order</h1>
-          <p className="text-muted-foreground mb-8">Fill in your details and complete your order via WhatsApp</p>
+          <p className="text-muted-foreground mb-8">Fill in your details and proceed to payment</p>
 
           {cartItems.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-xl border border-border">
@@ -90,9 +134,14 @@ Thank you! 🙏`;
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Order Summary */}
-              <div className="bg-muted rounded-xl p-4">
-                <h3 className="font-semibold mb-3">Order Summary</h3>
-                <div className="space-y-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5" />
+                    Order Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {cartItems.map((item, index) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span>
@@ -101,106 +150,166 @@ Thank you! 🙏`;
                       <span className="font-medium">Ksh {item.price.toLocaleString()}</span>
                     </div>
                   ))}
-                </div>
-                <div className="border-t border-border mt-3 pt-3 flex justify-between">
-                  <span className="font-semibold">Total:</span>
-                  <span className="price-tag">Ksh {cartTotal.toLocaleString()}</span>
-                </div>
-              </div>
+                  <div className="border-t border-border mt-3 pt-3 flex justify-between">
+                    <span className="font-semibold">Total:</span>
+                    <span className="text-lg font-bold text-primary">Ksh {cartTotal.toLocaleString()}</span>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Customer Details */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name *</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="fullName">Full Name *</Label>
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 0712345678"
-                    required
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 0712345678"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="school">School Name *</Label>
-                  <Input
-                    id="school"
-                    name="school"
-                    value={formData.school}
-                    onChange={handleInputChange}
-                    placeholder="Enter the school name"
-                    required
-                  />
-                </div>
-              </div>
+                  <div>
+                    <Label htmlFor="school">School Name (Optional)</Label>
+                    <Input
+                      id="school"
+                      name="school"
+                      value={formData.school}
+                      onChange={handleInputChange}
+                      placeholder="Enter the school name"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notes">Special Notes (Optional)</Label>
+                    <Textarea
+                      id="notes"
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      placeholder="Any special instructions for your order..."
+                      rows={2}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Delivery Options */}
-              <div className="space-y-3">
-                <Label>How would you like to receive your order? *</Label>
-                <RadioGroup
-                  value={formData.deliveryType}
-                  onValueChange={(value) =>
-                    setFormData((prev) => ({ ...prev, deliveryType: value as 'pickup' | 'delivery' }))
-                  }
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="pickup" id="pickup" />
-                    <Label htmlFor="pickup" className="cursor-pointer flex-1">
-                      <span className="font-medium">Pickup at Store</span>
-                      <p className="text-sm text-muted-foreground">Store F47, Uhuru Market</p>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="delivery" id="delivery" />
-                    <Label htmlFor="delivery" className="cursor-pointer flex-1">
-                      <span className="font-medium">Delivery</span>
-                      <p className="text-sm text-muted-foreground">We'll deliver to your location</p>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Delivery Method</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <RadioGroup
+                    value={formData.deliveryType}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, deliveryType: value as 'pickup' | 'delivery' }))
+                    }
+                    className="space-y-3"
+                  >
+                    <label
+                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                        formData.deliveryType === 'pickup'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <RadioGroupItem value="pickup" />
+                      <Store className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">Pickup at Store</p>
+                        <p className="text-sm text-muted-foreground">Store F47, Uhuru Market</p>
+                      </div>
+                    </label>
 
-              {formData.deliveryType === 'delivery' && (
-                <div>
-                  <Label htmlFor="location">Delivery Location *</Label>
-                  <Textarea
-                    id="location"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    placeholder="Enter your delivery address (area, landmark, building)"
-                    required
-                  />
-                </div>
-              )}
+                    <label
+                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                        formData.deliveryType === 'delivery'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <RadioGroupItem value="delivery" />
+                      <MapPin className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">Delivery</p>
+                        <p className="text-sm text-muted-foreground">We'll deliver to your location</p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+
+                  {formData.deliveryType === 'delivery' && (
+                    <div>
+                      <Label htmlFor="location">Delivery Location *</Label>
+                      <Textarea
+                        id="location"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        placeholder="Enter your delivery address (area, landmark, building)"
+                        required
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payment Info */}
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="font-medium text-foreground">Secure Payment</p>
+                      <p className="text-sm text-muted-foreground">
+                        After submitting, you'll choose between Pesapal STK Push or M-Pesa Paybill to complete payment.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Submit */}
               <Button
                 type="submit"
-                disabled={!isFormValid}
-                className="w-full btn-whatsapp gap-2 h-12 text-lg"
+                disabled={!isFormValid || isSubmitting}
+                className="w-full h-12 text-lg"
+                size="lg"
               >
-                <MessageCircle className="h-5 w-5" />
-                Complete Order on WhatsApp
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Proceed to Payment
+                  </>
+                )}
               </Button>
 
               <p className="text-sm text-muted-foreground text-center">
-                You'll be redirected to WhatsApp to finalize your order with us.
+                You'll be directed to our secure payment page to complete your order.
               </p>
             </form>
           )}
