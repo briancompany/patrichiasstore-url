@@ -66,10 +66,10 @@ export default function Order() {
 
       if (orderError) throw orderError;
 
-      // Create order items
+      // Create order items - handle custom product IDs
       const orderItems = cartItems.map((item) => ({
         order_id: orderData.id,
-        product_id: item.product.id,
+        product_id: item.product.id.startsWith('custom-') ? null : item.product.id,
         product_name: item.product.name,
         school_name: item.product.school || null,
         size: item.selectedSize,
