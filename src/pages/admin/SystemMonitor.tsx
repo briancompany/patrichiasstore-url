@@ -32,6 +32,9 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface HealthCheck {
   name: string;
@@ -48,6 +51,15 @@ interface SecurityLog {
   email?: string;
 }
 
+interface WarmUpSchedule {
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'custom';
+  time: string;
+  day?: number; // 0-6 for weekly
+  lastRun: Date | null;
+  nextRun: Date | null;
+}
+
 export default function AdminSystemMonitor() {
   const [healthChecks, setHealthChecks] = useState<HealthCheck[]>([]);
   const [isChecking, setIsChecking] = useState(false);
@@ -59,6 +71,13 @@ export default function AdminSystemMonitor() {
     lastBackup: Date | null;
     status: 'healthy' | 'warning' | 'error';
   }>({ lastBackup: null, status: 'healthy' });
+  const [warmUpSchedule, setWarmUpSchedule] = useState<WarmUpSchedule>({
+    enabled: false,
+    frequency: 'daily',
+    time: '06:00',
+    lastRun: null,
+    nextRun: null,
+  });
 
   // Fetch counts from database
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -256,6 +275,61 @@ export default function AdminSystemMonitor() {
     });
   }, []);
 
+  // Calculate next run time based on schedule
+  const calculateNextRun = (schedule: WarmUpSchedule): Date | null => {
+    if (!schedule.enabled) return null;
+    
+    const now = new Date();
+    const [hours, minutes] = schedule.time.split(':').map(Number);
+    const next = new Date();
+    next.setHours(hours, minutes, 0, 0);
+    
+    if (next <= now) {
+      if (schedule.frequency === 'daily') {
+        next.setDate(next.getDate() + 1);
+      } else if (schedule.frequency === 'weekly') {
+        next.setDate(next.getDate() + 7);
+      }
+    }
+    
+    return next;
+  };
+
+  const toggleSchedule = () => {
+    setWarmUpSchedule(prev => {
+      const newEnabled = !prev.enabled;
+      const updated = { ...prev, enabled: newEnabled };
+      if (newEnabled) {
+        updated.nextRun = calculateNextRun(updated);
+        toast.success(`Warm-up scheduled ${prev.frequency} at ${prev.time}`);
+      } else {
+        updated.nextRun = null;
+        toast.info('Scheduled warm-up disabled');
+      }
+      return updated;
+    });
+  };
+
+  const updateScheduleFrequency = (frequency: 'daily' | 'weekly' | 'custom') => {
+    setWarmUpSchedule(prev => {
+      const updated = { ...prev, frequency };
+      if (prev.enabled) {
+        updated.nextRun = calculateNextRun(updated);
+      }
+      return updated;
+    });
+  };
+
+  const updateScheduleTime = (time: string) => {
+    setWarmUpSchedule(prev => {
+      const updated = { ...prev, time };
+      if (prev.enabled) {
+        updated.nextRun = calculateNextRun(updated);
+      }
+      return updated;
+    });
+  };
+
   const handleWarmUp = async () => {
     setIsWarmingUp(true);
     toast.info('Warming up system...');
@@ -270,6 +344,13 @@ export default function AdminSystemMonitor() {
       // Verify storage
       await supabase.storage.from('product-images').list('', { limit: 1 });
       await supabase.storage.from('school-logos').list('', { limit: 1 });
+
+      // Update schedule last run
+      setWarmUpSchedule(prev => ({
+        ...prev,
+        lastRun: new Date(),
+        nextRun: prev.enabled ? calculateNextRun(prev) : null,
+      }));
 
       toast.success('System warmed up successfully!');
       refetchStats();
@@ -767,6 +848,86 @@ export default function AdminSystemMonitor() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Scheduled Warm-Up */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Scheduled Warm-Up
+                </CardTitle>
+                <CardDescription>
+                  Automatically warm up the system to prevent idle failures
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-medium">Frequency</p>
+                    <select
+                      value={warmUpSchedule.frequency}
+                      onChange={(e) => updateScheduleFrequency(e.target.value as 'daily' | 'weekly' | 'custom')}
+                      className="w-full p-2 border rounded-md bg-background"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="custom">Custom Time</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-medium">Time</p>
+                    <input
+                      type="time"
+                      value={warmUpSchedule.time}
+                      onChange={(e) => updateScheduleTime(e.target.value)}
+                      className="w-full p-2 border rounded-md bg-background"
+                    />
+                  </div>
+                  
+                  <Button
+                    onClick={toggleSchedule}
+                    variant={warmUpSchedule.enabled ? 'destructive' : 'default'}
+                    className="w-full sm:w-auto"
+                  >
+                    {warmUpSchedule.enabled ? 'Disable Schedule' : 'Enable Schedule'}
+                  </Button>
+                </div>
+                
+                {warmUpSchedule.enabled && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Scheduled warm-up is active</span>
+                    </div>
+                    <p className="text-sm text-green-700 mt-1">
+                      {warmUpSchedule.frequency === 'daily' && `Runs daily at ${warmUpSchedule.time}`}
+                      {warmUpSchedule.frequency === 'weekly' && `Runs weekly at ${warmUpSchedule.time}`}
+                      {warmUpSchedule.frequency === 'custom' && `Runs at ${warmUpSchedule.time}`}
+                    </p>
+                    {warmUpSchedule.lastRun && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Last run: {format(warmUpSchedule.lastRun, 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    )}
+                    {warmUpSchedule.nextRun && (
+                      <p className="text-xs text-green-600">
+                        Next run: {format(warmUpSchedule.nextRun, 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {!warmUpSchedule.enabled && (
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Enable scheduled warm-up to automatically refresh the system and prevent idle failures.
+                      Recommended for production use.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Warning about Safe Mode */}
             {isSafeMode && (
