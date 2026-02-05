@@ -4,7 +4,7 @@ import { CategoryCard } from '@/components/CategoryCard';
 import { Button } from '@/components/ui/button';
 import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } from 'lucide-react';
 import heroImage from '@/assets/hero-uniforms.jpg';
-import patrichiaImage from '@/assets/patrichia.jpg';
+import patrichiaImage from '@/assets/patrichia-optimized.jpg';
 
 const categories = [
   {
