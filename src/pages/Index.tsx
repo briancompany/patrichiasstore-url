@@ -2,8 +2,9 @@ import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Button } from '@/components/ui/button';
-import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard } from 'lucide-react';
+import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } from 'lucide-react';
 import heroImage from '@/assets/hero-uniforms.jpg';
+import patrichiaImage from '@/assets/patrichia.jpg';
 
 const categories = [
   {
@@ -112,6 +113,73 @@ export default function Index() {
                 <p className="text-muted-foreground">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Meet Patrichia Section */}
+      <section className="py-16 bg-gradient-to-br from-primary/5 to-secondary/10">
+        <div className="container-shop">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8 items-center">
+              {/* Image */}
+              <div className="relative">
+                <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border-4 border-background">
+                  <img 
+                    src={patrichiaImage} 
+                    alt="Patrichia - Store Owner" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute -bottom-4 -right-4 bg-primary text-primary-foreground px-6 py-3 rounded-xl shadow-lg">
+                  <p className="font-bold text-lg">10+ Years</p>
+                  <p className="text-sm opacity-90">of Service</p>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="space-y-6">
+                <div>
+                  <p className="text-primary font-semibold mb-2">Meet The Owner</p>
+                  <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+                    Patrichia Muthoni
+                  </h2>
+                </div>
+                
+                <div className="relative">
+                  <Quote className="h-8 w-8 text-primary/30 absolute -top-2 -left-2" />
+                  <p className="text-lg text-muted-foreground italic pl-8">
+                    "Every child deserves quality uniforms that make them feel confident and ready to learn. 
+                    That's why I've dedicated my life to providing the best school uniforms at prices families can afford."
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-foreground">Serving schools across Kenya</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-foreground">Trusted by thousands of parents</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-foreground">Located at Uhuru Market, Store F47</p>
+                  </div>
+                </div>
+                
+                <Button asChild size="lg" className="btn-primary">
+                  <Link to="/shop">Shop With Patrichia</Link>
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

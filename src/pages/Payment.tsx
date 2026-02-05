@@ -61,6 +61,8 @@ export default function Payment() {
   const [showComplaintForm, setShowComplaintForm] = useState(false);
 
   const PAYBILL_NUMBER = '247247';
+  const [pesapalCode, setPesapalCode] = useState('');
+
   const ACCOUNT_NUMBER = '0726075180';
   const WHATSAPP_NUMBER = '254726075180';
   const PESAPAL_URL = 'https://store.pesapal.com/patrichiastorepaymentpage';
@@ -208,25 +210,52 @@ export default function Payment() {
   const handlePesapalPayment = () => {
     // Open Pesapal in new tab
     window.open(PESAPAL_URL, '_blank');
-    toast.info('Complete your payment on Pesapal, then return here to confirm.');
+    toast.info('Complete your payment on Pesapal. Enter your transaction code when done.');
   };
 
   const confirmPesapalPayment = async () => {
     if (!orderDetails) return;
-    
+
+    // Require transaction code for verification
+    if (!pesapalCode.trim()) {
+      toast.error('Please enter your Pesapal/M-Pesa transaction code');
+      return;
+    }
+
+    const cleanCode = pesapalCode.trim().toUpperCase();
+
+    // Validate code format
+    if (cleanCode.length < 8 || cleanCode.length > 12) {
+      toast.error('Invalid transaction code format. Please check and try again.');
+      return;
+    }
+
     setIsVerifying(true);
     
     try {
-      // For Pesapal, we trust the user's confirmation
-      // In production, you'd verify via Pesapal IPN webhook
-      const pesapalCode = `PESAPAL-${Date.now()}`;
-      
+      // Check for duplicate code - reject if already used
+      const { data: existingPayment, error: checkError } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('mpesa_code', cleanCode)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking duplicate:', checkError);
+      }
+
+      if (existingPayment) {
+        toast.error('⚠️ This transaction code has already been used! This payment is marked as faulty. Please use the M-Pesa Paybill fallback method.');
+        setIsVerifying(false);
+        return;
+      }
+
       // Update order status
       const { error: orderError } = await supabase
         .from('orders')
         .update({ 
           status: 'confirmed',
-          notes: `Payment Method: Pesapal STK Push | Ref: ${pesapalCode}`
+          notes: `Payment Method: Pesapal STK Push | Ref: ${cleanCode}`
         })
         .eq('id', orderDetails.orderId);
 
@@ -238,7 +267,7 @@ export default function Payment() {
         .insert({
           order_id: orderDetails.orderId,
           amount: orderDetails.total,
-          mpesa_code: pesapalCode,
+          mpesa_code: cleanCode,
           customer_name: orderDetails.customerName,
           customer_phone: orderDetails.customerPhone || null,
         });
@@ -248,10 +277,10 @@ export default function Payment() {
       }
 
       setPaymentVerified(true);
-      toast.success('Payment confirmed! Download your receipt below.');
+      toast.success('Payment verified! Your receipt is ready for download.');
     } catch (error) {
       console.error('Error confirming payment:', error);
-      toast.error('Failed to confirm payment. Please contact support.');
+      toast.error('Failed to verify payment. Please try the M-Pesa Paybill fallback.');
     } finally {
       setIsVerifying(false);
     }
@@ -596,15 +625,40 @@ export default function Payment() {
                         Pay Now with Pesapal
                       </Button>
 
+                      {/* Transaction Code Input */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-green-800">
+                          After paying, enter your M-Pesa transaction code:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. SGJ7HKPQ2X"
+                          value={pesapalCode}
+                          onChange={(e) => setPesapalCode(e.target.value.toUpperCase())}
+                          className="w-full p-3 border border-green-300 rounded-lg font-mono text-lg text-center uppercase focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          maxLength={12}
+                        />
+                        <p className="text-xs text-muted-foreground text-center">
+                          Find this in your M-Pesa confirmation SMS
+                        </p>
+                      </div>
+
                       <Button
                         onClick={confirmPesapalPayment}
                         variant="outline"
                         className="w-full border-green-600 text-green-700 hover:bg-green-100"
                         size="lg"
-                        disabled={isVerifying}
+                        disabled={isVerifying || !pesapalCode.trim()}
                       >
-                        {isVerifying ? 'Confirming...' : "I've Paid - Confirm Payment"}
+                        {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Get Receipt'}
                       </Button>
+
+                      {/* Fallback notice */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                        <p className="text-sm text-blue-800">
+                          Having trouble? Use the <strong>M-Pesa Paybill</strong> option below as a fallback.
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
