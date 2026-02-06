@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShoppingBag, Loader2, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import storeLogo from '@/assets/logo-with-patrichia.png';
 
 const ADMIN_EMAIL = 'brianmuia777@gmail.com';
 
@@ -107,7 +108,7 @@ export default function AdminLogin() {
             Back to Store
           </Link>
           <div className="flex items-center justify-center gap-2 mb-2">
-            <ShoppingBag className="h-10 w-10 text-primary" />
+            <img src={storeLogo} alt="Patrichia's Store" className="h-12 w-12 object-contain" />
             <h1 className="text-2xl font-bold text-foreground">Patrichia's Store</h1>
           </div>
           <p className="text-muted-foreground">Admin Portal</p>

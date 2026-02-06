@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText, ExternalLink, Wallet, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import storeLogo from '@/assets/store-logo.png';
+import storeLogo from '@/assets/logo-with-patrichia.png';
 
 interface OrderItem {
   id: string;
@@ -604,7 +604,7 @@ export default function Payment() {
                             'Click "Pay Now with Pesapal" button below',
                             'Enter your M-Pesa phone number on Pesapal',
                             'Approve the STK push on your phone',
-                            'Return here and click "I\'ve Paid"',
+                            'Enter transaction code below to verify & get receipt',
                           ].map((step, i) => (
                             <li key={i} className="flex items-start gap-2">
                               <span className="w-5 h-5 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs">
@@ -628,7 +628,7 @@ export default function Payment() {
                       {/* Transaction Code Input */}
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-green-800">
-                          After paying, enter your M-Pesa transaction code:
+                          Enter your M-Pesa transaction code to verify payment:
                         </label>
                         <input
                           type="text"
@@ -639,18 +639,17 @@ export default function Payment() {
                           maxLength={12}
                         />
                         <p className="text-xs text-muted-foreground text-center">
-                          Find this in your M-Pesa confirmation SMS
+                          Find this code in your M-Pesa confirmation SMS (required for receipt)
                         </p>
                       </div>
 
                       <Button
                         onClick={confirmPesapalPayment}
-                        variant="outline"
-                        className="w-full border-green-600 text-green-700 hover:bg-green-100"
+                        className="w-full bg-primary hover:bg-primary/90"
                         size="lg"
                         disabled={isVerifying || !pesapalCode.trim()}
                       >
-                        {isVerifying ? 'Verifying Payment...' : 'Verify Payment & Get Receipt'}
+                        {isVerifying ? 'Verifying Payment...' : '✓ Verify Payment & Download Receipt'}
                       </Button>
 
                       {/* Fallback notice */}
@@ -790,10 +789,10 @@ export default function Payment() {
                       <Button
                         onClick={verifyMpesaPayment}
                         disabled={isVerifying || !mpesaMessage.trim()}
-                        className="w-full"
+                        className="w-full bg-primary hover:bg-primary/90"
                         size="lg"
                       >
-                        {isVerifying ? 'Verifying...' : 'Verify Payment'}
+                        {isVerifying ? 'Verifying...' : '✓ Verify Payment & Download Receipt'}
                       </Button>
                     </CardContent>
                   </Card>

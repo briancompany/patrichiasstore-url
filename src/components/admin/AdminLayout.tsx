@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
-  ShoppingBag,
   LayoutDashboard,
   Package,
   School,
@@ -18,6 +17,7 @@ import {
   AlertTriangle,
   CreditCard,
 } from 'lucide-react';
+import storeLogo from '@/assets/logo-with-patrichia.png';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -80,7 +80,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
         <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <ShoppingBag className="h-8 w-8 text-primary" />
+          <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
           <span className="font-bold text-lg">Admin</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
@@ -96,7 +96,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       >
         <div className="p-4 border-b border-border">
           <Link to="/admin/dashboard" className="flex items-center gap-2">
-            <ShoppingBag className="h-8 w-8 text-primary" />
+            <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
             <span className="font-bold text-xl">Patrichia's</span>
           </Link>
         </div>

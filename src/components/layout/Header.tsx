@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ShoppingBag, User, Package, Download } from 'lucide-react';
+import { Menu, X, User, Package, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import storeLogo from '@/assets/logo-with-patrichia.png';
 
 const navLinks = [
   { name: 'Home', path: '/' },
@@ -76,7 +77,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <ShoppingBag className="h-8 w-8 text-primary" />
+            <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 object-contain" />
             <span className="font-bold text-xl text-foreground">Patrichia's Store</span>
           </Link>
 
