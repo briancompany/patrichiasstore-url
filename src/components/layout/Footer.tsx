@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, ShoppingBag, Mail, Code } from 'lucide-react';
+import { MapPin, Phone, Clock, Mail, Code } from 'lucide-react';
 import { DeveloperProfileDialog } from '../DeveloperProfileDialog';
+import storeLogo from '@/assets/logo-with-patrichia.png';
+import developerImage from '@/assets/developer-brian.jpg';
 
 export function Footer() {
   return (
@@ -10,7 +12,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <ShoppingBag className="h-8 w-8" />
+              <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 object-contain" />
               <span className="font-bold text-xl">Patrichia's Store</span>
             </div>
             <p className="text-primary-foreground/80">
@@ -68,16 +70,28 @@ export function Footer() {
             
             {/* Developer Credit */}
             <div className="bg-primary-foreground/10 rounded-lg p-4 max-w-md">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Code className="h-4 w-4 text-primary-foreground/80" />
-                <span className="font-medium text-primary-foreground/90">
-                  Website designed and developed by Brian Mutie
-                </span>
+              <div className="flex items-center gap-4 mb-3">
+                <img 
+                  src={developerImage} 
+                  alt="Brian Mutie - Web Developer" 
+                  className="w-16 h-16 rounded-full object-cover border-2 border-primary-foreground/30"
+                />
+                <div className="text-left">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Code className="h-4 w-4 text-primary-foreground/80" />
+                    <span className="font-medium text-primary-foreground/90">
+                      Brian Mutie
+                    </span>
+                  </div>
+                  <p className="text-sm text-primary-foreground/70">
+                    Professional Web Developer
+                  </p>
+                  <p className="text-xs text-primary-foreground/60">
+                    Digital Business Solutions
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-primary-foreground/70 mb-2">
-                Professional Web Developer | Digital Business Solutions
-              </p>
-              <p className="text-xs text-primary-foreground/60 mb-3">
+              <p className="text-xs text-primary-foreground/60 mb-3 text-center">
                 I create clean, fast, and user-friendly websites that help businesses grow and operate smoothly online.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-sm">
