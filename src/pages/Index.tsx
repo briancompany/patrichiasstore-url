@@ -142,7 +142,7 @@ export default function Index() {
                 <div>
                   <p className="text-primary font-semibold mb-2">Meet The Owner</p>
                   <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-                    Patrichia Muthoni
+                    Patrichia Kavingo
                   </h2>
                 </div>
                 

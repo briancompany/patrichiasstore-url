@@ -43,15 +43,45 @@ export default function Order() {
     return code;
   };
 
+  const createClientOrderId = () => {
+    const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
+
+    try {
+      if (cryptoObj?.randomUUID) {
+        return cryptoObj.randomUUID();
+      }
+
+      if (cryptoObj?.getRandomValues) {
+        const bytes = new Uint8Array(16);
+        cryptoObj.getRandomValues(bytes);
+
+        // RFC 4122 version 4
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+        const toHex = (n: number) => n.toString(16).padStart(2, '0');
+        const hex = Array.from(bytes, toHex).join('');
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+      }
+    } catch {
+      // ignore and fallback
+    }
+
+    return `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Create the order
-      const { data: orderData, error: orderError } = await supabase
+      // Create the order (generate id client-side to avoid RLS SELECT returning issues)
+      const orderId = createClientOrderId();
+
+      const { error: orderError } = await supabase
         .from('orders')
         .insert({
+          id: orderId,
           customer_name: formData.fullName,
           customer_phone: formData.phone,
           customer_school: formData.school || null,
@@ -60,15 +90,15 @@ export default function Order() {
           notes: formData.notes || null,
           total_amount: cartTotal,
           status: 'awaiting_payment',
-        })
-        .select()
-        .single();
+        });
+
+      if (orderError) throw orderError;
 
       if (orderError) throw orderError;
 
       // Create order items - handle custom product IDs
       const orderItems = cartItems.map((item) => ({
-        order_id: orderData.id,
+        order_id: orderId,
         product_id: item.product.id.startsWith('custom-') ? null : item.product.id,
         product_name: item.product.name,
         school_name: item.product.school || null,
@@ -88,14 +118,14 @@ export default function Order() {
       // Generate tracking code
       const trackingCode = generateTrackingCode();
       const { error: trackingError } = await supabase.from('order_tracking').insert({
-        order_id: orderData.id,
+        order_id: orderId,
         tracking_code: trackingCode,
       });
 
       // Navigate to payment page
       navigate('/payment', {
         state: {
-          orderId: orderData.id,
+          orderId,
           trackingCode: trackingError ? null : trackingCode,
           total: cartTotal,
           customerName: formData.fullName,
