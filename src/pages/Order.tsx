@@ -11,6 +11,7 @@ import { CartItem } from '@/types/product';
 import { CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { createUuid, isUuid } from '@/lib/uuid';
 
 export default function Order() {
   const location = useLocation();
@@ -43,40 +44,13 @@ export default function Order() {
     return code;
   };
 
-  const createClientOrderId = () => {
-    const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
-
-    try {
-      if (cryptoObj?.randomUUID) {
-        return cryptoObj.randomUUID();
-      }
-
-      if (cryptoObj?.getRandomValues) {
-        const bytes = new Uint8Array(16);
-        cryptoObj.getRandomValues(bytes);
-
-        // RFC 4122 version 4
-        bytes[6] = (bytes[6] & 0x0f) | 0x40;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-        const toHex = (n: number) => n.toString(16).padStart(2, '0');
-        const hex = Array.from(bytes, toHex).join('');
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-      }
-    } catch {
-      // ignore and fallback
-    }
-
-    return `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Create the order (generate id client-side to avoid RLS SELECT returning issues)
-      const orderId = createClientOrderId();
+      // Create the order (generate UUID client-side to avoid relying on returned rows)
+      const orderId = createUuid();
 
       const { error: orderError } = await supabase
         .from('orders')
@@ -94,12 +68,10 @@ export default function Order() {
 
       if (orderError) throw orderError;
 
-      if (orderError) throw orderError;
-
-      // Create order items - handle custom product IDs
+      // Create order items - product_id must be UUID (fallback to null for non-UUID products)
       const orderItems = cartItems.map((item) => ({
         order_id: orderId,
-        product_id: item.product.id.startsWith('custom-') ? null : item.product.id,
+        product_id: isUuid(item.product.id) ? item.product.id : null,
         product_name: item.product.name,
         school_name: item.product.school || null,
         size: item.selectedSize,
