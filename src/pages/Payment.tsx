@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +47,7 @@ const parseMpesaMessage = (message: string) => {
 
 export default function Payment() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const state = location.state as LocationState | null;
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pesapal');
@@ -59,10 +60,9 @@ export default function Payment() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [complaintText, setComplaintText] = useState('');
   const [showComplaintForm, setShowComplaintForm] = useState(false);
-
-  const PAYBILL_NUMBER = '247247';
   const [pesapalCode, setPesapalCode] = useState('');
 
+  const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
   const WHATSAPP_NUMBER = '254726075180';
   const PESAPAL_URL = 'https://store.pesapal.com/patrichiastorepaymentpage';
@@ -83,7 +83,14 @@ export default function Payment() {
       };
       fetchOrderItems();
     }
-  }, [state]);
+
+    // Check for transaction code from URL (redirect-based flow)
+    const urlCode = searchParams.get('ref') || searchParams.get('code');
+    if (urlCode) {
+      setPesapalCode(urlCode.toUpperCase());
+      toast.info('Transaction code detected! Click verify to complete.');
+    }
+  }, [state, searchParams]);
 
   const copyToClipboard = async (text: string, type: 'paybill' | 'account') => {
     try {
@@ -208,9 +215,9 @@ export default function Payment() {
   };
 
   const handlePesapalPayment = () => {
-    // Open Pesapal in new tab
+    // Open Pesapal in new tab - the store payment page handles STK push internally
     window.open(PESAPAL_URL, '_blank');
-    toast.info('Complete your payment on Pesapal. Enter your transaction code when done.');
+    toast.info('Complete your payment on Pesapal, then enter your M-Pesa code here.');
   };
 
   const confirmPesapalPayment = async () => {
@@ -635,6 +642,11 @@ export default function Payment() {
                           placeholder="e.g. SGJ7HKPQ2X"
                           value={pesapalCode}
                           onChange={(e) => setPesapalCode(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && pesapalCode.trim().length >= 8) {
+                              confirmPesapalPayment();
+                            }
+                          }}
                           className="w-full p-3 border border-green-300 rounded-lg font-mono text-lg text-center uppercase focus:ring-2 focus:ring-green-500 focus:border-green-500"
                           maxLength={12}
                         />
@@ -647,7 +659,7 @@ export default function Payment() {
                         onClick={confirmPesapalPayment}
                         className="w-full bg-primary hover:bg-primary/90"
                         size="lg"
-                        disabled={isVerifying || !pesapalCode.trim()}
+                        disabled={isVerifying || pesapalCode.trim().length < 8}
                       >
                         {isVerifying ? 'Verifying Payment...' : '✓ Verify Payment & Download Receipt'}
                       </Button>
