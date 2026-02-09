@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText, ExternalLink, Wallet, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 
 interface OrderItem {
@@ -68,15 +69,19 @@ export default function Payment() {
   const PESAPAL_URL = 'https://store.pesapal.com/patrichiastorepaymentpage';
 
   useEffect(() => {
-    if (state) {
-      setOrderDetails(state);
-      // Fetch order items
+    const effectiveState = state ?? storageGet<LocationState>(STORAGE_KEYS.pendingOrder);
+
+    if (effectiveState) {
+      setOrderDetails(effectiveState);
+      storageSet(STORAGE_KEYS.pendingOrder, effectiveState);
+
+      // Fetch order items (best-effort)
       const fetchOrderItems = async () => {
         const { data, error } = await supabase
           .from('order_items')
           .select('id, product_name, size, quantity, price_at_purchase, color')
-          .eq('order_id', state.orderId);
-        
+          .eq('order_id', effectiveState.orderId);
+
         if (!error && data) {
           setOrderItems(data);
         }
@@ -84,11 +89,21 @@ export default function Payment() {
       fetchOrderItems();
     }
 
-    // Check for transaction code from URL (redirect-based flow)
+    // Redirect-based Pesapal: auto-detect code and auto-run verification (no manual button needed)
     const urlCode = searchParams.get('ref') || searchParams.get('code');
     if (urlCode) {
-      setPesapalCode(urlCode.toUpperCase());
-      toast.info('Transaction code detected! Click verify to complete.');
+      const normalized = urlCode.toUpperCase();
+      setPaymentMethod('pesapal');
+      setPesapalCode(normalized);
+
+      if (effectiveState) {
+        // Defer so state updates apply before verification
+        setTimeout(() => {
+          confirmPesapalPayment({ order: effectiveState, code: normalized });
+        }, 0);
+      } else {
+        toast.info('Transaction code detected. Return to checkout to load your order, then we will auto-verify.');
+      }
     }
   }, [state, searchParams]);
 
@@ -220,31 +235,32 @@ export default function Payment() {
     toast.info('Complete your payment on Pesapal, then enter your M-Pesa code here.');
   };
 
-  const confirmPesapalPayment = async () => {
-    if (!orderDetails) return;
+  const confirmPesapalPayment = async (opts?: { order?: LocationState; code?: string }) => {
+    const effectiveOrder = opts?.order ?? orderDetails;
+    const effectiveCode = (opts?.code ?? pesapalCode).trim().toUpperCase();
+
+    if (!effectiveOrder) return;
 
     // Require transaction code for verification
-    if (!pesapalCode.trim()) {
-      toast.error('Please enter your Pesapal/M-Pesa transaction code');
+    if (!effectiveCode) {
+      toast.error('Missing transaction code. Please return to Pesapal and finish payment.');
       return;
     }
 
-    const cleanCode = pesapalCode.trim().toUpperCase();
-
     // Validate code format
-    if (cleanCode.length < 8 || cleanCode.length > 12) {
+    if (effectiveCode.length < 8 || effectiveCode.length > 12) {
       toast.error('Invalid transaction code format. Please check and try again.');
       return;
     }
 
     setIsVerifying(true);
-    
+
     try {
       // Check for duplicate code - reject if already used
       const { data: existingPayment, error: checkError } = await supabase
         .from('payments')
         .select('id')
-        .eq('mpesa_code', cleanCode)
+        .eq('mpesa_code', effectiveCode)
         .maybeSingle();
 
       if (checkError) {
@@ -252,7 +268,7 @@ export default function Payment() {
       }
 
       if (existingPayment) {
-        toast.error('⚠️ This transaction code has already been used! This payment is marked as faulty. Please use the M-Pesa Paybill fallback method.');
+        toast.error('⚠️ This transaction code has already been used! Please use the M-Pesa Paybill fallback method.');
         setIsVerifying(false);
         return;
       }
@@ -260,29 +276,30 @@ export default function Payment() {
       // Update order status
       const { error: orderError } = await supabase
         .from('orders')
-        .update({ 
+        .update({
           status: 'confirmed',
-          notes: `Payment Method: Pesapal STK Push | Ref: ${cleanCode}`
+          notes: `Payment Method: Pesapal STK Push | Ref: ${effectiveCode}`,
         })
-        .eq('id', orderDetails.orderId);
+        .eq('id', effectiveOrder.orderId);
 
       if (orderError) throw orderError;
 
-      // Record payment for admin
+      // Record payment
       const { error: paymentError } = await supabase
         .from('payments')
         .insert({
-          order_id: orderDetails.orderId,
-          amount: orderDetails.total,
-          mpesa_code: cleanCode,
-          customer_name: orderDetails.customerName,
-          customer_phone: orderDetails.customerPhone || null,
+          order_id: effectiveOrder.orderId,
+          amount: effectiveOrder.total,
+          mpesa_code: effectiveCode,
+          customer_name: effectiveOrder.customerName,
+          customer_phone: effectiveOrder.customerPhone || null,
         });
 
       if (paymentError) {
         console.error('Payment record error:', paymentError);
       }
 
+      storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
       toast.success('Payment verified! Your receipt is ready for download.');
     } catch (error) {
@@ -655,14 +672,14 @@ export default function Payment() {
                         </p>
                       </div>
 
-                      <Button
-                        onClick={confirmPesapalPayment}
-                        className="w-full bg-primary hover:bg-primary/90"
-                        size="lg"
-                        disabled={isVerifying || pesapalCode.trim().length < 8}
-                      >
-                        {isVerifying ? 'Verifying Payment...' : '✓ Verify Payment & Download Receipt'}
-                      </Button>
+                        <Button
+                          onClick={() => confirmPesapalPayment()}
+                          className="w-full bg-primary hover:bg-primary/90"
+                          size="lg"
+                          disabled={isVerifying || pesapalCode.trim().length < 8}
+                        >
+                          {isVerifying ? 'Verifying Payment...' : '✓ Verify Payment & Download Receipt'}
+                        </Button>
 
                       {/* Fallback notice */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
