@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
+import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+
+const getBackendErrorMessage = (err: unknown) => {
+  const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
+  const parts = [e?.message, e?.details, e?.hint].filter(Boolean);
+  if (parts.length > 0) return parts.join(' • ');
+  return 'Could not save your order. Please check your connection and try again.';
+};
 
 interface CartItem {
   product: {
@@ -49,12 +57,20 @@ const WHATSAPP_NUMBER = '254726075180';
 export default function Checkout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state as LocationState | null;
-  
-  const cart = state?.cart || [];
-  const selectedSchool = state?.school;
-  const printingRequired = state?.printingRequired || false;
-  const isNewSchool = state?.isNewSchool || !selectedSchool?.isFromDB;
+
+  const navState = location.state as LocationState | null;
+  const [checkoutState] = useState<LocationState | null>(
+    () => navState ?? storageGet<LocationState>(STORAGE_KEYS.uniformCheckout)
+  );
+
+  useEffect(() => {
+    if (navState) storageSet(STORAGE_KEYS.uniformCheckout, navState);
+  }, [navState]);
+
+  const cart = checkoutState?.cart || [];
+  const selectedSchool = checkoutState?.school;
+  const printingRequired = checkoutState?.printingRequired || false;
+  const isNewSchool = checkoutState?.isNewSchool || !selectedSchool?.isFromDB;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -101,7 +117,8 @@ export default function Checkout() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
-          status: isNewSchool ? 'new_school_setup' : 'awaiting_payment',
+          // Order must be saved first; payment comes after
+          status: isNewSchool ? 'new_school_setup' : 'pending',
           is_new_school: isNewSchool,
           linked_school_id: selectedSchool?.id || null,
         });
@@ -127,27 +144,35 @@ export default function Checkout() {
 
       if (itemsError) throw itemsError;
 
-      // Generate tracking code
+      // Generate tracking code (best-effort)
       const trackingCode = generateTrackingCode();
       const { error: trackingError } = await supabase.from('order_tracking').insert({
         order_id: orderId,
         tracking_code: trackingCode,
       });
 
+      if (trackingError) {
+        console.warn('Tracking insert failed (continuing):', trackingError);
+      }
+
+      const paymentState = {
+        orderId,
+        trackingCode: trackingError ? null : trackingCode,
+        total: cartTotal,
+        customerName: formData.fullName,
+        customerPhone: formData.phone,
+        isNewSchool,
+      };
+
+      // Persist so refresh in published site doesn't lose the order/payment state
+      storageSet(STORAGE_KEYS.pendingOrder, paymentState);
+      storageRemove(STORAGE_KEYS.uniformCheckout);
+
       // Navigate to payment page with order details
-      navigate('/payment', {
-        state: {
-          orderId,
-          trackingCode: trackingError ? null : trackingCode,
-          total: cartTotal,
-          customerName: formData.fullName,
-          customerPhone: formData.phone,
-          isNewSchool,
-        },
-      });
+      navigate('/payment', { state: paymentState });
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Error placing order. Please try again.');
+      toast.error(getBackendErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

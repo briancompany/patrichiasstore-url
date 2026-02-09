@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,26 @@ import { CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
+import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
+
+const getBackendErrorMessage = (err: unknown) => {
+  const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
+  const parts = [e?.message, e?.details, e?.hint].filter(Boolean);
+  if (parts.length > 0) return parts.join(' • ');
+  return 'Could not save your order. Please check your connection and try again.';
+};
 
 export default function Order() {
   const location = useLocation();
   const navigate = useNavigate();
-  const cartItems: CartItem[] = location.state?.cart || [];
-  
+
+  const navCart = (location.state as { cart?: CartItem[] } | null)?.cart;
+  const [cartItems] = useState<CartItem[]>(() => navCart ?? storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
+
+  useEffect(() => {
+    if (navCart && navCart.length > 0) storageSet(STORAGE_KEYS.shopCart, navCart);
+  }, [navCart]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -54,6 +68,7 @@ export default function Order() {
 
       const { error: orderError } = await supabase
         .from('orders')
+        // NOTE: Do not chain .select() here; returning the inserted row can fail under stricter RLS in production.
         .insert({
           id: orderId,
           customer_name: formData.fullName,
@@ -63,7 +78,8 @@ export default function Order() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
-          status: 'awaiting_payment',
+          // Order must be saved first; payment comes after
+          status: 'pending',
         });
 
       if (orderError) throw orderError;
@@ -87,26 +103,34 @@ export default function Order() {
 
       if (itemsError) throw itemsError;
 
-      // Generate tracking code
+      // Generate tracking code (best-effort)
       const trackingCode = generateTrackingCode();
       const { error: trackingError } = await supabase.from('order_tracking').insert({
         order_id: orderId,
         tracking_code: trackingCode,
       });
 
+      if (trackingError) {
+        console.warn('Tracking insert failed (continuing):', trackingError);
+      }
+
+      const paymentState = {
+        orderId,
+        trackingCode: trackingError ? null : trackingCode,
+        total: cartTotal,
+        customerName: formData.fullName,
+        customerPhone: formData.phone,
+      };
+
+      // Persist so refresh in published site doesn't lose the order/payment state
+      storageSet(STORAGE_KEYS.pendingOrder, paymentState);
+      storageRemove(STORAGE_KEYS.shopCart);
+
       // Navigate to payment page
-      navigate('/payment', {
-        state: {
-          orderId,
-          trackingCode: trackingError ? null : trackingCode,
-          total: cartTotal,
-          customerName: formData.fullName,
-          customerPhone: formData.phone,
-        },
-      });
+      navigate('/payment', { state: paymentState });
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Error placing order. Please try again.');
+      toast.error(getBackendErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

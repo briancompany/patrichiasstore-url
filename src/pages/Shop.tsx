@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
 
 interface DBSchool {
@@ -28,7 +29,7 @@ export default function Shop() {
   const navigate = useNavigate();
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('type') || 'all');
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
   const [showCart, setShowCart] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState('');
   const [dbSchools, setDbSchools] = useState<DBSchool[]>([]);
@@ -129,7 +130,15 @@ export default function Shop() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
+  useEffect(() => {
+    if (cart.length > 0) storageSet(STORAGE_KEYS.shopCart, cart);
+    else storageRemove(STORAGE_KEYS.shopCart);
+  }, [cart]);
+
   const handleProceedToCheckout = () => {
+    // Persist cart so published site refresh/navigation never loses it
+    storageSet(STORAGE_KEYS.shopCart, cart);
+
     // Navigate to Order page (which now goes to payment, not WhatsApp)
     navigate('/order', { state: { cart } });
   };
