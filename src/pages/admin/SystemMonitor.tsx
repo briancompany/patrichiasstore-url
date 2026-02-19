@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { AreaChart, Area, CartesianGrid, XAxis } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +32,9 @@ import {
   Eye,
   XCircle,
   Info,
+  Cpu,
+  MemoryStick,
+  Timer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -60,7 +66,19 @@ interface WarmUpSchedule {
   nextRun: Date | null;
 }
 
+interface MonitoringMetric {
+  cpuUsage: number;
+  memoryUsage: number;
+  uptimeSeconds: number;
+  warmStartReady: boolean;
+  warmStartTriggeredAt: string | null;
+  scheduledAutoStartEnabled: boolean;
+  readiness: number;
+  timestamp: string;
+}
+
 export default function AdminSystemMonitor() {
+  const { session } = useAuth();
   const [healthChecks, setHealthChecks] = useState<HealthCheck[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
@@ -78,6 +96,26 @@ export default function AdminSystemMonitor() {
     lastRun: null,
     nextRun: null,
   });
+
+  const [monitoringHistory, setMonitoringHistory] = useState<MonitoringMetric[]>([]);
+
+  const { data: monitoringMetrics, refetch: refetchMonitoringMetrics } = useQuery({
+    queryKey: ['admin-monitoring-metrics'],
+    enabled: Boolean(session?.access_token),
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('admin-monitoring-metrics');
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Failed to fetch monitoring metrics');
+      }
+      return data.metrics as MonitoringMetric;
+    },
+  });
+
+  useEffect(() => {
+    if (!monitoringMetrics) return;
+    setMonitoringHistory((prev) => [...prev, monitoringMetrics].slice(-20));
+  }, [monitoringMetrics]);
 
   // Fetch counts from database
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -481,7 +519,7 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -501,6 +539,10 @@ export default function AdminSystemMonitor() {
             <TabsTrigger value="control" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Control</span>
+            </TabsTrigger>
+            <TabsTrigger value="monitoring" className="gap-2">
+              <Cpu className="h-4 w-4" />
+              <span className="hidden sm:inline">Monitoring</span>
             </TabsTrigger>
           </TabsList>
 
@@ -768,6 +810,70 @@ export default function AdminSystemMonitor() {
                     </CardContent>
                   </Card>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+
+          <TabsContent value="monitoring" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2"><Cpu className="h-4 w-4" />CPU Usage</CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-2xl font-bold">{monitoringMetrics ? monitoringMetrics.cpuUsage.toFixed(1) : '0.0'}%</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2"><MemoryStick className="h-4 w-4" />Memory</CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-2xl font-bold">{monitoringMetrics ? monitoringMetrics.memoryUsage.toFixed(1) : '0.0'}%</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2"><Timer className="h-4 w-4" />Uptime</CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-2xl font-bold">{Math.floor((monitoringMetrics?.uptimeSeconds ?? 0) / 60)}m</p></CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Warm Start</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-semibold">Readiness: {monitoringMetrics?.readiness ?? 0}%</p>
+                  <p className="text-xs text-muted-foreground">Auto-start: {monitoringMetrics?.scheduledAutoStartEnabled ? 'Enabled' : 'Disabled'}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Performance Metrics (Auto refresh: 5s)</CardTitle>
+                  <CardDescription>Lightweight chart for CPU and memory trends.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchMonitoringMetrics()}>
+                  <RefreshCw className="h-4 w-4 mr-2" />Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{ cpuUsage: { label: 'CPU', color: 'hsl(var(--primary))' }, memoryUsage: { label: 'Memory', color: '#22c55e' } }}
+                  className="h-[260px] w-full"
+                >
+                  <AreaChart data={monitoringHistory.map((item) => ({
+                    time: format(new Date(item.timestamp), 'HH:mm:ss'),
+                    cpuUsage: item.cpuUsage,
+                    memoryUsage: item.memoryUsage,
+                  }))}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="time" tickLine={false} axisLine={false} minTickGap={24} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area dataKey="cpuUsage" type="monotone" fill="var(--color-cpuUsage)" fillOpacity={0.15} stroke="var(--color-cpuUsage)" strokeWidth={2} />
+                    <Area dataKey="memoryUsage" type="monotone" fill="var(--color-memoryUsage)" fillOpacity={0.15} stroke="var(--color-memoryUsage)" strokeWidth={2} />
+                  </AreaChart>
+                </ChartContainer>
               </CardContent>
             </Card>
           </TabsContent>
