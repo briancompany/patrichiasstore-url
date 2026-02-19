@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,33 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    });
+
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+
+    if (!profile || profile.role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403,
+      });
+    }
+
     const { prompt, schoolName } = await req.json();
 
     if (!prompt) {
@@ -42,9 +70,7 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', errorText);
-      throw new Error(`AI Gateway error: ${response.status}`);
+      throw new Error('Image generation failed');
     }
 
     const data = await response.json();
@@ -53,7 +79,6 @@ serve(async (req) => {
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
     if (!imageUrl) {
-      console.error('No image in response:', JSON.stringify(data));
       throw new Error('No image generated');
     }
 
@@ -64,11 +89,9 @@ serve(async (req) => {
         status: 200 
       }
     );
-  } catch (error: unknown) {
-    console.error('Error generating logo:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch {
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Unable to generate logo right now' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500

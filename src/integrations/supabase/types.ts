@@ -333,6 +333,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_order_tracking_public: {
+        Args: { p_tracking_code: string }
+        Returns: {
+          order_id: string
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          created_at: string
+          delivery_type: Database["public"]["Enums"]["delivery_type"]
+          item_count: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {

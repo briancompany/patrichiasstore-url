@@ -6,30 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Package, Clock, CheckCircle, Printer, Download, Loader2 } from 'lucide-react';
+import { Search, Package, Clock, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface OrderItem {
-  id: string;
-  product_name: string;
-  school_name: string | null;
-  size: string;
-  quantity: number;
-  price_at_purchase: number;
-  printing_required: boolean;
-}
-
-interface Order {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_school: string | null;
-  delivery_type: string;
-  delivery_location: string | null;
+interface PublicTrackedOrder {
+  order_id: string;
   status: string;
   total_amount: number;
   created_at: string;
-  order_items: OrderItem[];
+  delivery_type: string;
+  item_count: number;
 }
 
 export default function TrackOrder() {
@@ -38,7 +24,7 @@ export default function TrackOrder() {
 
   const [trackingCode, setTrackingCode] = useState(initialCode);
   const [isLoading, setIsLoading] = useState(false);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<PublicTrackedOrder | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -48,9 +34,15 @@ export default function TrackOrder() {
   }, []);
 
   const handleSearch = async (code?: string) => {
-    const searchCode = code || trackingCode;
-    if (!searchCode.trim()) {
+    const searchCode = (code || trackingCode).trim().toUpperCase();
+
+    if (!searchCode) {
       toast.error('Please enter a tracking code');
+      return;
+    }
+
+    if (!/^PS-[A-Z0-9]{6}$/.test(searchCode)) {
+      toast.error('Invalid tracking code format');
       return;
     }
 
@@ -59,33 +51,24 @@ export default function TrackOrder() {
     setOrder(null);
 
     try {
-      // First find the order_id from tracking table
-      const { data: trackingData, error: trackingError } = await supabase
-        .from('order_tracking')
-        .select('order_id')
-        .eq('tracking_code', searchCode.trim().toUpperCase())
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_order_tracking_public', {
+        p_tracking_code: searchCode,
+      });
 
-      if (trackingError) throw trackingError;
+      if (error) {
+        throw error;
+      }
 
-      if (!trackingData) {
+      const trackedOrder = (data as PublicTrackedOrder[] | null)?.[0] ?? null;
+
+      if (!trackedOrder) {
         setNotFound(true);
-        setIsLoading(false);
         return;
       }
 
-      // Fetch the order with items
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('id', trackingData.order_id)
-        .single();
-
-      if (orderError) throw orderError;
-
-      setOrder(orderData);
-    } catch (error) {
-      console.error('Error fetching order:', error);
+      setOrder(trackedOrder);
+    } catch {
+      toast.error('Unable to fetch order status. Please try again.');
       setNotFound(true);
     } finally {
       setIsLoading(false);
@@ -134,202 +117,78 @@ export default function TrackOrder() {
   };
 
   const downloadReceipt = () => {
-    if (!order || order.status !== 'confirmed' && order.status !== 'completed') {
+    if (!order || (order.status !== 'confirmed' && order.status !== 'completed')) {
       toast.error('Receipt is only available after payment confirmation');
       return;
     }
 
     const receiptContent = `
       <html>
-        <head>
-          <title>Receipt - Patrichia's Store</title>
-          <style>
-            body { 
-              font-family: 'Segoe UI', Arial, sans-serif; 
-              padding: 40px; 
-              max-width: 600px; 
-              margin: 0 auto; 
-              color: #333;
-            }
-            .header { 
-              text-align: center; 
-              border-bottom: 2px solid #333; 
-              padding-bottom: 20px; 
-              margin-bottom: 30px; 
-            }
-            .header h1 { margin: 0; font-size: 28px; }
-            .header p { margin: 5px 0; color: #666; }
-            .section { margin-bottom: 25px; }
-            .section-title { 
-              font-weight: bold; 
-              font-size: 14px; 
-              text-transform: uppercase; 
-              color: #666; 
-              margin-bottom: 10px; 
-            }
-            .row { 
-              display: flex; 
-              justify-content: space-between; 
-              padding: 8px 0; 
-              border-bottom: 1px solid #eee; 
-            }
-            .item-row { 
-              padding: 12px 0; 
-              border-bottom: 1px solid #eee; 
-            }
-            .item-name { font-weight: 600; }
-            .item-details { color: #666; font-size: 14px; }
-            .total-section { 
-              background: #f5f5f5; 
-              padding: 20px; 
-              border-radius: 8px; 
-              margin-top: 20px; 
-            }
-            .total-row { 
-              display: flex; 
-              justify-content: space-between; 
-              font-size: 20px; 
-              font-weight: bold; 
-            }
-            .footer { 
-              text-align: center; 
-              margin-top: 40px; 
-              padding-top: 20px; 
-              border-top: 1px solid #eee; 
-              color: #666; 
-            }
-            .thank-you { 
-              font-size: 18px; 
-              color: #333; 
-              margin-bottom: 10px; 
-            }
-            @media print {
-              body { padding: 20px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Patrichia's Store</h1>
-            <p>Official Receipt</p>
-            <p>Store F47, Uhuru Market</p>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Order Details</div>
-            <div class="row"><span>Order ID:</span><span>${order.id.slice(0, 8).toUpperCase()}</span></div>
-            <div class="row"><span>Date:</span><span>${new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-            <div class="row"><span>Status:</span><span>✓ Payment Confirmed</span></div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Customer</div>
-            <div class="row"><span>Name:</span><span>${order.customer_name}</span></div>
-            <div class="row"><span>Phone:</span><span>${order.customer_phone}</span></div>
-            ${order.customer_school ? `<div class="row"><span>School:</span><span>${order.customer_school}</span></div>` : ''}
-            <div class="row"><span>Delivery:</span><span>${order.delivery_type === 'pickup' ? 'Store Pickup' : order.delivery_location}</span></div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Items</div>
-            ${order.order_items.map(item => `
-              <div class="item-row">
-                <div class="item-name">${item.product_name}</div>
-                <div class="item-details">Size: ${item.size} • Qty: ${item.quantity}${item.printing_required ? ' • Logo Printing' : ''}</div>
-                <div style="text-align: right; font-weight: 600;">Ksh ${item.price_at_purchase.toLocaleString()}</div>
-              </div>
-            `).join('')}
-          </div>
-          
-          <div class="total-section">
-            <div class="total-row">
-              <span>Total Paid</span>
-              <span>Ksh ${order.total_amount.toLocaleString()}</span>
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p class="thank-you">Thank you for shopping with us! 🙏</p>
-            <p>For any inquiries, contact us on WhatsApp: +254 726 075 180</p>
-          </div>
+        <head><title>Receipt - Patrichia's Store</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 24px;">
+          <h2>Patrichia's Store - Receipt</h2>
+          <p><strong>Tracking Code:</strong> ${trackingCode.trim().toUpperCase()}</p>
+          <p><strong>Order ID:</strong> ${order.order_id}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          <p><strong>Delivery Type:</strong> ${order.delivery_type === 'pickup' ? 'Store Pickup' : 'Delivery'}</p>
+          <p><strong>Items:</strong> ${order.item_count}</p>
+          <p><strong>Total:</strong> Ksh ${order.total_amount.toLocaleString()}</p>
         </body>
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(receiptContent);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    const blob = new Blob([receiptContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${trackingCode.trim().toUpperCase()}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const statusInfo = order ? getStatusInfo(order.status) : null;
-  const StatusIcon = statusInfo?.icon || Clock;
+  const StatusIcon = statusInfo?.icon || Package;
 
   return (
     <Layout>
-      <div className="container-shop py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Track Your Order</h1>
-            <p className="text-muted-foreground">
-              Enter your tracking code to check your order status
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Track Your Order</h1>
+            <p className="text-muted-foreground">Enter your tracking code to check your order status</p>
           </div>
 
-          {/* Search Form */}
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="pt-6">
               <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={trackingCode}
-                    onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-                    placeholder="Enter tracking code (e.g., PS-ABC123)"
-                    className="pl-10 uppercase"
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
+                <Input
+                  placeholder="Enter tracking code (e.g., PS-ABC123)"
+                  value={trackingCode}
+                  onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
                 <Button onClick={() => handleSearch()} disabled={isLoading}>
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Track'
-                  )}
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Not Found */}
           {notFound && (
             <Card className="border-destructive/50">
               <CardContent className="py-8 text-center">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-semibold text-lg mb-2">Order Not Found</h3>
-                <p className="text-muted-foreground mb-4">
-                  We couldn't find an order with that tracking code. Please check the code and try
-                  again.
-                </p>
-                <Button variant="outline" asChild>
-                  <Link to="/uniform-shop">Continue Shopping</Link>
-                </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Order Details */}
           {order && statusInfo && (
             <>
-              {/* Status Card */}
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center ${statusInfo.color}`}
-                    >
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${statusInfo.color}`}>
                       <StatusIcon className="h-8 w-8" />
                     </div>
                     <div className="flex-1">
@@ -340,82 +199,42 @@ export default function TrackOrder() {
                 </CardContent>
               </Card>
 
-              {/* Order Info */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Order Details</CardTitle>
+                  <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground">Customer</p>
-                      <p className="font-medium">{order.customer_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Phone</p>
-                      <p className="font-medium">{order.customer_phone}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">School</p>
-                      <p className="font-medium">{order.customer_school || '-'}</p>
+                      <p className="text-muted-foreground">Order ID</p>
+                      <p className="font-medium break-all">{order.order_id}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Order Date</p>
-                      <p className="font-medium">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </p>
+                      <p className="font-medium">{new Date(order.created_at).toLocaleDateString()}</p>
                     </div>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <p className="text-sm text-muted-foreground mb-3">Items</p>
-                    <div className="space-y-3">
-                      {order.order_items.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex justify-between items-center p-3 bg-muted rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium">{item.product_name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Size: {item.size} × {item.quantity}
-                              {item.printing_required && (
-                                <Badge variant="secondary" className="ml-2">
-                                  <Printer className="h-3 w-3 mr-1" />
-                                  Logo
-                                </Badge>
-                              )}
-                            </p>
-                          </div>
-                          <p className="font-medium">
-                            Ksh {item.price_at_purchase.toLocaleString()}
-                          </p>
-                        </div>
-                      ))}
+                    <div>
+                      <p className="text-muted-foreground">Delivery Type</p>
+                      <p className="font-medium">{order.delivery_type === 'pickup' ? 'Store Pickup' : 'Delivery'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Items</p>
+                      <p className="font-medium">{order.item_count}</p>
                     </div>
                   </div>
 
                   <div className="border-t pt-4 flex justify-between items-center">
                     <span className="font-semibold text-lg">Total:</span>
-                    <span className="text-2xl font-bold text-primary">
-                      Ksh {order.total_amount.toLocaleString()}
-                    </span>
+                    <span className="text-2xl font-bold text-primary">Ksh {order.total_amount.toLocaleString()}</span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Receipt Download (only for confirmed orders) */}
               {(order.status === 'confirmed' || order.status === 'completed') && (
                 <Card className="bg-green-50 border-green-200">
                   <CardContent className="p-4 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    </div>
                     <div className="flex-1">
                       <p className="font-semibold text-green-800">Payment Confirmed!</p>
-                      <p className="text-sm text-green-700">
-                        Your receipt is ready to download
-                      </p>
                     </div>
                     <Button onClick={downloadReceipt} className="bg-green-600 hover:bg-green-700">
                       <Download className="h-4 w-4 mr-2" />
