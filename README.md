@@ -71,3 +71,15 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Payment and monitoring environment variables
+
+All sensitive payment credentials must stay on the backend (Supabase Edge Functions), never in client code.
+
+Set these in Supabase secrets / backend environment:
+
+- `PESAPAL_CONSUMER_KEY`
+- `PESAPAL_CONSUMER_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Frontend `.env` should only include public Supabase values (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).

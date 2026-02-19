@@ -32,20 +32,6 @@ interface LocationState {
 
 type PaymentMethod = 'pesapal' | 'mpesa';
 
-// Parse M-Pesa confirmation message
-const parseMpesaMessage = (message: string) => {
-  // Pattern: "XYZ123ABC Confirmed. Ksh1,000.00 sent to..."
-  const amountMatch = message.match(/Ksh[\s]?([\d,]+(?:\.\d{2})?)/i);
-  const confirmCodeMatch = message.match(/^([A-Z0-9]{10})/);
-  const confirmedMatch = message.toLowerCase().includes('confirmed');
-  
-  return {
-    amount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : null,
-    confirmCode: confirmCodeMatch ? confirmCodeMatch[1] : null,
-    isConfirmed: confirmedMatch,
-  };
-};
-
 export default function Payment() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -143,82 +129,20 @@ export default function Payment() {
 
     setIsVerifying(true);
 
-    const parsed = parseMpesaMessage(mpesaMessage);
-
-    // Validate the message
-    if (!parsed.isConfirmed) {
-      toast.error('This does not appear to be a valid M-Pesa confirmation message');
-      setIsVerifying(false);
-      return;
-    }
-
-    if (!parsed.amount) {
-      toast.error('Could not detect the amount in the message');
-      setIsVerifying(false);
-      return;
-    }
-
-    // EXACT amount verification - no more, no less
-    if (parsed.amount !== orderDetails.total) {
-      if (parsed.amount < orderDetails.total) {
-        toast.error(`Payment rejected: Amount Ksh ${parsed.amount.toLocaleString()} is less than required Ksh ${orderDetails.total.toLocaleString()}. Please pay the exact amount.`);
-      } else {
-        toast.error(`Payment rejected: Amount Ksh ${parsed.amount.toLocaleString()} is more than required Ksh ${orderDetails.total.toLocaleString()}. Please pay the exact amount.`);
-      }
-      setIsVerifying(false);
-      return;
-    }
-
-    if (!parsed.confirmCode) {
-      toast.error('Could not detect M-Pesa confirmation code');
-      setIsVerifying(false);
-      return;
-    }
-
     try {
-      // Check for duplicate M-Pesa code
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', parsed.confirmCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('secure-payment-confirmation', {
+        body: {
+          orderId: orderDetails.orderId,
+          paymentMethod: 'mpesa',
+          mpesaMessage,
+        },
+      });
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Payment verification failed');
       }
 
-      if (existingPayment) {
-        toast.error('This M-Pesa code has already been used. If this is an error, please contact support.');
-        setIsVerifying(false);
-        return;
-      }
-
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'confirmed',
-          notes: `M-Pesa Code: ${parsed.confirmCode} | Payment Method: Paybill`
-        })
-        .eq('id', orderDetails.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment for admin
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: orderDetails.orderId,
-          amount: parsed.amount,
-          mpesa_code: parsed.confirmCode,
-          customer_name: orderDetails.customerName,
-          customer_phone: orderDetails.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
-      }
-
+      storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
       toast.success('Payment verified successfully! Download your receipt below.');
     } catch (error) {
@@ -241,62 +165,24 @@ export default function Payment() {
 
     if (!effectiveOrder) return;
 
-    // Require transaction code for verification
     if (!effectiveCode) {
-      toast.error('Missing transaction code. Please return to Pesapal and finish payment.');
-      return;
-    }
-
-    // Validate code format
-    if (effectiveCode.length < 8 || effectiveCode.length > 12) {
-      toast.error('Invalid transaction code format. Please check and try again.');
+      toast.error('Missing transaction code.');
       return;
     }
 
     setIsVerifying(true);
 
     try {
-      // Check for duplicate code - reject if already used
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', effectiveCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('secure-payment-confirmation', {
+        body: {
+          orderId: effectiveOrder.orderId,
+          paymentMethod: 'pesapal',
+          transactionCode: effectiveCode,
+        },
+      });
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
-      }
-
-      if (existingPayment) {
-        toast.error('⚠️ This transaction code has already been used! Please use the M-Pesa Paybill fallback method.');
-        setIsVerifying(false);
-        return;
-      }
-
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          status: 'confirmed',
-          notes: `Payment Method: Pesapal STK Push | Ref: ${effectiveCode}`,
-        })
-        .eq('id', effectiveOrder.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: effectiveOrder.orderId,
-          amount: effectiveOrder.total,
-          mpesa_code: effectiveCode,
-          customer_name: effectiveOrder.customerName,
-          customer_phone: effectiveOrder.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Payment verification failed');
       }
 
       storageRemove(STORAGE_KEYS.pendingOrder);
