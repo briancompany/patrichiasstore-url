@@ -2,3 +2,6 @@ project_id = "jkdxlbkckpwzmhdaoaoo"
 
 [functions.search-school]
 verify_jwt = false
+
+[functions.confirm-payment]
+verify_jwt = false
