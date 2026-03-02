@@ -176,49 +176,25 @@ export default function Payment() {
     }
 
     try {
-      // Check for duplicate M-Pesa code
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', parsed.confirmCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('confirm-payment', {
+        body: {
+          orderId: orderDetails.orderId,
+          amount: parsed.amount,
+          mpesaCode: parsed.confirmCode,
+          customerName: orderDetails.customerName,
+          customerPhone: orderDetails.customerPhone || null,
+          paymentMethod: 'mpesa',
+        },
+      });
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
-      }
-
-      if (existingPayment) {
-        toast.error('This M-Pesa code has already been used. If this is an error, please contact support.');
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
         setIsVerifying(false);
         return;
       }
 
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'confirmed',
-          notes: `M-Pesa Code: ${parsed.confirmCode} | Payment Method: Paybill`
-        })
-        .eq('id', orderDetails.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment for admin
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: orderDetails.orderId,
-          amount: parsed.amount,
-          mpesa_code: parsed.confirmCode,
-          customer_name: orderDetails.customerName,
-          customer_phone: orderDetails.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
-      }
-
+      storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
       toast.success('Payment verified successfully! Download your receipt below.');
     } catch (error) {
@@ -256,47 +232,22 @@ export default function Payment() {
     setIsVerifying(true);
 
     try {
-      // Check for duplicate code - reject if already used
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', effectiveCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('confirm-payment', {
+        body: {
+          orderId: effectiveOrder.orderId,
+          amount: effectiveOrder.total,
+          mpesaCode: effectiveCode,
+          customerName: effectiveOrder.customerName,
+          customerPhone: effectiveOrder.customerPhone || null,
+          paymentMethod: 'pesapal',
+        },
+      });
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
-      }
-
-      if (existingPayment) {
-        toast.error('⚠️ This transaction code has already been used! Please use the M-Pesa Paybill fallback method.');
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
         setIsVerifying(false);
         return;
-      }
-
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          status: 'confirmed',
-          notes: `Payment Method: Pesapal STK Push | Ref: ${effectiveCode}`,
-        })
-        .eq('id', effectiveOrder.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: effectiveOrder.orderId,
-          amount: effectiveOrder.total,
-          mpesa_code: effectiveCode,
-          customer_name: effectiveOrder.customerName,
-          customer_phone: effectiveOrder.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
       }
 
       storageRemove(STORAGE_KEYS.pendingOrder);
