@@ -2,6 +2,7 @@ export const STORAGE_KEYS = {
   shopCart: 'ps_shop_cart_v1',
   uniformCheckout: 'ps_uniform_checkout_v1',
   pendingOrder: 'ps_pending_order_v1',
+  pesapalTrackingId: 'ps_pesapal_tracking_id',
 } as const;
 
 type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
