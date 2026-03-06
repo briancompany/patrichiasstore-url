@@ -68,6 +68,8 @@ export default function AdminSystemMonitor() {
   const [isChecking, setIsChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [isWarmingUp, setIsWarmingUp] = useState(false);
+  const [warmUpProgress, setWarmUpProgress] = useState(0);
+  const [warmUpStage, setWarmUpStage] = useState('');
   const [isSafeMode, setIsSafeMode] = useState(false);
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [backupStatus, setBackupStatus] = useState<{
