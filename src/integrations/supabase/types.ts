@@ -111,7 +111,6 @@ export type Database = {
           created_at: string
           customer_name: string
           customer_phone: string
-          customer_email: string | null
           customer_school: string | null
           delivery_location: string | null
           delivery_type: Database["public"]["Enums"]["delivery_type"]
@@ -127,7 +126,6 @@ export type Database = {
           created_at?: string
           customer_name: string
           customer_phone: string
-          customer_email?: string | null
           customer_school?: string | null
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
@@ -143,7 +141,6 @@ export type Database = {
           created_at?: string
           customer_name?: string
           customer_phone?: string
-          customer_email?: string | null
           customer_school?: string | null
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
@@ -161,38 +158,6 @@ export type Database = {
             columns: ["linked_school_id"]
             isOneToOne: false
             referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      receipt_emails: {
-        Row: {
-          id: string
-          order_id: string
-          recipient_email: string
-          payment_code: string
-          sent_at: string
-        }
-        Insert: {
-          id?: string
-          order_id: string
-          recipient_email: string
-          payment_code: string
-          sent_at?: string
-        }
-        Update: {
-          id?: string
-          order_id?: string
-          recipient_email?: string
-          payment_code?: string
-          sent_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "receipt_emails_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -368,17 +333,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_order_tracking_public: {
-        Args: { p_tracking_code: string }
-        Returns: {
-          order_id: string
-          status: Database["public"]["Enums"]["order_status"]
-          total_amount: number
-          created_at: string
-          delivery_type: Database["public"]["Enums"]["delivery_type"]
-          item_count: number
-        }[]
-      }
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
