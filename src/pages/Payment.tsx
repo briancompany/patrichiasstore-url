@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText, ExternalLink, Wallet, Building2 } from 'lucide-react';
+import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Download, AlertCircle, FileText, ExternalLink, Wallet, Building2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
@@ -35,7 +35,6 @@ type PaymentMethod = 'pesapal' | 'mpesa';
 
 // Parse M-Pesa confirmation message
 const parseMpesaMessage = (message: string) => {
-  // Pattern: "XYZ123ABC Confirmed. Ksh1,000.00 sent to..."
   const amountMatch = message.match(/Ksh[\s]?([\d,]+(?:\.\d{2})?)/i);
   const confirmCodeMatch = message.match(/^([A-Z0-9]{10})/);
   const confirmedMatch = message.toLowerCase().includes('confirmed');
@@ -62,12 +61,21 @@ export default function Payment() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [complaintText, setComplaintText] = useState('');
   const [showComplaintForm, setShowComplaintForm] = useState(false);
-  const [pesapalCode, setPesapalCode] = useState('');
+  const [isPesapalLoading, setIsPesapalLoading] = useState(false);
+  const [pesapalTrackingId, setPesapalTrackingId] = useState<string | null>(null);
+  const [pollingStatus, setPollingStatus] = useState<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
   const WHATSAPP_NUMBER = '254726075180';
-  const PESAPAL_URL = 'https://store.pesapal.com/patrichiastorepaymentpage';
+
+  // Stop polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
 
   const sendReceiptEmail = async (details: { orderId: string; paymentCode: string; paymentMethod: PaymentMethod }) => {
@@ -94,37 +102,92 @@ export default function Payment() {
       setOrderDetails(effectiveState);
       storageSet(STORAGE_KEYS.pendingOrder, effectiveState);
 
-      // Fetch order items (best-effort)
+      // Fetch order items
       const fetchOrderItems = async () => {
         const { data, error } = await supabase
           .from('order_items')
           .select('id, product_name, size, quantity, price_at_purchase, color')
           .eq('order_id', effectiveState.orderId);
 
-        if (!error && data) {
-          setOrderItems(data);
-        }
+        if (!error && data) setOrderItems(data);
       };
       fetchOrderItems();
     }
 
-    // Redirect-based Pesapal: auto-detect code and auto-run verification (no manual button needed)
-    const urlCode = searchParams.get('ref') || searchParams.get('code');
-    if (urlCode) {
-      const normalized = urlCode.toUpperCase();
+    // Check if returning from Pesapal redirect
+    const orderTrackingId = searchParams.get('OrderTrackingId');
+    const orderMerchantRef = searchParams.get('OrderMerchantReference');
+    
+    if (orderTrackingId && effectiveState) {
+      setPesapalTrackingId(orderTrackingId);
       setPaymentMethod('pesapal');
-      setPesapalCode(normalized);
+      // Auto-verify on return from Pesapal
+      pollPesapalStatus(orderTrackingId, orderMerchantRef || effectiveState.orderId);
+    }
 
-      if (effectiveState) {
-        // Defer so state updates apply before verification
-        setTimeout(() => {
-          confirmPesapalPayment({ order: effectiveState, code: normalized });
-        }, 0);
-      } else {
-        toast.info('Transaction code detected. Return to checkout to load your order, then we will auto-verify.');
-      }
+    // Also restore pesapal tracking ID from storage
+    const storedTrackingId = storageGet<string>(STORAGE_KEYS.pesapalTrackingId);
+    if (storedTrackingId && !orderTrackingId) {
+      setPesapalTrackingId(storedTrackingId);
     }
   }, [state, searchParams]);
+
+  const pollPesapalStatus = (trackingId: string, orderId: string) => {
+    setIsVerifying(true);
+    setPollingStatus('Checking payment status...');
+    let attempts = 0;
+    const maxAttempts = 20; // Poll for ~60 seconds
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const { data, error } = await supabase.functions.invoke('pesapal-status', {
+          body: { orderTrackingId: trackingId, orderId },
+        });
+
+        if (error) throw error;
+
+        if (data?.status === 'confirmed') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setPaymentVerified(true);
+          setIsVerifying(false);
+          setPollingStatus(null);
+          storageRemove(STORAGE_KEYS.pendingOrder);
+          storageRemove(STORAGE_KEYS.pesapalTrackingId);
+          toast.success('Payment confirmed automatically! Download your receipt below.');
+          return;
+        }
+
+        if (data?.status === 'failed') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setIsVerifying(false);
+          setPollingStatus(null);
+          toast.error('Payment failed. Please try again or use M-Pesa Paybill.');
+          return;
+        }
+
+        setPollingStatus(`Waiting for payment confirmation... (${attempts}/${maxAttempts})`);
+
+        if (attempts >= maxAttempts) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setIsVerifying(false);
+          setPollingStatus(null);
+          toast.info('Payment verification is taking longer than expected. It will be confirmed automatically when processed.');
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+        if (attempts >= maxAttempts) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setIsVerifying(false);
+          setPollingStatus(null);
+        }
+      }
+    };
+
+    // Immediate check + interval
+    poll();
+    pollingRef.current = setInterval(poll, 3000);
+  };
 
   const copyToClipboard = async (text: string, type: 'paybill' | 'account') => {
     try {
@@ -153,18 +216,11 @@ export default function Payment() {
   };
 
   const verifyMpesaPayment = async () => {
-    if (!mpesaMessage.trim()) {
-      toast.error('Please paste your M-Pesa confirmation message');
-      return;
-    }
-
-    if (!orderDetails) return;
+    if (!mpesaMessage.trim() || !orderDetails) return;
 
     setIsVerifying(true);
-
     const parsed = parseMpesaMessage(mpesaMessage);
 
-    // Validate the message
     if (!parsed.isConfirmed) {
       toast.error('This does not appear to be a valid M-Pesa confirmation message');
       setIsVerifying(false);
@@ -177,13 +233,8 @@ export default function Payment() {
       return;
     }
 
-    // EXACT amount verification - no more, no less
     if (parsed.amount !== orderDetails.total) {
-      if (parsed.amount < orderDetails.total) {
-        toast.error(`Payment rejected: Amount Ksh ${parsed.amount.toLocaleString()} is less than required Ksh ${orderDetails.total.toLocaleString()}. Please pay the exact amount.`);
-      } else {
-        toast.error(`Payment rejected: Amount Ksh ${parsed.amount.toLocaleString()} is more than required Ksh ${orderDetails.total.toLocaleString()}. Please pay the exact amount.`);
-      }
+      toast.error(`Payment amount Ksh ${parsed.amount.toLocaleString()} doesn't match required Ksh ${orderDetails.total.toLocaleString()}.`);
       setIsVerifying(false);
       return;
     }
@@ -195,49 +246,25 @@ export default function Payment() {
     }
 
     try {
-      // Check for duplicate M-Pesa code
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', parsed.confirmCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('confirm-payment', {
+        body: {
+          orderId: orderDetails.orderId,
+          amount: parsed.amount,
+          mpesaCode: parsed.confirmCode,
+          customerName: orderDetails.customerName,
+          customerPhone: orderDetails.customerPhone || null,
+          paymentMethod: 'mpesa',
+        },
+      });
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
-      }
-
-      if (existingPayment) {
-        toast.error('This M-Pesa code has already been used. If this is an error, please contact support.');
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
         setIsVerifying(false);
         return;
       }
 
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'confirmed',
-          notes: `M-Pesa Code: ${parsed.confirmCode} | Payment Method: Paybill`
-        })
-        .eq('id', orderDetails.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment for admin
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: orderDetails.orderId,
-          amount: parsed.amount,
-          mpesa_code: parsed.confirmCode,
-          customer_name: orderDetails.customerName,
-          customer_phone: orderDetails.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
-      }
-
+      storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
       await sendReceiptEmail({ orderId: orderDetails.orderId, paymentCode: parsed.confirmCode, paymentMethod: 'mpesa' });
       toast.success('Payment verified successfully! Download your receipt below.');
@@ -249,85 +276,56 @@ export default function Payment() {
     }
   };
 
-  const handlePesapalPayment = () => {
-    // Open Pesapal in new tab - the store payment page handles STK push internally
-    window.open(PESAPAL_URL, '_blank');
-    toast.info('Complete your payment on Pesapal, then enter your M-Pesa code here.');
-  };
-
-  const confirmPesapalPayment = async (opts?: { order?: LocationState; code?: string }) => {
-    const effectiveOrder = opts?.order ?? orderDetails;
-    const effectiveCode = (opts?.code ?? pesapalCode).trim().toUpperCase();
-
-    if (!effectiveOrder) return;
-
-    // Require transaction code for verification
-    if (!effectiveCode) {
-      toast.error('Missing transaction code. Please return to Pesapal and finish payment.');
-      return;
-    }
-
-    // Validate code format
-    if (effectiveCode.length < 8 || effectiveCode.length > 12) {
-      toast.error('Invalid transaction code format. Please check and try again.');
-      return;
-    }
-
-    setIsVerifying(true);
+  const handlePesapalPayment = async () => {
+    if (!orderDetails) return;
+    setIsPesapalLoading(true);
 
     try {
-      // Check for duplicate code - reject if already used
-      const { data: existingPayment, error: checkError } = await supabase
-        .from('payments')
-        .select('id')
-        .eq('mpesa_code', effectiveCode)
-        .maybeSingle();
+      // Build callback URL - current page URL so user returns here
+      const currentUrl = window.location.origin + '/payment';
 
-      if (checkError) {
-        console.error('Error checking duplicate:', checkError);
-      }
+      const { data, error } = await supabase.functions.invoke('pesapal-pay', {
+        body: {
+          orderId: orderDetails.orderId,
+          amount: orderDetails.total,
+          customerName: orderDetails.customerName,
+          customerPhone: orderDetails.customerPhone || '',
+          customerEmail: '',
+          callbackUrl: currentUrl,
+        },
+      });
 
-      if (existingPayment) {
-        toast.error('⚠️ This transaction code has already been used! Please use the M-Pesa Paybill fallback method.');
-        setIsVerifying(false);
+      if (error) throw error;
+
+      if (!data?.redirect_url) {
+        toast.error('Failed to initiate Pesapal payment. Try M-Pesa Paybill instead.');
+        setIsPesapalLoading(false);
         return;
       }
 
-      // Update order status
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          status: 'confirmed',
-          notes: `Payment Method: Pesapal STK Push | Ref: ${effectiveCode}`,
-        })
-        .eq('id', effectiveOrder.orderId);
-
-      if (orderError) throw orderError;
-
-      // Record payment
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          order_id: effectiveOrder.orderId,
-          amount: effectiveOrder.total,
-          mpesa_code: effectiveCode,
-          customer_name: effectiveOrder.customerName,
-          customer_phone: effectiveOrder.customerPhone || null,
-        });
-
-      if (paymentError) {
-        console.error('Payment record error:', paymentError);
+      // Store tracking ID for when user returns
+      if (data.order_tracking_id) {
+        storageSet(STORAGE_KEYS.pesapalTrackingId, data.order_tracking_id);
+        setPesapalTrackingId(data.order_tracking_id);
       }
 
-      storageRemove(STORAGE_KEYS.pendingOrder);
-      setPaymentVerified(true);
-      await sendReceiptEmail({ orderId: effectiveOrder.orderId, paymentCode: effectiveCode, paymentMethod: 'pesapal' });
-      toast.success('Payment verified! Your receipt is ready for download.');
-    } catch (error) {
-      console.error('Error confirming payment:', error);
-      toast.error('Failed to verify payment. Please try the M-Pesa Paybill fallback.');
-    } finally {
-      setIsVerifying(false);
+cstorageRemove(STORAGE_KEYS.pendingOrder);
+setPaymentVerified(true);
+await sendReceiptEmail({ 
+  orderId: effectiveOrder.orderId, 
+  paymentCode: effectiveCode, 
+  paymentMethod: 'pesapal' 
+});
+
+toast.success('Payment verified! Your receipt is ready for download.');
+
+} catch (error) {
+  console.error('Error confirming payment:', error);
+  toast.error('Failed to verify payment. Please try the M-Pesa Paybill fallback.');
+} finally {
+  setIsVerifying(false);
+  setIsPesapalLoading(false);
+}
     }
   };
 
@@ -342,9 +340,8 @@ export default function Payment() {
       </div>
     `).join('');
 
-    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal STK Push' : 'M-Pesa Paybill';
+    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : 'M-Pesa Paybill';
 
-    // Create a visual receipt as HTML and convert to downloadable format
     const receiptHTML = `
 <!DOCTYPE html>
 <html>
@@ -354,7 +351,6 @@ export default function Payment() {
   <style>
     body { font-family: Arial, sans-serif; padding: 40px; max-width: 450px; margin: 0 auto; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #7c3aed; padding-bottom: 20px; }
-    .logo { width: 80px; height: 80px; margin: 0 auto 15px; }
     .store-name { color: #7c3aed; font-size: 24px; font-weight: bold; margin: 0; }
     .tagline { color: #666; font-size: 12px; }
     .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
@@ -371,7 +367,7 @@ export default function Payment() {
 </head>
 <body>
   <div class="header">
-    <div class="logo">
+    <div style="width:80px;height:80px;margin:0 auto 15px;">
       <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M50 5L90 25V75L50 95L10 75V25L50 5Z" fill="#7c3aed"/>
         <text x="50" y="60" font-size="40" fill="white" text-anchor="middle" font-weight="bold">P</text>
@@ -382,26 +378,11 @@ export default function Payment() {
   </div>
   
   <div class="section">
-    <div class="row">
-      <span class="label">Customer:</span>
-      <span class="value">${orderDetails.customerName}</span>
-    </div>
-    <div class="row">
-      <span class="label">Order ID:</span>
-      <span class="value">${orderDetails.orderId.slice(0, 8)}</span>
-    </div>
-    <div class="row">
-      <span class="label">Tracking:</span>
-      <span class="value">${orderDetails.trackingCode || 'N/A'}</span>
-    </div>
-    <div class="row">
-      <span class="label">Date:</span>
-      <span class="value">${new Date().toLocaleDateString()}</span>
-    </div>
-    <div class="row">
-      <span class="label">Payment:</span>
-      <span class="payment-method">${paymentMethodLabel}</span>
-    </div>
+    <div class="row"><span class="label">Customer:</span><span class="value">${orderDetails.customerName}</span></div>
+    <div class="row"><span class="label">Order ID:</span><span class="value">${orderDetails.orderId.slice(0, 8)}</span></div>
+    <div class="row"><span class="label">Tracking:</span><span class="value">${orderDetails.trackingCode || 'N/A'}</span></div>
+    <div class="row"><span class="label">Date:</span><span class="value">${new Date().toLocaleDateString()}</span></div>
+    <div class="row"><span class="label">Payment:</span><span class="payment-method">${paymentMethodLabel}</span></div>
   </div>
 
   <div class="items-section">
@@ -410,14 +391,8 @@ export default function Payment() {
   </div>
   
   <div class="section">
-    <div class="row">
-      <span class="label">Amount Paid:</span>
-      <span class="value total">Ksh ${orderDetails.total.toLocaleString()}</span>
-    </div>
-    <div class="row">
-      <span class="label">Status:</span>
-      <span class="status">PAID ✓</span>
-    </div>
+    <div class="row"><span class="label">Amount Paid:</span><span class="value total">Ksh ${orderDetails.total.toLocaleString()}</span></div>
+    <div class="row"><span class="label">Status:</span><span class="status">PAID ✓</span></div>
   </div>
   
   <div class="footer">
@@ -426,8 +401,7 @@ export default function Payment() {
     <p>📞 0726075180</p>
   </div>
 </body>
-</html>
-    `;
+</html>`;
 
     const blob = new Blob([receiptHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -442,8 +416,7 @@ export default function Payment() {
   };
 
   const handleSendComplaint = () => {
-    if (!orderDetails) return;
-    if (!complaintText.trim()) {
+    if (!orderDetails || !complaintText.trim()) {
       toast.error('Please describe your complaint');
       return;
     }
@@ -466,7 +439,7 @@ export default function Payment() {
     );
 
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
-    toast.success('Opening WhatsApp... Don\'t forget to attach your receipt!');
+    toast.success('Opening WhatsApp...');
   };
 
   if (!orderDetails) {
@@ -476,9 +449,7 @@ export default function Payment() {
           <div className="max-w-2xl mx-auto text-center py-12">
             <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">No order found</h2>
-            <p className="text-muted-foreground mb-6">
-              Please start a new order from our shop.
-            </p>
+            <p className="text-muted-foreground mb-6">Please start a new order from our shop.</p>
             <Button asChild>
               <Link to="/uniform-shop">Browse Shop</Link>
             </Button>
@@ -492,23 +463,27 @@ export default function Payment() {
     <Layout>
       <div className="container-shop py-8">
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Success Header */}
+          {/* Header */}
           <div className="text-center space-y-4">
             <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${paymentVerified ? 'bg-green-100' : 'bg-primary/10'}`}>
               {paymentVerified ? (
                 <Check className="h-8 w-8 text-green-600" />
+              ) : isVerifying ? (
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
               ) : (
                 <CreditCard className="h-8 w-8 text-primary" />
               )}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {paymentVerified ? 'Payment Confirmed!' : 'Complete Your Payment'}
+                {paymentVerified ? 'Payment Confirmed!' : isVerifying ? 'Verifying Payment...' : 'Complete Your Payment'}
               </h1>
               <p className="text-muted-foreground">
                 {paymentVerified 
                   ? 'Thank you! Your order has been confirmed.' 
-                  : `Hi ${orderDetails.customerName}, choose your payment method below.`}
+                  : isVerifying 
+                    ? pollingStatus || 'Checking with payment provider...'
+                    : `Hi ${orderDetails.customerName}, choose your payment method below.`}
               </p>
             </div>
           </div>
@@ -519,24 +494,18 @@ export default function Payment() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-2xl font-bold text-primary">
-                    Ksh {orderDetails.total.toLocaleString()}
-                  </p>
+                  <p className="text-2xl font-bold text-primary">Ksh {orderDetails.total.toLocaleString()}</p>
                 </div>
                 <Badge 
                   variant={paymentVerified ? "default" : "secondary"} 
                   className={`flex items-center gap-1 ${paymentVerified ? 'bg-green-600' : ''}`}
                 >
                   {paymentVerified ? (
-                    <>
-                      <Check className="h-3 w-3" />
-                      Paid
-                    </>
+                    <><Check className="h-3 w-3" /> Paid</>
+                  ) : isVerifying ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Verifying</>
                   ) : (
-                    <>
-                      <Clock className="h-3 w-3" />
-                      Awaiting Payment
-                    </>
+                    <><Clock className="h-3 w-3" /> Awaiting Payment</>
                   )}
                 </Badge>
               </div>
@@ -549,10 +518,9 @@ export default function Payment() {
             </CardContent>
           </Card>
 
-          {/* Payment Options - Show when not verified */}
-          {!paymentVerified && (
+          {/* Payment Options */}
+          {!paymentVerified && !isVerifying && (
             <>
-              {/* Payment Method Selector */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -566,50 +534,31 @@ export default function Payment() {
                     onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
                     className="space-y-3"
                   >
-                    {/* Pesapal Option */}
-                    <label
-                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentMethod === 'pesapal'
-                          ? 'border-primary bg-primary/5 shadow-md'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
+                    <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'pesapal' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
                       <RadioGroupItem value="pesapal" />
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                         <Wallet className="h-5 w-5 text-green-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold">💳 Pesapal STK Push</p>
-                        <p className="text-sm text-muted-foreground">
-                          Fast & secure. Get instant M-Pesa prompt on your phone
-                        </p>
+                        <p className="font-semibold">💳 Pesapal (Automated)</p>
+                        <p className="text-sm text-muted-foreground">Pay via M-Pesa STK push. Auto-verified instantly.</p>
                       </div>
                       <Badge className="bg-green-100 text-green-700 border-green-200">Recommended</Badge>
                     </label>
 
-                    {/* M-Pesa Paybill Option */}
-                    <label
-                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentMethod === 'mpesa'
-                          ? 'border-primary bg-primary/5 shadow-md'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
+                    <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'mpesa' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
                       <RadioGroupItem value="mpesa" />
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <Building2 className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1">
                         <p className="font-semibold">🏦 M-Pesa Paybill</p>
-                        <p className="text-sm text-muted-foreground">
-                          Manual Paybill payment. Paste SMS to verify
-                        </p>
+                        <p className="text-sm text-muted-foreground">Manual Paybill payment. Paste SMS to verify.</p>
                       </div>
                       <Badge variant="outline">Fallback</Badge>
                     </label>
                   </RadioGroup>
 
-                  {/* Important Notice */}
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-800">
@@ -617,14 +566,13 @@ export default function Payment() {
                       <ul className="list-disc list-inside mt-1 space-y-1">
                         <li>Pay the <strong>exact amount: Ksh {orderDetails.total.toLocaleString()}</strong></li>
                         <li>Underpayment or overpayment will be rejected</li>
-                        <li>Duplicate M-Pesa codes are not accepted</li>
                       </ul>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Pesapal Payment Flow */}
+              {/* Pesapal Flow */}
               {paymentMethod === 'pesapal' && (
                 <Card className="border-green-200 bg-green-50/50">
                   <CardHeader>
@@ -634,80 +582,56 @@ export default function Payment() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="bg-white rounded-lg p-4 border border-green-200">
-                        <p className="text-sm text-muted-foreground mb-2">Amount to Pay:</p>
-                        <p className="text-3xl font-bold text-green-600">
-                          Ksh {orderDetails.total.toLocaleString()}
-                        </p>
-                      </div>
+                    <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <p className="text-sm text-muted-foreground mb-2">Amount to Pay:</p>
+                      <p className="text-3xl font-bold text-green-600">Ksh {orderDetails.total.toLocaleString()}</p>
+                    </div>
 
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-green-800">How it works:</h4>
-                        <ol className="space-y-2 text-sm">
-                          {[
-                            'Click "Pay Now with Pesapal" button below',
-                            'Enter your M-Pesa phone number on Pesapal',
-                            'Approve the STK push on your phone',
-                            'Enter transaction code below to verify & get receipt',
-                          ].map((step, i) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="w-5 h-5 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs">
-                                {i + 1}
-                              </span>
-                              <span>{step}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-green-800">How it works:</h4>
+                      <ol className="space-y-2 text-sm">
+                        {[
+                          'Click "Pay Now" — you\'ll be redirected to Pesapal',
+                          'Enter your M-Pesa number and approve the STK push',
+                          'You\'ll be redirected back here automatically',
+                          'Payment is verified automatically — receipt ready!',
+                        ].map((step, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs">{i + 1}</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
 
+                    <Button
+                      onClick={handlePesapalPayment}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      size="lg"
+                      disabled={isPesapalLoading}
+                    >
+                      {isPesapalLoading ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Connecting to Pesapal...</>
+                      ) : (
+                        <><ExternalLink className="h-4 w-4 mr-2" /> Pay Now with Pesapal</>
+                      )}
+                    </Button>
+
+                    {pesapalTrackingId && !isVerifying && (
                       <Button
-                        onClick={handlePesapalPayment}
-                        className="w-full bg-green-600 hover:bg-green-700"
-                        size="lg"
+                        onClick={() => pollPesapalStatus(pesapalTrackingId, orderDetails.orderId)}
+                        variant="outline"
+                        className="w-full"
                       >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Pay Now with Pesapal
+                        <Check className="h-4 w-4 mr-2" />
+                        Check Payment Status
                       </Button>
+                    )}
 
-                      {/* Transaction Code Input */}
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-green-800">
-                          Enter your M-Pesa transaction code to verify payment:
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. SGJ7HKPQ2X"
-                          value={pesapalCode}
-                          onChange={(e) => setPesapalCode(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && pesapalCode.trim().length >= 8) {
-                              confirmPesapalPayment();
-                            }
-                          }}
-                          className="w-full p-3 border border-green-300 rounded-lg font-mono text-lg text-center uppercase focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          maxLength={12}
-                        />
-                        <p className="text-xs text-muted-foreground text-center">
-                          Find this code in your M-Pesa confirmation SMS (required for receipt)
-                        </p>
-                      </div>
-
-                        <Button
-                          onClick={() => confirmPesapalPayment()}
-                          className="w-full bg-primary hover:bg-primary/90"
-                          size="lg"
-                          disabled={isVerifying || pesapalCode.trim().length < 8}
-                        >
-                          {isVerifying ? 'Verifying Payment...' : '✓ Verify Payment & Download Receipt'}
-                        </Button>
-
-                      {/* Fallback notice */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                        <p className="text-sm text-blue-800">
-                          Having trouble? Use the <strong>M-Pesa Paybill</strong> option below as a fallback.
-                        </p>
-                      </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                      <p className="text-sm text-blue-800">
+                        Having trouble? Use the <strong>M-Pesa Paybill</strong> option as a fallback.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -716,7 +640,6 @@ export default function Payment() {
               {/* M-Pesa Paybill Flow */}
               {paymentMethod === 'mpesa' && (
                 <>
-                  {/* Payment Details */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -726,60 +649,32 @@ export default function Payment() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="bg-muted rounded-lg p-6 space-y-6">
-                        {/* Paybill Number */}
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-muted-foreground">Paybill Number</p>
                             <p className="text-3xl font-bold font-mono">{PAYBILL_NUMBER}</p>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => copyToClipboard(PAYBILL_NUMBER, 'paybill')}
-                            className="h-12 w-12"
-                          >
-                            {copiedPaybill ? (
-                              <Check className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <Copy className="h-5 w-5" />
-                            )}
+                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(PAYBILL_NUMBER, 'paybill')} className="h-12 w-12">
+                            {copiedPaybill ? <Check className="h-5 w-5 text-green-600" /> : <Copy className="h-5 w-5" />}
                           </Button>
                         </div>
-
                         <div className="border-t" />
-
-                        {/* Account Number */}
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-muted-foreground">Account Number</p>
                             <p className="text-3xl font-bold font-mono">{ACCOUNT_NUMBER}</p>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => copyToClipboard(ACCOUNT_NUMBER, 'account')}
-                            className="h-12 w-12"
-                          >
-                            {copiedAccount ? (
-                              <Check className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <Copy className="h-5 w-5" />
-                            )}
+                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(ACCOUNT_NUMBER, 'account')} className="h-12 w-12">
+                            {copiedAccount ? <Check className="h-5 w-5 text-green-600" /> : <Copy className="h-5 w-5" />}
                           </Button>
                         </div>
-
                         <div className="border-t" />
-
-                        {/* Amount */}
                         <div>
                           <p className="text-sm text-muted-foreground">Exact Amount to Pay</p>
-                          <p className="text-3xl font-bold text-primary font-mono">
-                            Ksh {orderDetails.total.toLocaleString()}
-                          </p>
+                          <p className="text-3xl font-bold text-primary font-mono">Ksh {orderDetails.total.toLocaleString()}</p>
                         </div>
                       </div>
 
-                      {/* Steps */}
                       <div className="space-y-4">
                         <h3 className="font-semibold">How to Pay via M-Pesa</h3>
                         <div className="space-y-3">
@@ -803,7 +698,6 @@ export default function Payment() {
                     </CardContent>
                   </Card>
 
-                  {/* Paste M-Pesa Message */}
                   <Card className="border-primary">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -815,21 +709,17 @@ export default function Payment() {
                       <div className="bg-muted/50 rounded-lg p-4 flex items-start gap-3">
                         <AlertCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                         <p className="text-sm">
-                          After paying, you'll receive an SMS from M-Pesa. Paste that message below to verify your payment and download your receipt.
+                          After paying, paste your M-Pesa confirmation SMS below to verify payment and download your receipt.
                         </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Button
-                          variant="outline"
-                          onClick={handlePasteMessage}
-                          className="flex items-center gap-2"
-                        >
+                        <Button variant="outline" onClick={handlePasteMessage} className="flex items-center gap-2">
                           <ClipboardPaste className="h-4 w-4" />
                           Paste Message
                         </Button>
                         <Textarea
-                          placeholder="Paste your M-Pesa confirmation SMS here... e.g., 'XYZ123ABC Confirmed. Ksh1,000.00 sent to...'"
+                          placeholder="Paste your M-Pesa confirmation SMS here..."
                           value={mpesaMessage}
                           onChange={(e) => setMpesaMessage(e.target.value)}
                           className="min-h-[100px]"
@@ -849,14 +739,13 @@ export default function Payment() {
                 </>
               )}
 
-              {/* Switch Payment Method Hint */}
               <p className="text-center text-sm text-muted-foreground">
                 ⚠️ Having trouble? Try the {paymentMethod === 'pesapal' ? 'M-Pesa Paybill' : 'Pesapal'} option instead.
               </p>
             </>
           )}
 
-          {/* Payment Verified - Download Receipt */}
+          {/* Payment Verified */}
           {paymentVerified && (
             <Card className="border-green-500 bg-green-50">
               <CardContent className="p-6 space-y-4">
@@ -870,11 +759,7 @@ export default function Payment() {
                   </div>
                 </div>
 
-                <Button
-                  onClick={generateReceipt}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  size="lg"
-                >
+                <Button onClick={generateReceipt} className="w-full bg-green-600 hover:bg-green-700" size="lg">
                   <Download className="h-4 w-4 mr-2" />
                   Download Receipt
                 </Button>
@@ -885,11 +770,7 @@ export default function Payment() {
                   </p>
                   
                   {!showComplaintForm ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowComplaintForm(true)}
-                      className="w-full border-green-600 text-green-700 hover:bg-green-100"
-                    >
+                    <Button variant="outline" onClick={() => setShowComplaintForm(true)} className="w-full border-green-600 text-green-700 hover:bg-green-100">
                       <FileText className="h-4 w-4 mr-2" />
                       Send Complaint
                     </Button>
@@ -902,66 +783,37 @@ export default function Payment() {
                         className="min-h-[100px] bg-white"
                       />
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setShowComplaintForm(false);
-                            setComplaintText('');
-                          }}
-                          className="flex-1"
-                        >
+                        <Button variant="outline" onClick={() => { setShowComplaintForm(false); setComplaintText(''); }} className="flex-1">
                           Cancel
                         </Button>
-                        <Button
-                          onClick={handleSendComplaint}
-                          disabled={!complaintText.trim()}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
+                        <Button onClick={handleSendComplaint} disabled={!complaintText.trim()} className="flex-1 bg-green-600 hover:bg-green-700">
                           Send via WhatsApp
                         </Button>
                       </div>
-                      <p className="text-xs text-green-600">
-                        💡 Tip: Download your receipt above and attach it to WhatsApp for faster resolution.
-                      </p>
                     </div>
                   )}
+                </div>
+
+                <div className="text-center pt-2">
+                  <Button variant="link" asChild>
+                    <Link to="/track-order">Track Your Order →</Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Contact Support */}
-          <Card className="bg-muted border-none">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                <Phone className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">Need help?</p>
-                <p className="text-sm text-muted-foreground">
-                  Contact us on WhatsApp or call
-                </p>
-              </div>
-              <Button variant="outline" asChild>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer">
-                  WhatsApp
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Track Order Button */}
-          {orderDetails.trackingCode && (
-            <Button variant="outline" asChild className="w-full">
-              <Link to={`/track-order?code=${orderDetails.trackingCode}`}>
-                Track Your Order
-              </Link>
+          {/* Help */}
+          <div className="text-center">
+            <Button
+              variant="link"
+              className="text-muted-foreground"
+              onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello! I need help with my payment.')}`, '_blank')}
+            >
+              <Phone className="h-4 w-4 mr-1" />
+              Need help? Contact us on WhatsApp
             </Button>
-          )}
-
-          <Button variant="ghost" asChild className="w-full">
-            <Link to="/">Back to Home</Link>
-          </Button>
+          </div>
         </div>
       </div>
     </Layout>
