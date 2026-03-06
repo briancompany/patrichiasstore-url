@@ -309,23 +309,13 @@ export default function Payment() {
         setPesapalTrackingId(data.order_tracking_id);
       }
 
-cstorageRemove(STORAGE_KEYS.pendingOrder);
-setPaymentVerified(true);
-await sendReceiptEmail({ 
-  orderId: effectiveOrder.orderId, 
-  paymentCode: effectiveCode, 
-  paymentMethod: 'pesapal' 
-});
-
-toast.success('Payment verified! Your receipt is ready for download.');
-
-} catch (error) {
-  console.error('Error confirming payment:', error);
-  toast.error('Failed to verify payment. Please try the M-Pesa Paybill fallback.');
-} finally {
-  setIsVerifying(false);
-  setIsPesapalLoading(false);
-}
+      // Redirect user to Pesapal payment page
+      window.location.href = data.redirect_url;
+    } catch (error) {
+      console.error('Error initiating Pesapal payment:', error);
+      toast.error('Failed to initiate payment. Please try M-Pesa Paybill instead.');
+    } finally {
+      setIsPesapalLoading(false);
     }
   };
 
