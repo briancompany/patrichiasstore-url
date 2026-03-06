@@ -861,17 +861,28 @@ export default function AdminSystemMonitor() {
 
               <Card>
                 <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 bg-muted">
-                    <Zap className="h-8 w-8 text-muted-foreground" />
+                  <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${
+                    isWarmingUp ? 'bg-primary/20' : warmUpProgress === 100 ? 'bg-green-100' : 'bg-muted'
+                  }`}>
+                    <Zap className={`h-8 w-8 ${isWarmingUp ? 'text-primary animate-pulse' : warmUpProgress === 100 ? 'text-green-600' : 'text-muted-foreground'}`} />
                   </div>
-                  <h3 className="font-semibold mb-2">Warm-Up System</h3>
+                  <h3 className="font-semibold mb-2">Full Warm-Up</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Reconnect database and refresh services after idle
+                    Preload all functions, DB, storage to 100%
                   </p>
+                  {isWarmingUp && (
+                    <div className="mb-4 space-y-2">
+                      <Progress value={warmUpProgress} className="h-3" />
+                      <p className="text-xs text-primary font-medium">{warmUpStage} ({warmUpProgress}%)</p>
+                    </div>
+                  )}
+                  {!isWarmingUp && warmUpProgress === 100 && (
+                    <Badge className="mb-4 bg-green-100 text-green-800">100% Ready</Badge>
+                  )}
                   <Button 
                     onClick={handleWarmUp}
                     disabled={isWarmingUp}
-                    variant="outline"
+                    variant={warmUpProgress === 100 ? 'outline' : 'default'}
                     className="w-full"
                   >
                     {isWarmingUp ? (
@@ -879,8 +890,10 @@ export default function AdminSystemMonitor() {
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                         Warming Up...
                       </>
+                    ) : warmUpProgress === 100 ? (
+                      'Re-Warm System'
                     ) : (
-                      'Warm-Up System'
+                      'Warm-Up to 100%'
                     )}
                   </Button>
                 </CardContent>
