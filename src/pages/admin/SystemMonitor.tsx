@@ -537,7 +537,7 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -557,6 +557,10 @@ export default function AdminSystemMonitor() {
             <TabsTrigger value="control" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Control</span>
+            </TabsTrigger>
+            <TabsTrigger value="docs" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span className="hidden sm:inline">Docs</span>
             </TabsTrigger>
           </TabsList>
 
