@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -29,6 +30,8 @@ import {
   Eye,
   XCircle,
   Info,
+  FileText,
+  BookOpen,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
