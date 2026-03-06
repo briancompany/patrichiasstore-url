@@ -1018,6 +1018,206 @@ export default function AdminSystemMonitor() {
               </Card>
             )}
           </TabsContent>
+          {/* Documentation Tab */}
+          <TabsContent value="docs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  System Documentation
+                </CardTitle>
+                <CardDescription>
+                  Complete architecture, features, and backend interactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* ER Diagram */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Database className="h-5 w-5 text-primary" />
+                    Entity-Relationship Diagram
+                  </h3>
+                  <div className="bg-muted/30 border rounded-xl p-6 overflow-x-auto">
+                    <svg viewBox="0 0 900 620" className="w-full min-w-[700px]" xmlns="http://www.w3.org/2000/svg">
+                      {/* Schools */}
+                      <rect x="20" y="20" width="180" height="120" rx="12" fill="#dbeafe" stroke="#3b82f6" strokeWidth="2"/>
+                      <text x="110" y="48" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#1e40af">Schools</text>
+                      <text x="30" y="68" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="30" y="83" fontSize="11" fill="#374151">name (text)</text>
+                      <text x="30" y="98" fontSize="11" fill="#374151">logo_url (text)</text>
+                      <text x="30" y="113" fontSize="11" fill="#374151">created_at, updated_at</text>
+
+                      {/* Products */}
+                      <rect x="260" y="20" width="200" height="150" rx="12" fill="#dcfce7" stroke="#22c55e" strokeWidth="2"/>
+                      <text x="360" y="48" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#166534">Products</text>
+                      <text x="270" y="68" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="270" y="83" fontSize="11" fill="#374151">school_id (uuid, FK → Schools)</text>
+                      <text x="270" y="98" fontSize="11" fill="#374151">name, type (enum)</text>
+                      <text x="270" y="113" fontSize="11" fill="#374151">sizes (jsonb), image_url</text>
+                      <text x="270" y="128" fontSize="11" fill="#374151">in_stock (bool), description</text>
+                      <text x="270" y="143" fontSize="11" fill="#374151">created_at, updated_at</text>
+
+                      {/* Orders */}
+                      <rect x="520" y="20" width="200" height="180" rx="12" fill="#fef3c7" stroke="#f59e0b" strokeWidth="2"/>
+                      <text x="620" y="48" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#92400e">Orders</text>
+                      <text x="530" y="68" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="530" y="83" fontSize="11" fill="#374151">customer_name, customer_phone</text>
+                      <text x="530" y="98" fontSize="11" fill="#374151">customer_school (text)</text>
+                      <text x="530" y="113" fontSize="11" fill="#374151">linked_school_id (FK → Schools)</text>
+                      <text x="530" y="128" fontSize="11" fill="#374151">status (enum), total_amount</text>
+                      <text x="530" y="143" fontSize="11" fill="#374151">delivery_type (enum)</text>
+                      <text x="530" y="158" fontSize="11" fill="#374151">is_new_school, notes</text>
+                      <text x="530" y="173" fontSize="11" fill="#374151">created_at, updated_at</text>
+
+                      {/* Order Items */}
+                      <rect x="520" y="230" width="200" height="160" rx="12" fill="#fed7aa" stroke="#f97316" strokeWidth="2"/>
+                      <text x="620" y="258" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#9a3412">Order Items</text>
+                      <text x="530" y="278" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="530" y="293" fontSize="11" fill="#374151">order_id (FK → Orders)</text>
+                      <text x="530" y="308" fontSize="11" fill="#374151">product_id (FK → Products)</text>
+                      <text x="530" y="323" fontSize="11" fill="#374151">product_name, size, qty</text>
+                      <text x="530" y="338" fontSize="11" fill="#374151">price_at_purchase, color</text>
+                      <text x="530" y="353" fontSize="11" fill="#374151">logo_url, sample_image_url</text>
+                      <text x="530" y="368" fontSize="11" fill="#374151">printing_required</text>
+
+                      {/* Payments */}
+                      <rect x="760" y="20" width="130" height="140" rx="12" fill="#fce7f3" stroke="#ec4899" strokeWidth="2"/>
+                      <text x="825" y="48" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#9d174d">Payments</text>
+                      <text x="770" y="68" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="770" y="83" fontSize="11" fill="#374151">order_id (FK)</text>
+                      <text x="770" y="98" fontSize="11" fill="#374151">amount, mpesa_code</text>
+                      <text x="770" y="113" fontSize="11" fill="#374151">customer_name</text>
+                      <text x="770" y="128" fontSize="11" fill="#374151">customer_phone</text>
+                      <text x="770" y="143" fontSize="11" fill="#374151">verified_at</text>
+
+                      {/* Order Tracking */}
+                      <rect x="760" y="200" width="130" height="100" rx="12" fill="#e0e7ff" stroke="#6366f1" strokeWidth="2"/>
+                      <text x="825" y="228" textAnchor="middle" fontWeight="bold" fontSize="13" fill="#3730a3">Order Tracking</text>
+                      <text x="770" y="248" fontSize="11" fill="#374151">id (uuid, PK)</text>
+                      <text x="770" y="263" fontSize="11" fill="#374151">order_id (FK)</text>
+                      <text x="770" y="278" fontSize="11" fill="#374151">tracking_code</text>
+
+                      {/* Profiles */}
+                      <rect x="20" y="200" width="180" height="120" rx="12" fill="#f3e8ff" stroke="#a855f7" strokeWidth="2"/>
+                      <text x="110" y="228" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#6b21a8">Profiles</text>
+                      <text x="30" y="248" fontSize="11" fill="#374151">id (uuid, PK = auth.uid)</text>
+                      <text x="30" y="263" fontSize="11" fill="#374151">email, full_name</text>
+                      <text x="30" y="278" fontSize="11" fill="#374151">role (admin|customer)</text>
+                      <text x="30" y="293" fontSize="11" fill="#374151">created_at, updated_at</text>
+
+                      {/* Pricing Chart */}
+                      <rect x="260" y="230" width="200" height="100" rx="12" fill="#ccfbf1" stroke="#14b8a6" strokeWidth="2"/>
+                      <text x="360" y="258" textAnchor="middle" fontWeight="bold" fontSize="14" fill="#115e59">Pricing Chart</text>
+                      <text x="270" y="278" fontSize="11" fill="#374151">id, uniform_type, size</text>
+                      <text x="270" y="293" fontSize="11" fill="#374151">price (int)</text>
+                      <text x="270" y="308" fontSize="11" fill="#374151">created_at, updated_at</text>
+
+                      {/* Relationship Lines */}
+                      {/* Schools → Products */}
+                      <line x1="200" y1="80" x2="260" y2="80" stroke="#3b82f6" strokeWidth="2" markerEnd="url(#arrow)"/>
+                      {/* Schools → Orders */}
+                      <path d="M200 100 Q 400 100 520 113" stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="5,3"/>
+                      {/* Orders → Order Items */}
+                      <line x1="620" y1="200" x2="620" y2="230" stroke="#f97316" strokeWidth="2" markerEnd="url(#arrow)"/>
+                      {/* Products → Order Items */}
+                      <path d="M460 120 Q 500 280 520 308" stroke="#22c55e" strokeWidth="1.5" fill="none" strokeDasharray="5,3"/>
+                      {/* Orders → Payments */}
+                      <line x1="720" y1="80" x2="760" y2="80" stroke="#ec4899" strokeWidth="2" markerEnd="url(#arrow)"/>
+                      {/* Orders → Order Tracking */}
+                      <path d="M720 150 Q 740 200 760 240" stroke="#6366f1" strokeWidth="2" fill="none" markerEnd="url(#arrow)"/>
+
+                      <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+                        </marker>
+                      </defs>
+
+                      {/* Edge Functions Box */}
+                      <rect x="20" y="400" width="870" height="200" rx="12" fill="#fef9c3" stroke="#eab308" strokeWidth="2" strokeDasharray="6,3"/>
+                      <text x="455" y="428" textAnchor="middle" fontWeight="bold" fontSize="15" fill="#854d0e">Edge Functions (Backend Services)</text>
+                      
+                      <rect x="40" y="445" width="155" height="55" rx="8" fill="#fff" stroke="#22c55e" strokeWidth="1.5"/>
+                      <text x="117" y="468" textAnchor="middle" fontWeight="600" fontSize="11" fill="#166534">pesapal-pay</text>
+                      <text x="117" y="485" textAnchor="middle" fontSize="10" fill="#6b7280">Initiate payment</text>
+
+                      <rect x="210" y="445" width="155" height="55" rx="8" fill="#fff" stroke="#3b82f6" strokeWidth="1.5"/>
+                      <text x="287" y="468" textAnchor="middle" fontWeight="600" fontSize="11" fill="#1d4ed8">pesapal-ipn</text>
+                      <text x="287" y="485" textAnchor="middle" fontSize="10" fill="#6b7280">Webhook receiver</text>
+
+                      <rect x="380" y="445" width="155" height="55" rx="8" fill="#fff" stroke="#a855f7" strokeWidth="1.5"/>
+                      <text x="457" y="468" textAnchor="middle" fontWeight="600" fontSize="11" fill="#7c3aed">pesapal-status</text>
+                      <text x="457" y="485" textAnchor="middle" fontSize="10" fill="#6b7280">Poll payment status</text>
+
+                      <rect x="550" y="445" width="155" height="55" rx="8" fill="#fff" stroke="#ec4899" strokeWidth="1.5"/>
+                      <text x="627" y="468" textAnchor="middle" fontWeight="600" fontSize="11" fill="#be185d">confirm-payment</text>
+                      <text x="627" y="485" textAnchor="middle" fontSize="10" fill="#6b7280">Verify & update order</text>
+
+                      <rect x="720" y="445" width="155" height="55" rx="8" fill="#fff" stroke="#f59e0b" strokeWidth="1.5"/>
+                      <text x="797" y="468" textAnchor="middle" fontWeight="600" fontSize="11" fill="#b45309">search-school</text>
+                      <text x="797" y="485" textAnchor="middle" fontSize="10" fill="#6b7280">Find schools</text>
+
+                      <rect x="40" y="515" width="155" height="55" rx="8" fill="#fff" stroke="#14b8a6" strokeWidth="1.5"/>
+                      <text x="117" y="538" textAnchor="middle" fontWeight="600" fontSize="11" fill="#0f766e">generate-logo</text>
+                      <text x="117" y="555" textAnchor="middle" fontSize="10" fill="#6b7280">AI logo generation</text>
+
+                      <rect x="210" y="515" width="155" height="55" rx="8" fill="#fff" stroke="#ef4444" strokeWidth="1.5"/>
+                      <text x="287" y="538" textAnchor="middle" fontWeight="600" fontSize="11" fill="#b91c1c">send-receipt-email</text>
+                      <text x="287" y="555" textAnchor="middle" fontSize="10" fill="#6b7280">Email receipts</text>
+
+                      {/* Storage Buckets */}
+                      <rect x="380" y="515" width="155" height="55" rx="8" fill="#dbeafe" stroke="#3b82f6" strokeWidth="1.5"/>
+                      <text x="457" y="538" textAnchor="middle" fontWeight="600" fontSize="11" fill="#1d4ed8">product-images</text>
+                      <text x="457" y="555" textAnchor="middle" fontSize="10" fill="#6b7280">Storage bucket</text>
+
+                      <rect x="550" y="515" width="155" height="55" rx="8" fill="#dbeafe" stroke="#3b82f6" strokeWidth="1.5"/>
+                      <text x="627" y="538" textAnchor="middle" fontWeight="600" fontSize="11" fill="#1d4ed8">school-logos</text>
+                      <text x="627" y="555" textAnchor="middle" fontSize="10" fill="#6b7280">Storage bucket</text>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Feature Documentation */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Feature Overview
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      { title: 'Customer Ordering', desc: 'Browse general/school products → add to cart → checkout with details → pay via Pesapal or M-Pesa → auto-verified → receipt download', color: 'border-green-200 bg-green-50' },
+                      { title: 'Pesapal Payments', desc: 'Automated: pesapal-pay initiates → redirect to gateway → pesapal-ipn confirms → status polling fallback → order marked confirmed', color: 'border-blue-200 bg-blue-50' },
+                      { title: 'M-Pesa Fallback', desc: 'Manual paste of M-Pesa message → parsed for code & amount → exact match required → duplicate prevention → confirm-payment edge function', color: 'border-amber-200 bg-amber-50' },
+                      { title: 'School Management', desc: 'Admin adds schools with logos → products linked to schools → customers search by school → new school orders tagged for setup', color: 'border-purple-200 bg-purple-50' },
+                      { title: 'Order Tracking', desc: 'PS-XXXXXX codes generated → customers track via /track-order → status updates visible → delivery type shown', color: 'border-indigo-200 bg-indigo-50' },
+                      { title: 'Admin Security', desc: 'Single admin (brianmuia777@gmail.com) → 3 attempt lockout → RLS on all tables → is_admin() security definer function', color: 'border-red-200 bg-red-50' },
+                      { title: 'System Warm-Up', desc: 'Full preload: 8 DB tables → 2 storage buckets → 5 edge functions → RPC functions → general product cache = 100% ready', color: 'border-teal-200 bg-teal-50' },
+                      { title: 'Safe Mode', desc: 'Toggle to disable ordering during maintenance → products remain visible → admin functions unaffected → banner shown to customers', color: 'border-orange-200 bg-orange-50' },
+                    ].map((feature, i) => (
+                      <div key={i} className={`p-4 rounded-lg border ${feature.color}`}>
+                        <h4 className="font-semibold text-sm mb-1">{feature.title}</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Security & RLS Summary */}
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Security Architecture
+                  </h3>
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+                    <p><strong>RLS Policies:</strong> All tables protected. Public INSERT on orders/order_items/tracking/payments with field validation. SELECT restricted to admin except via tracking code lookup.</p>
+                    <p><strong>Edge Functions:</strong> pesapal-pay, pesapal-ipn, pesapal-status, confirm-payment use verify_jwt=false (public webhooks). confirm-payment uses SUPABASE_SERVICE_ROLE_KEY for privileged updates.</p>
+                    <p><strong>Auth:</strong> is_admin() SECURITY DEFINER function checks profiles table. handle_new_user() trigger auto-creates profile on signup.</p>
+                    <p><strong>Error Handling:</strong> All edge functions return sanitized JSON errors without exposing internal details. CORS headers on all responses including errors.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
     </AdminLayout>
