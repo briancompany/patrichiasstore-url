@@ -390,15 +390,9 @@ export default function Shop() {
           </div>
         )}
 
-        {filteredProducts.length === 0 && generalProducts.length === 0 && !loadingGeneral && (
+        {filteredProducts.length === 0 && generalProducts.length === 0 && generalLoaded && (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No products found matching your filters.</p>
-          </div>
-        )}
-
-        {loadingGeneral && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">Loading products...</p>
           </div>
         )}
       </div>
