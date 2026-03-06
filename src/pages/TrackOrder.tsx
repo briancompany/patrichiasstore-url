@@ -51,15 +51,42 @@ export default function TrackOrder() {
     setOrder(null);
 
     try {
-      const { data, error } = await supabase.rpc('get_order_tracking_public', {
-        p_tracking_code: searchCode,
-      });
+      // Look up order via order_tracking table
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('order_tracking')
+        .select('order_id')
+        .eq('tracking_code', searchCode)
+        .maybeSingle();
 
-      if (error) {
-        throw error;
+      if (trackingError) throw trackingError;
+      if (!trackingData) {
+        setNotFound(true);
+        return;
       }
 
-      const trackedOrder = (data as PublicTrackedOrder[] | null)?.[0] ?? null;
+      // Fetch order details
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('id, status, total_amount, created_at, delivery_type')
+        .eq('id', trackingData.order_id)
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+
+      // Get item count
+      const { count } = await supabase
+        .from('order_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('order_id', trackingData.order_id);
+
+      const trackedOrder: PublicTrackedOrder | null = orderData ? {
+        order_id: orderData.id,
+        status: orderData.status,
+        total_amount: orderData.total_amount,
+        created_at: orderData.created_at,
+        delivery_type: orderData.delivery_type,
+        item_count: count || 0,
+      } : null;
 
       if (!trackedOrder) {
         setNotFound(true);
