@@ -337,33 +337,84 @@ export default function AdminSystemMonitor() {
 
   const handleWarmUp = async () => {
     setIsWarmingUp(true);
-    toast.info('Warming up system...');
+    setWarmUpProgress(0);
+    setWarmUpStage('Initializing...');
+    toast.info('Full system warm-up starting...');
+
+    const stages = [
+      { label: 'Database tables', pct: 15, fn: async () => {
+        await Promise.all([
+          supabase.from('orders').select('id').limit(1),
+          supabase.from('products').select('id').limit(1),
+          supabase.from('schools').select('id').limit(1),
+          supabase.from('payments').select('id').limit(1),
+          supabase.from('order_items').select('id').limit(1),
+          supabase.from('order_tracking').select('id').limit(1),
+          supabase.from('pricing_chart').select('id').limit(1),
+          supabase.from('profiles').select('id').limit(1),
+        ]);
+      }},
+      { label: 'Storage buckets', pct: 30, fn: async () => {
+        await Promise.all([
+          supabase.storage.from('product-images').list('', { limit: 1 }),
+          supabase.storage.from('school-logos').list('', { limit: 1 }),
+        ]);
+      }},
+      { label: 'Pesapal payment gateway', pct: 50, fn: async () => {
+        try {
+          await supabase.functions.invoke('pesapal-status', {
+            body: { orderTrackingId: 'warmup-test', orderId: 'warmup-test' },
+          });
+        } catch { /* edge function cold start triggered */ }
+      }},
+      { label: 'Payment confirmation service', pct: 65, fn: async () => {
+        try {
+          await supabase.functions.invoke('confirm-payment', {
+            body: { warmup: true },
+          });
+        } catch { /* cold start triggered */ }
+      }},
+      { label: 'School search service', pct: 80, fn: async () => {
+        try {
+          await supabase.functions.invoke('search-school', {
+            body: { query: 'warmup' },
+          });
+        } catch { /* cold start triggered */ }
+      }},
+      { label: 'RPC functions', pct: 90, fn: async () => {
+        try { await supabase.rpc('is_admin'); } catch { /* expected for non-admin */ }
+      }},
+      { label: 'Finalizing', pct: 100, fn: async () => {
+        // Cache general products for customers
+        await supabase
+          .from('products')
+          .select('id, name, type, sizes, in_stock, image_url')
+          .is('school_id', null)
+          .eq('in_stock', true);
+      }},
+    ];
 
     try {
-      // Reconnect to database
-      await supabase.from('orders').select('id').limit(1);
-      await supabase.from('products').select('id').limit(1);
-      await supabase.from('schools').select('id').limit(1);
-      await supabase.from('payments').select('id').limit(1);
-      
-      // Verify storage
-      await supabase.storage.from('product-images').list('', { limit: 1 });
-      await supabase.storage.from('school-logos').list('', { limit: 1 });
+      for (const stage of stages) {
+        setWarmUpStage(stage.label);
+        await stage.fn();
+        setWarmUpProgress(stage.pct);
+      }
 
-      // Update schedule last run
       setWarmUpSchedule(prev => ({
         ...prev,
         lastRun: new Date(),
         nextRun: prev.enabled ? calculateNextRun(prev) : null,
       }));
 
-      toast.success('System warmed up successfully!');
+      toast.success('System fully warmed up to 100%!');
       refetchStats();
     } catch (error) {
       console.error('Warm-up error:', error);
-      toast.error('Error during warm-up');
+      toast.error('Partial warm-up completed with errors');
     } finally {
       setIsWarmingUp(false);
+      setWarmUpStage('');
     }
   };
 
