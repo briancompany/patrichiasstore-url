@@ -75,6 +75,7 @@ export default function Checkout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     phone: '',
     deliveryType: 'pickup' as 'pickup' | 'delivery',
     location: '',
@@ -112,6 +113,7 @@ export default function Checkout() {
           id: orderId,
           customer_name: formData.fullName,
           customer_phone: formData.phone,
+          customer_email: formData.email,
           customer_school: selectedSchool?.name || null,
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
@@ -161,6 +163,7 @@ export default function Checkout() {
         total: cartTotal,
         customerName: formData.fullName,
         customerPhone: formData.phone,
+        customerEmail: formData.email,
         isNewSchool,
       };
 
@@ -180,6 +183,7 @@ export default function Checkout() {
 
   const isFormValid =
     formData.fullName &&
+    formData.email &&
     formData.phone &&
     (formData.deliveryType === 'pickup' || formData.location);
 
@@ -284,6 +288,19 @@ export default function Checkout() {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="you@example.com"
                     required
                   />
                 </div>

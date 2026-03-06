@@ -1,7 +1,16 @@
 project_id = "jkdxlbkckpwzmhdaoaoo"
 
 [functions.search-school]
-verify_jwt = false
+verify_jwt = true
+
+[functions.generate-logo]
+verify_jwt = true
+
+[functions.search-school]
+verify_jwt = true
+
+[functions.send-receipt-email]
+verify_jwt = true
 
 [functions.confirm-payment]
 verify_jwt = false
@@ -13,4 +22,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.pesapal-status]
+verify_jwt = false
+
 verify_jwt = false

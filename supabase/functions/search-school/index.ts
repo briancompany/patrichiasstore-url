@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -17,31 +19,41 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    });
+
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      return new Response(JSON.stringify({ success: false, error: 'Authentication required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { query } = await req.json();
 
     if (!query || query.length < 3) {
       return new Response(
         JSON.stringify({ success: false, error: 'Search query must be at least 3 characters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (!apiKey) {
-      console.error('FIRECRAWL_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'School search not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Service temporarily unavailable' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Searching for school:', query);
-
-    // Search for the school using Firecrawl
     const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -56,43 +68,38 @@ Deno.serve(async (req) => {
     const searchData = await searchResponse.json();
 
     if (!searchResponse.ok) {
-      console.error('Firecrawl search error:', searchData);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to search for schools' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Failed to search for schools' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Process search results to extract school info
     const results: SchoolSearchResult[] = [];
 
     if (searchData.data && Array.isArray(searchData.data)) {
       for (const result of searchData.data.slice(0, 3)) {
-        // Try to extract school name from title or URL
         const schoolName = extractSchoolName(result.title || result.url, query);
-        
+
         if (schoolName) {
-          // Determine uniform types based on content
           const uniformTypes = detectUniformTypes(result.markdown || result.description || '');
-          
+
           results.push({
             name: schoolName,
             description: result.description || 'School found via web search',
             website: result.url,
-            logo: undefined, // Will try to find in scrape
+            logo: undefined,
             uniformTypes: uniformTypes.length > 0 ? uniformTypes : ['tshirt', 'tracksuit', 'socks'],
           });
         }
       }
     }
 
-    // If we found results, try to get logo from first school's website
     if (results.length > 0 && results[0].website) {
       try {
         const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -103,18 +110,17 @@ Deno.serve(async (req) => {
         });
 
         const scrapeData = await scrapeResponse.json();
-        
+
         if (scrapeResponse.ok && scrapeData.data?.branding?.logo) {
           results[0].logo = scrapeData.data.branding.logo;
         } else if (scrapeResponse.ok && scrapeData.data?.branding?.images?.logo) {
           results[0].logo = scrapeData.data.branding.images.logo;
         }
-      } catch (brandingError) {
-        console.log('Could not fetch branding, continuing without logo:', brandingError);
+      } catch {
+        // Best effort logo lookup; do not leak internals.
       }
     }
 
-    // If no results from web search, create a generic entry for the queried school
     if (results.length === 0) {
       results.push({
         name: formatSchoolName(query),
@@ -123,26 +129,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('Search results:', results.length, 'schools found');
-
-    return new Response(
-      JSON.stringify({ success: true, schools: results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error searching schools:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to search';
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, schools: results }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Failed to search schools' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
 function extractSchoolName(text: string, query: string): string | null {
   if (!text) return null;
-  
-  // Common patterns for school names
+
   const patterns = [
     /([A-Z][a-z]+(?: [A-Z][a-z]+)* (?:Primary|Secondary|High|Academy|School|College))/g,
     /([A-Z][a-z]+ (?:Primary|Secondary|High|Academy|School|College))/g,
@@ -155,15 +155,13 @@ function extractSchoolName(text: string, query: string): string | null {
     }
   }
 
-  // If no pattern match, use the query as the school name
   return formatSchoolName(query);
 }
 
 function formatSchoolName(query: string): string {
-  // Capitalize first letter of each word
   return query
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
 
@@ -171,24 +169,12 @@ function detectUniformTypes(content: string): string[] {
   const types: string[] = [];
   const lowerContent = content.toLowerCase();
 
-  if (lowerContent.includes('t-shirt') || lowerContent.includes('tshirt') || lowerContent.includes('shirt')) {
-    types.push('tshirt');
-  }
-  if (lowerContent.includes('tracksuit') || lowerContent.includes('track suit') || lowerContent.includes('sports')) {
-    types.push('tracksuit');
-  }
-  if (lowerContent.includes('socks') || lowerContent.includes('sock')) {
-    types.push('socks');
-  }
-  if (lowerContent.includes('shorts') || lowerContent.includes('short')) {
-    types.push('shorts');
-  }
-  if (lowerContent.includes('skirt') || lowerContent.includes('tunic')) {
-    types.push('skirt');
-  }
-  if (lowerContent.includes('sweater') || lowerContent.includes('jumper') || lowerContent.includes('pullover')) {
-    types.push('sweater');
-  }
+  if (lowerContent.includes('t-shirt') || lowerContent.includes('tshirt') || lowerContent.includes('shirt')) types.push('tshirt');
+  if (lowerContent.includes('tracksuit') || lowerContent.includes('track suit') || lowerContent.includes('sports')) types.push('tracksuit');
+  if (lowerContent.includes('socks') || lowerContent.includes('sock')) types.push('socks');
+  if (lowerContent.includes('shorts') || lowerContent.includes('short')) types.push('shorts');
+  if (lowerContent.includes('skirt') || lowerContent.includes('tunic')) types.push('skirt');
+  if (lowerContent.includes('sweater') || lowerContent.includes('jumper') || lowerContent.includes('pullover')) types.push('sweater');
 
   return types;
 }

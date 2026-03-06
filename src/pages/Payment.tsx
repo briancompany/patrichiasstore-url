@@ -28,6 +28,7 @@ interface LocationState {
   total: number;
   customerName: string;
   customerPhone?: string;
+  customerEmail?: string;
 }
 
 type PaymentMethod = 'pesapal' | 'mpesa';
@@ -75,6 +76,24 @@ export default function Payment() {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
+
+
+  const sendReceiptEmail = async (details: { orderId: string; paymentCode: string; paymentMethod: PaymentMethod }) => {
+    try {
+      const { error } = await supabase.functions.invoke('send-receipt-email', {
+        body: details,
+      });
+
+      if (error) {
+        toast.warning('Payment confirmed, but receipt email could not be sent automatically.');
+        return;
+      }
+
+      toast.success('Receipt email sent successfully.');
+    } catch {
+      toast.warning('Payment confirmed, but receipt email could not be sent automatically.');
+    }
+  };
 
   useEffect(() => {
     const effectiveState = state ?? storageGet<LocationState>(STORAGE_KEYS.pendingOrder);
@@ -247,6 +266,7 @@ export default function Payment() {
 
       storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
+      await sendReceiptEmail({ orderId: orderDetails.orderId, paymentCode: parsed.confirmCode, paymentMethod: 'mpesa' });
       toast.success('Payment verified successfully! Download your receipt below.');
     } catch (error) {
       console.error('Error updating order:', error);
@@ -289,12 +309,23 @@ export default function Payment() {
         setPesapalTrackingId(data.order_tracking_id);
       }
 
-      // Redirect to Pesapal payment page
-      window.location.href = data.redirect_url;
-    } catch (err) {
-      console.error('Pesapal initiation error:', err);
-      toast.error('Could not connect to payment service. Try M-Pesa Paybill.');
-      setIsPesapalLoading(false);
+cstorageRemove(STORAGE_KEYS.pendingOrder);
+setPaymentVerified(true);
+await sendReceiptEmail({ 
+  orderId: effectiveOrder.orderId, 
+  paymentCode: effectiveCode, 
+  paymentMethod: 'pesapal' 
+});
+
+toast.success('Payment verified! Your receipt is ready for download.');
+
+} catch (error) {
+  console.error('Error confirming payment:', error);
+  toast.error('Failed to verify payment. Please try the M-Pesa Paybill fallback.');
+} finally {
+  setIsVerifying(false);
+  setIsPesapalLoading(false);
+}
     }
   };
 

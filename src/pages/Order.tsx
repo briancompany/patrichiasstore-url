@@ -35,6 +35,7 @@ export default function Order() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     phone: '',
     school: '',
     deliveryType: 'pickup' as 'pickup' | 'delivery',
@@ -73,6 +74,7 @@ export default function Order() {
           id: orderId,
           customer_name: formData.fullName,
           customer_phone: formData.phone,
+          customer_email: formData.email,
           customer_school: formData.school || null,
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
@@ -120,6 +122,7 @@ export default function Order() {
         total: cartTotal,
         customerName: formData.fullName,
         customerPhone: formData.phone,
+        customerEmail: formData.email,
       };
 
       // Persist so refresh in published site doesn't lose the order/payment state
@@ -138,6 +141,7 @@ export default function Order() {
 
   const isFormValid =
     formData.fullName &&
+    formData.email &&
     formData.phone &&
     (formData.deliveryType === 'pickup' || formData.location);
 
@@ -197,6 +201,19 @@ export default function Order() {
                       value={formData.fullName}
                       onChange={handleInputChange}
                       placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="you@example.com"
                       required
                     />
                   </div>
