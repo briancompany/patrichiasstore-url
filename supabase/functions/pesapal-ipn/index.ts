@@ -12,18 +12,34 @@ async function getAuthToken(): Promise<string> {
     }),
   });
   const data = await res.json();
-  if (!data.token) throw new Error(`Pesapal auth failed: ${JSON.stringify(data)}`);
+  if (!data.token) throw new Error("Pesapal auth failed");
   return data.token as string;
 }
 
+async function triggerReceiptEmail(orderId: string, paymentCode: string) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    await fetch(`${supabaseUrl}/functions/v1/send-receipt-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+      body: JSON.stringify({ orderId, paymentCode, paymentMethod: "pesapal" }),
+    });
+  } catch {
+    // Non-fatal
+  }
+}
+
 Deno.serve(async (req) => {
-  // Pesapal sends IPN as GET with query params
   const url = new URL(req.url);
   const orderTrackingId = url.searchParams.get("OrderTrackingId");
   const orderMerchantReference = url.searchParams.get("OrderMerchantReference");
   const orderNotificationType = url.searchParams.get("OrderNotificationType");
-
-  console.log("IPN received:", { orderTrackingId, orderMerchantReference, orderNotificationType });
 
   if (!orderTrackingId || !orderMerchantReference) {
     return new Response(JSON.stringify({ status: "error", message: "Missing parameters" }), {
@@ -33,7 +49,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Get transaction status from Pesapal
     const token = await getAuthToken();
     const statusRes = await fetch(
       `${PESAPAL_BASE}/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
@@ -42,31 +57,32 @@ Deno.serve(async (req) => {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
     const statusData = await statusRes.json();
-    console.log("Transaction status:", statusData);
 
-    // status_code: 0 = Invalid, 1 = Completed, 2 = Failed, 3 = Reversed
     if (statusData.status_code !== 1) {
-      console.log("Payment not completed, status_code:", statusData.status_code);
       return new Response(
         JSON.stringify({ orderNotificationType, orderTrackingId, status: "received" }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
     }
 
-    // 2. Payment is completed — update order
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const orderId = orderMerchantReference;
-    const mpesaCode = statusData.confirmation_code || statusData.payment_account || orderTrackingId;
-    const amount = statusData.amount || 0;
+    const paymentCode = String(
+      statusData.confirmation_code || statusData.payment_account || orderTrackingId,
+    )
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 12)
+      .padEnd(8, "0");
+    const amount = Number(statusData.amount || 0);
 
-    // Check if already processed
     const { data: existing } = await supabase
       .from("payments")
       .select("id")
@@ -74,57 +90,43 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      console.log("Payment already recorded for order:", orderId);
       return new Response(
         JSON.stringify({ orderNotificationType, orderTrackingId, status: "already_processed" }),
-        { headers: { "Content-Type": "application/json" } }
+        { headers: { "Content-Type": "application/json" } },
       );
     }
 
-    // Update order to confirmed
-    const { error: updateError } = await supabase
+    await supabase
       .from("orders")
       .update({
         status: "confirmed",
-        notes: `Pesapal Auto-Verified | Ref: ${mpesaCode} | TrackingId: ${orderTrackingId}`,
+        notes: `Pesapal Auto-Verified | Ref: ${paymentCode} | TrackingId: ${orderTrackingId}`,
       })
       .eq("id", orderId);
 
-    if (updateError) {
-      console.error("Order update error:", updateError);
-    }
-
-    // Fetch order for customer details
     const { data: order } = await supabase
       .from("orders")
       .select("customer_name, customer_phone")
       .eq("id", orderId)
       .maybeSingle();
 
-    // Record payment
-    const { error: paymentError } = await supabase.from("payments").insert({
+    await supabase.from("payments").insert({
       order_id: orderId,
-      amount: Number(amount),
-      mpesa_code: String(mpesaCode).toUpperCase().slice(0, 12).padEnd(8, "0"),
+      amount,
+      mpesa_code: paymentCode,
       customer_name: order?.customer_name || "Pesapal Customer",
       customer_phone: order?.customer_phone || null,
     });
 
-    if (paymentError) {
-      console.error("Payment record error:", paymentError);
-    }
+    await triggerReceiptEmail(orderId, paymentCode);
 
-    console.log("Order confirmed via IPN:", orderId);
-
-    return new Response(
-      JSON.stringify({ orderNotificationType, orderTrackingId, status: "confirmed" }),
-      { headers: { "Content-Type": "application/json" } }
-    );
-  } catch (err) {
-    console.error("IPN processing error:", err);
-    return new Response(
-      JSON.stringify({ status: "error", message: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ orderNotificationType, orderTrackingId, status: "confirmed" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch {
+    return new Response(JSON.stringify({ status: "error", message: "Unable to process payment" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });

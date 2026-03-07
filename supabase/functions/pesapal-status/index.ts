@@ -18,8 +18,27 @@ async function getAuthToken(): Promise<string> {
     }),
   });
   const data = await res.json();
-  if (!data.token) throw new Error(`Pesapal auth failed`);
+  if (!data.token) throw new Error("Pesapal auth failed");
   return data.token as string;
+}
+
+async function triggerReceiptEmail(orderId: string, paymentCode: string) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    await fetch(`${supabaseUrl}/functions/v1/send-receipt-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+      body: JSON.stringify({ orderId, paymentCode, paymentMethod: "pesapal" }),
+    });
+  } catch {
+    // Non-fatal
+  }
 }
 
 Deno.serve(async (req) => {
@@ -31,16 +50,15 @@ Deno.serve(async (req) => {
     const { orderTrackingId, orderId } = await req.json();
 
     if (!orderTrackingId || !orderId) {
-      return new Response(
-        JSON.stringify({ error: "Missing orderTrackingId or orderId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Missing order tracking details" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Check if already confirmed in DB first
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: existingPayment } = await supabase
@@ -50,32 +68,36 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingPayment) {
-      return new Response(
-        JSON.stringify({ status: "confirmed", already_processed: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ status: "confirmed", already_processed: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Query Pesapal for transaction status
     const token = await getAuthToken();
     const statusRes = await fetch(
       `${PESAPAL_BASE}/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
       {
         headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-      }
+      },
     );
     const statusData = await statusRes.json();
 
-    // status_code: 0 = Invalid, 1 = Completed, 2 = Failed, 3 = Reversed
     if (statusData.status_code === 1) {
-      // Auto-confirm if IPN missed it
-      const mpesaCode = statusData.confirmation_code || statusData.payment_account || orderTrackingId;
+      const paymentCode = String(
+        statusData.confirmation_code || statusData.payment_account || orderTrackingId,
+      )
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 12)
+        .padEnd(8, "0");
+
+      const amount = Number(statusData.amount || 0);
 
       await supabase
         .from("orders")
         .update({
           status: "confirmed",
-          notes: `Pesapal Verified (poll) | Ref: ${mpesaCode}`,
+          notes: `Pesapal Verified (poll) | Ref: ${paymentCode}`,
         })
         .eq("id", orderId);
 
@@ -87,30 +109,29 @@ Deno.serve(async (req) => {
 
       await supabase.from("payments").insert({
         order_id: orderId,
-        amount: Number(statusData.amount || 0),
-        mpesa_code: String(mpesaCode).toUpperCase().slice(0, 12).padEnd(8, "0"),
+        amount,
+        mpesa_code: paymentCode,
         customer_name: order?.customer_name || "Customer",
         customer_phone: order?.customer_phone || null,
       });
 
-      return new Response(
-        JSON.stringify({ status: "confirmed", confirmation_code: mpesaCode }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      await triggerReceiptEmail(orderId, paymentCode);
+
+      return new Response(JSON.stringify({ status: "confirmed", confirmation_code: paymentCode }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(
       JSON.stringify({
         status: statusData.status_code === 2 ? "failed" : "pending",
-        pesapal_status: statusData.payment_status_description || "unknown",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err) {
-    console.error("pesapal-status error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch {
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
