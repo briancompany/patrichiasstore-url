@@ -78,23 +78,6 @@ export default function Payment() {
   }, []);
 
 
-  const sendReceiptEmail = async (details: { orderId: string; paymentCode: string; paymentMethod: PaymentMethod }) => {
-    try {
-      const { error } = await supabase.functions.invoke('send-receipt-email', {
-        body: details,
-      });
-
-      if (error) {
-        toast.warning('Payment confirmed, but receipt email could not be sent automatically.');
-        return;
-      }
-
-      toast.success('Receipt email sent successfully.');
-    } catch {
-      toast.warning('Payment confirmed, but receipt email could not be sent automatically.');
-    }
-  };
-
   useEffect(() => {
     const effectiveState = state ?? storageGet<LocationState>(STORAGE_KEYS.pendingOrder);
 
@@ -266,7 +249,6 @@ export default function Payment() {
 
       storageRemove(STORAGE_KEYS.pendingOrder);
       setPaymentVerified(true);
-      await sendReceiptEmail({ orderId: orderDetails.orderId, paymentCode: parsed.confirmCode, paymentMethod: 'mpesa' });
       toast.success('Payment verified successfully! Download your receipt below.');
     } catch (error) {
       console.error('Error updating order:', error);
@@ -290,7 +272,6 @@ export default function Payment() {
           amount: orderDetails.total,
           customerName: orderDetails.customerName,
           customerPhone: orderDetails.customerPhone || '',
-          customerEmail: '',
           callbackUrl: currentUrl,
         },
       });

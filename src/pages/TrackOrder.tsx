@@ -41,8 +41,8 @@ export default function TrackOrder() {
       return;
     }
 
-    if (!/^PS-[A-Z0-9]{6}$/.test(searchCode)) {
-      toast.error('Invalid tracking code format');
+    if (!/^([A-Z0-9]{6,10}|PS-[A-Z0-9]{6,10})$/.test(searchCode)) {
+      toast.error('Use 6–10 letters/numbers (example: PS-ABC123 or ABC123)');
       return;
     }
 
@@ -51,49 +51,26 @@ export default function TrackOrder() {
     setOrder(null);
 
     try {
-      // Look up order via order_tracking table
-      const { data: trackingData, error: trackingError } = await supabase
-        .from('order_tracking')
-        .select('order_id')
-        .eq('tracking_code', searchCode)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_order_tracking_public', {
+        _tracking_code: searchCode,
+      });
 
-      if (trackingError) throw trackingError;
-      if (!trackingData) {
+      if (error) throw error;
+
+      const tracked = data?.[0];
+      if (!tracked) {
         setNotFound(true);
         return;
       }
 
-      // Fetch order details
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('id, status, total_amount, created_at, delivery_type')
-        .eq('id', trackingData.order_id)
-        .maybeSingle();
-
-      if (orderError) throw orderError;
-
-      // Get item count
-      const { count } = await supabase
-        .from('order_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('order_id', trackingData.order_id);
-
-      const trackedOrder: PublicTrackedOrder | null = orderData ? {
-        order_id: orderData.id,
-        status: orderData.status,
-        total_amount: orderData.total_amount,
-        created_at: orderData.created_at,
-        delivery_type: orderData.delivery_type,
-        item_count: count || 0,
-      } : null;
-
-      if (!trackedOrder) {
-        setNotFound(true);
-        return;
-      }
-
-      setOrder(trackedOrder);
+      setOrder({
+        order_id: tracked.order_id,
+        status: tracked.status,
+        total_amount: tracked.total_amount,
+        created_at: tracked.created_at,
+        delivery_type: tracked.delivery_type,
+        item_count: Number(tracked.item_count || 0),
+      });
     } catch {
       toast.error('Unable to fetch order status. Please try again.');
       setNotFound(true);
