@@ -141,8 +141,8 @@ export default function AdminSystemMonitor() {
       
       checks.push({
         name: 'Database Connection',
-        status: error ? 'error' : latency > 1000 ? 'warning' : 'healthy',
-        message: error ? `Connection failed: ${error.message}` : `Connected (${latency}ms latency)`,
+        status: error ? 'error' : latency > 100 ? 'warning' : 'healthy',
+        message: error ? `Connection failed: ${error.message}` : `Connected (${latency}ms latency target: <100ms)`,
         icon: Database,
       });
     } catch {
@@ -360,21 +360,23 @@ export default function AdminSystemMonitor() {
           supabase.storage.from('school-logos').list('', { limit: 1 }),
         ]);
       }},
-      { label: 'Pesapal payment gateway', pct: 50, fn: async () => {
-        try {
-          await supabase.functions.invoke('pesapal-status', {
+      { label: 'Payment and order functions', pct: 50, fn: async () => {
+        await Promise.allSettled([
+          supabase.functions.invoke('pesapal-status', {
             body: { orderTrackingId: 'warmup-test', orderId: 'warmup-test' },
-          });
-        } catch { /* edge function cold start triggered */ }
-      }},
-      { label: 'Payment confirmation service', pct: 65, fn: async () => {
-        try {
-          await supabase.functions.invoke('confirm-payment', {
+          }),
+          supabase.functions.invoke('pesapal-pay', {
+            body: { orderId: 'warmup-test', amount: 1, customerName: 'Warmup', callbackUrl: window.location.origin + '/payment' },
+          }),
+          supabase.functions.invoke('confirm-payment', {
             body: { warmup: true },
-          });
-        } catch { /* cold start triggered */ }
+          }),
+          supabase.functions.invoke('send-receipt-email', {
+            body: { orderId: 'warmup-test', paymentCode: 'WARMUP01', paymentMethod: 'mpesa' },
+          }),
+        ]);
       }},
-      { label: 'School search service', pct: 80, fn: async () => {
+      { label: 'School search service', pct: 75, fn: async () => {
         try {
           await supabase.functions.invoke('search-school', {
             body: { query: 'warmup' },
@@ -382,7 +384,10 @@ export default function AdminSystemMonitor() {
         } catch { /* cold start triggered */ }
       }},
       { label: 'RPC functions', pct: 90, fn: async () => {
-        try { await supabase.rpc('is_admin'); } catch { /* expected for non-admin */ }
+        await Promise.allSettled([
+          supabase.rpc('is_admin'),
+          supabase.rpc('get_order_tracking_public', { _tracking_code: 'PS-WARMUP1' }),
+        ]);
       }},
       { label: 'Finalizing', pct: 100, fn: async () => {
         // Cache general products for customers

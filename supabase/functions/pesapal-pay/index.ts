@@ -18,7 +18,7 @@ async function getAuthToken(): Promise<string> {
     }),
   });
   const data = await res.json();
-  if (!data.token) throw new Error(`Pesapal auth failed: ${JSON.stringify(data)}`);
+  if (!data.token) throw new Error("Pesapal auth failed");
   return data.token as string;
 }
 
@@ -33,7 +33,7 @@ async function registerIPN(token: string, ipnUrl: string): Promise<string> {
     body: JSON.stringify({ url: ipnUrl, ipn_notification_type: "GET" }),
   });
   const data = await res.json();
-  if (!data.ipn_id) throw new Error(`IPN registration failed: ${JSON.stringify(data)}`);
+  if (!data.ipn_id) throw new Error("IPN registration failed");
   return data.ipn_id as string;
 }
 
@@ -43,25 +43,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, amount, customerName, customerPhone, customerEmail, callbackUrl } =
-      await req.json();
+    const { orderId, amount, customerName, customerPhone, callbackUrl } = await req.json();
 
     if (!orderId || !amount || !customerName || !callbackUrl) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // 1. Authenticate with Pesapal
     const token = await getAuthToken();
 
-    // 2. Register IPN URL (points to our pesapal-ipn edge function)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const ipnUrl = `${supabaseUrl}/functions/v1/pesapal-ipn`;
     const ipnId = await registerIPN(token, ipnUrl);
 
-    // 3. Submit order to Pesapal
     const orderPayload = {
       id: orderId,
       currency: "KES",
@@ -73,7 +69,6 @@ Deno.serve(async (req) => {
         phone_number: customerPhone || "",
         first_name: customerName.split(" ")[0] || customerName,
         last_name: customerName.split(" ").slice(1).join(" ") || "",
-        email_address: customerEmail || "",
       },
     };
 
@@ -90,17 +85,15 @@ Deno.serve(async (req) => {
     const submitData = await submitRes.json();
 
     if (!submitData.redirect_url) {
-      console.error("Pesapal submit failed:", submitData);
-      return new Response(
-        JSON.stringify({ error: "Failed to create Pesapal payment", details: submitData }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Failed to create Pesapal payment" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // 4. Store the Pesapal order_tracking_id in the order notes for later verification
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     await supabase
@@ -116,13 +109,12 @@ Deno.serve(async (req) => {
         redirect_url: submitData.redirect_url,
         order_tracking_id: submitData.order_tracking_id,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (err) {
-    console.error("pesapal-pay error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error", message: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch {
+    return new Response(JSON.stringify({ error: "Unable to initiate payment" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

@@ -46,46 +46,49 @@ export default function Shop() {
       .then(({ data }) => setDbSchools(data || []));
   }, []);
 
-  // Fetch general products with stale-while-revalidate pattern
+  // Fetch general products with offline-first stale-while-revalidate cache
   useEffect(() => {
-    // Show cached products instantly
-    const cached = sessionStorage.getItem('ps_general_products');
-    if (cached) {
-      try {
-        setGeneralProducts(JSON.parse(cached));
-        setGeneralLoaded(true);
-      } catch { /* ignore */ }
+    const cached = storageGet<Product[]>(STORAGE_KEYS.generalProductsCache);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setGeneralProducts(cached);
+      setGeneralLoaded(true);
     }
 
-    // Fetch fresh in background
-    supabase
-      .from('products')
-      .select('id, name, description, image_url, type, sizes, in_stock, school_id')
-      .is('school_id', null)
-      .eq('in_stock', true)
-      .order('name')
-      .then(({ data: productsData }) => {
-        if (productsData) {
-          const mapped: Product[] = productsData.map((p) => {
-            const sizesArray = Array.isArray(p.sizes) 
-              ? (p.sizes as { size: string; price: number }[]) 
-              : [];
-            return {
-              id: p.id,
-              name: p.name,
-              school: 'General',
-              type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
-              image: p.image_url || '/placeholder.svg',
-              sizes: sizesArray,
-              inStock: p.in_stock,
-              description: p.description || undefined,
-            };
-          });
-          setGeneralProducts(mapped);
-          sessionStorage.setItem('ps_general_products', JSON.stringify(mapped));
-        }
-        setGeneralLoaded(true);
-      });
+    const fetchFreshProducts = async () => {
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name, description, image_url, type, sizes, in_stock, school_id')
+        .is('school_id', null)
+        .eq('in_stock', true)
+        .order('name');
+
+      if (productsData) {
+        const mapped: Product[] = productsData.map((p) => {
+          const sizesArray = Array.isArray(p.sizes)
+            ? (p.sizes as { size: string; price: number }[])
+            : [];
+          return {
+            id: p.id,
+            name: p.name,
+            school: 'General',
+            type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
+            image: p.image_url || '/placeholder.svg',
+            sizes: sizesArray,
+            inStock: p.in_stock,
+            description: p.description || undefined,
+          };
+        });
+        setGeneralProducts(mapped);
+        storageSet(STORAGE_KEYS.generalProductsCache, mapped);
+      }
+
+      setGeneralLoaded(true);
+    };
+
+    fetchFreshProducts().catch(() => {
+      // Offline fallback: show cached products only
+      if (!cached) setGeneralLoaded(true);
+    });
   }, []);
 
   // Filter database schools based on search

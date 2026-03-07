@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      order_contacts: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_contacts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           color: string | null
@@ -304,6 +342,38 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_emails: {
+        Row: {
+          id: string
+          order_id: string
+          payment_code: string
+          recipient_email: string
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          payment_code: string
+          recipient_email: string
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          payment_code?: string
+          recipient_email?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_emails_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
           created_at: string
@@ -333,7 +403,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_order_contact_email: { Args: { _order_id: string }; Returns: string }
+      get_order_tracking_public: {
+        Args: { _tracking_code: string }
+        Returns: {
+          created_at: string
+          delivery_type: Database["public"]["Enums"]["delivery_type"]
+          item_count: number
+          order_id: string
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          tracking_code: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
+      upsert_order_contact_email: {
+        Args: {
+          _customer_email: string
+          _customer_name?: string
+          _customer_phone?: string
+          _order_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       delivery_type: "pickup" | "delivery"

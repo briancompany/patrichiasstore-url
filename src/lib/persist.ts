@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   uniformCheckout: 'ps_uniform_checkout_v1',
   pendingOrder: 'ps_pending_order_v1',
   pesapalTrackingId: 'ps_pesapal_tracking_id',
+  generalProductsCache: 'ps_general_products_cache_v1',
 } as const;
 
 type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

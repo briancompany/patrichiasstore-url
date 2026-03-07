@@ -113,7 +113,6 @@ export default function Checkout() {
           id: orderId,
           customer_name: formData.fullName,
           customer_phone: formData.phone,
-          customer_email: formData.email,
           customer_school: selectedSchool?.name || null,
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
@@ -126,6 +125,15 @@ export default function Checkout() {
         });
 
       if (orderError) throw orderError;
+
+      const { error: contactError } = await supabase.rpc('upsert_order_contact_email', {
+        _order_id: orderId,
+        _customer_email: formData.email,
+        _customer_name: formData.fullName,
+        _customer_phone: formData.phone,
+      });
+
+      if (contactError) throw contactError;
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
       const orderItems = cart.map((item) => ({
