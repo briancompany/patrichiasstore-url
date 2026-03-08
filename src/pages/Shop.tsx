@@ -342,6 +342,10 @@ export default function Shop() {
           </div>
         )}
 
+        {!generalLoaded && (
+          <ProductGridSkeleton count={8} />
+        )}
+
         {filteredProducts.length === 0 && generalProducts.length === 0 && generalLoaded && (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No products found matching your filters.</p>
