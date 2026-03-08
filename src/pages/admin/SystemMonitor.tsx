@@ -712,6 +712,11 @@ export default function AdminSystemMonitor() {
             </Card>
           </TabsContent>
 
+          {/* Security Testing Tab */}
+          <TabsContent value="sec-testing" className="space-y-4">
+            <SecurityMonitorPanel />
+          </TabsContent>
+
           {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-4">
             <Card>
