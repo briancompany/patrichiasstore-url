@@ -76,6 +76,7 @@ export default function Checkout() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -87,7 +88,8 @@ export default function Checkout() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const deliveryFee = formData.deliveryType === 'delivery' && deliveryZone ? deliveryZone.delivery_fee : 0;
-  const grandTotal = cartTotal + deliveryFee;
+  const couponDiscount = appliedCoupon?.amount || 0;
+  const grandTotal = Math.max(0, cartTotal + deliveryFee - couponDiscount);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
