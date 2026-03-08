@@ -31,6 +31,7 @@ import AdminPayments from "./pages/admin/Payments";
 import AdminSystemMonitor from "./pages/admin/SystemMonitor";
 import AdminReviews from "./pages/admin/ReviewsManager";
 import Wishlist from "./pages/Wishlist";
+import OrderHistory from "./pages/OrderHistory";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/admin/monitor" element={<AdminSystemMonitor />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
             <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/order-history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

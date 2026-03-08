@@ -15,6 +15,7 @@ const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'Shop', path: '/shop' },
   { name: 'Wishlist', path: '/wishlist' },
+  { name: 'My Orders', path: '/order-history' },
   { name: 'Track Order', path: '/track-order' },
   { name: 'About', path: '/about' },
   { name: 'Contact', path: '/contact' },

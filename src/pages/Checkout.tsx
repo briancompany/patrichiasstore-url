@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
-import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle, Truck } from 'lucide-react';
+import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
 import { toast } from 'sonner';
 
 const getBackendErrorMessage = (err: unknown) => {
@@ -73,6 +74,7 @@ export default function Checkout() {
   const isNewSchool = checkoutState?.isNewSchool || !selectedSchool?.isFromDB;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -83,6 +85,8 @@ export default function Checkout() {
   });
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const deliveryFee = formData.deliveryType === 'delivery' && deliveryZone ? deliveryZone.delivery_fee : 0;
+  const grandTotal = cartTotal + deliveryFee;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -117,7 +121,7 @@ export default function Checkout() {
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
-          total_amount: cartTotal,
+          total_amount: grandTotal,
           // Order must be saved first; payment comes after
           status: isNewSchool ? 'new_school_setup' : 'pending',
           is_new_school: isNewSchool,
@@ -168,7 +172,7 @@ export default function Checkout() {
       const paymentState = {
         orderId,
         trackingCode: trackingError ? null : trackingCode,
-        total: cartTotal,
+        total: grandTotal,
         customerName: formData.fullName,
         customerPhone: formData.phone,
         customerEmail: formData.email,
@@ -272,11 +276,25 @@ export default function Checkout() {
                   <span className="font-medium">Ksh {item.price.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="border-t pt-3 flex justify-between">
-                <span className="font-semibold">Total:</span>
-                <span className="text-lg font-bold text-primary">
-                  Ksh {cartTotal.toLocaleString()}
-                </span>
+              <div className="border-t pt-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>Ksh {cartTotal.toLocaleString()}</span>
+                </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Truck className="h-3 w-3" /> Delivery:
+                    </span>
+                    <span>Ksh {deliveryFee.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-1">
+                  <span className="font-semibold">Total:</span>
+                  <span className="text-lg font-bold text-primary">
+                    Ksh {grandTotal.toLocaleString()}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -385,16 +403,19 @@ export default function Checkout() {
                 </RadioGroup>
 
                 {formData.deliveryType === 'delivery' && (
-                  <div>
-                    <Label htmlFor="location">Delivery Location *</Label>
-                    <Textarea
-                      id="location"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      placeholder="Enter your delivery address (area, landmark, building)"
-                      required
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="location">Delivery Location *</Label>
+                      <Textarea
+                        id="location"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        placeholder="Enter your delivery address (area, landmark, building)"
+                        required
+                      />
+                    </div>
+                    <DeliveryCostCalculator onZoneSelect={setDeliveryZone} />
                   </div>
                 )}
               </CardContent>

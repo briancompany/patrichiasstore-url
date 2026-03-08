@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      delivery_zones: {
+        Row: {
+          created_at: string
+          delivery_fee: number
+          estimated_days: number
+          id: string
+          is_active: boolean
+          zone_name: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_fee?: number
+          estimated_days?: number
+          id?: string
+          is_active?: boolean
+          zone_name: string
+        }
+        Update: {
+          created_at?: string
+          delivery_fee?: number
+          estimated_days?: number
+          id?: string
+          is_active?: boolean
+          zone_name?: string
+        }
+        Relationships: []
+      }
       discount_codes: {
         Row: {
           code: string
@@ -493,12 +520,56 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          notified: boolean
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          notified?: boolean
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          notified?: boolean
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_subscribers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }
+      get_order_history_by_phone: {
+        Args: { _phone: string }
+        Returns: {
+          created_at: string
+          delivery_type: Database["public"]["Enums"]["delivery_type"]
+          item_count: number
+          order_id: string
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          tracking_code: string
+        }[]
+      }
       get_order_tracking_public: {
         Args: { _tracking_code: string }
         Returns: {
