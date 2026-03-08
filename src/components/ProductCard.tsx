@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { ProductReviews } from '@/components/ProductReviews';
+import { WishlistButton } from '@/components/WishlistButton';
+import { useWishlist } from '@/hooks/useWishlist';
 
 interface ProductCardProps {
   product: Product;
@@ -11,6 +14,7 @@ interface ProductCardProps {
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [quantity, setQuantity] = useState(1);
+  const { toggle, isWishlisted } = useWishlist();
 
   const totalPrice = selectedSize.price * quantity;
 
@@ -34,6 +38,10 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   return (
     <div className="card-product">
       <div className="aspect-square bg-muted relative overflow-hidden">
+        <WishlistButton
+          isWishlisted={isWishlisted(product.id)}
+          onToggle={() => toggle(product.id)}
+        />
         <img
           src={product.image}
           alt={product.name}
@@ -117,6 +125,9 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           <ShoppingCart className="h-4 w-4" />
           Add to Order
         </Button>
+
+        {/* Reviews */}
+        <ProductReviews productId={product.id} productName={product.name} />
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
       reviewer_name: sanitizeText(name.trim()),
       reviewer_email: email.trim().toLowerCase(),
       rating,
-      review_text: reviewText.trim() ? sanitizeInput(reviewText.trim()) : null,
+      review_text: reviewText.trim() ? sanitizeText(reviewText.trim()) : null,
     });
 
     if (error) {
