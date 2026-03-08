@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { FlashSaleBanner } from '@/components/FlashSaleBanner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
