@@ -14,6 +14,7 @@ import storeLogo from '@/assets/logo-with-patrichia.png';
 const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'Shop', path: '/shop' },
+  { name: 'Wishlist', path: '/wishlist' },
   { name: 'Track Order', path: '/track-order' },
   { name: 'About', path: '/about' },
   { name: 'Contact', path: '/contact' },
