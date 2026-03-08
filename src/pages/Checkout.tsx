@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
-import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle, Truck } from 'lucide-react';
+import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
 import { toast } from 'sonner';
 
 const getBackendErrorMessage = (err: unknown) => {
