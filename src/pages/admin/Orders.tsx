@@ -399,6 +399,12 @@ export default function AdminOrders() {
                           <Calendar className="h-4 w-4" />
                           {new Date(order.created_at).toLocaleDateString()}
                         </span>
+                        {order.delivery_type === 'delivery' && order.scheduled_delivery_date && (
+                          <span className="flex items-center gap-1 text-blue-600 font-medium">
+                            <Truck className="h-4 w-4" />
+                            Delivery: {new Date(order.scheduled_delivery_date).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                       <p className="font-semibold text-primary">
                         Total: Ksh {order.total_amount.toLocaleString()}
