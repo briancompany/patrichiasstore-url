@@ -172,7 +172,7 @@ export default function Checkout() {
       const paymentState = {
         orderId,
         trackingCode: trackingError ? null : trackingCode,
-        total: cartTotal,
+        total: grandTotal,
         customerName: formData.fullName,
         customerPhone: formData.phone,
         customerEmail: formData.email,

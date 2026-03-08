@@ -5,6 +5,8 @@ import { Minus, Plus, ShoppingCart } from 'lucide-react';
 import { ProductReviews } from '@/components/ProductReviews';
 import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
+import { SizeGuide } from '@/components/SizeGuide';
+import { BackInStockNotify } from '@/components/BackInStockNotify';
 
 interface ProductCardProps {
   product: Product;
@@ -59,16 +61,22 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       </div>
 
       <div className="p-4 space-y-3">
-        <div>
+        <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-secondary bg-secondary/10 px-2 py-1 rounded-full">
             {product.school}
           </span>
+          <SizeGuide type={product.type} />
         </div>
         
         <div>
           <h3 className="font-semibold text-lg text-foreground">{product.name}</h3>
           <p className="text-sm text-muted-foreground">{typeLabels[product.type]}</p>
         </div>
+
+        {/* Out of stock notification */}
+        {!product.inStock && (
+          <BackInStockNotify productId={product.id} productName={product.name} />
+        )}
 
         {/* Size Selection */}
         <div className="space-y-2">
