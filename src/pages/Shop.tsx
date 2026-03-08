@@ -16,6 +16,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { useGeneralProducts, useSchoolsList } from '@/hooks/useProductCache';
+import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
 
 export default function Shop() {
