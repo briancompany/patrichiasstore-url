@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Package, ShoppingCart, DollarSign, Star } from 'lucide-react';
 import { LowStockAlerts } from '@/components/admin/LowStockAlerts';
+import { AdminExports } from '@/components/admin/AdminExports';
 
 interface OrderStats {
   totalRevenue: number;
