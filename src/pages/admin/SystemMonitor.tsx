@@ -32,8 +32,10 @@ import {
   Info,
   FileText,
   BookOpen,
+  Bug,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { SecurityMonitorPanel } from '@/components/admin/SecurityMonitorPanel';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
