@@ -29,6 +29,8 @@ import AdminSettings from "./pages/admin/Settings";
 import PricingChart from "./pages/admin/PricingChart";
 import AdminPayments from "./pages/admin/Payments";
 import AdminSystemMonitor from "./pages/admin/SystemMonitor";
+import AdminReviews from "./pages/admin/ReviewsManager";
+import Wishlist from "./pages/Wishlist";
 
 const queryClient = new QueryClient();
 
