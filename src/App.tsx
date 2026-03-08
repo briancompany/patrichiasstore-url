@@ -31,6 +31,7 @@ import AdminPayments from "./pages/admin/Payments";
 import AdminSystemMonitor from "./pages/admin/SystemMonitor";
 import AdminReviews from "./pages/admin/ReviewsManager";
 import Wishlist from "./pages/Wishlist";
+import OrderHistory from "./pages/OrderHistory";
 
 const queryClient = new QueryClient();
 
