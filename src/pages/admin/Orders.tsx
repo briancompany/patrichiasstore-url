@@ -301,6 +301,9 @@ export default function AdminOrders() {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
