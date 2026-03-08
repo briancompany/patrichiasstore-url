@@ -403,16 +403,19 @@ export default function Checkout() {
                 </RadioGroup>
 
                 {formData.deliveryType === 'delivery' && (
-                  <div>
-                    <Label htmlFor="location">Delivery Location *</Label>
-                    <Textarea
-                      id="location"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      placeholder="Enter your delivery address (area, landmark, building)"
-                      required
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="location">Delivery Location *</Label>
+                      <Textarea
+                        id="location"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        placeholder="Enter your delivery address (area, landmark, building)"
+                        required
+                      />
+                    </div>
+                    <DeliveryCostCalculator onZoneSelect={setDeliveryZone} />
                   </div>
                 )}
               </CardContent>
