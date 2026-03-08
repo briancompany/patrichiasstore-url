@@ -121,7 +121,7 @@ export default function Checkout() {
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
-          total_amount: cartTotal,
+          total_amount: grandTotal,
           // Order must be saved first; payment comes after
           status: isNewSchool ? 'new_school_setup' : 'pending',
           is_new_school: isNewSchool,
