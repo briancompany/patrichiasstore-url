@@ -163,6 +163,12 @@ export default function AdminOrders() {
         return 'Ready';
       case 'confirmed':
         return 'Confirmed';
+      case 'processing':
+        return 'Processing';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
       case 'completed':
         return 'Completed';
       default:
