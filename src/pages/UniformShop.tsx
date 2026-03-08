@@ -67,13 +67,19 @@ export default function UniformShop() {
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [printingRequired, setPrintingRequired] = useState<boolean | null>(null);
-  const [pricingChart, setPricingChart] = useState<Record<string, ProductSize[]>>({});
   const [showCustomOrderFlow, setShowCustomOrderFlow] = useState(false);
   const [customSchoolName, setCustomSchoolName] = useState('');
-  const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
   const [sampleImage, setSampleImage] = useState<File | null>(null);
   const [uploadingSample, setUploadingSample] = useState(false);
+
+  // Use shared cached hooks — no duplicate API calls
+  const pricingChart = usePricingChart();
+  const { products: cachedGeneralProducts } = useGeneralProducts();
+  const generalProducts = cachedGeneralProducts.map((p) => ({
+    ...p,
+    sizes: p.sizes as ProductSize[],
+  }));
 
   // Fetch pricing chart and general products on mount
   useEffect(() => {
