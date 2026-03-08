@@ -32,8 +32,10 @@ import {
   Info,
   FileText,
   BookOpen,
+  Bug,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { SecurityMonitorPanel } from '@/components/admin/SecurityMonitorPanel';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -542,7 +544,7 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -550,6 +552,10 @@ export default function AdminSystemMonitor() {
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="sec-testing" className="gap-2">
+              <Bug className="h-4 w-4" />
+              <span className="hidden sm:inline">Sec Testing</span>
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2">
               <Receipt className="h-4 w-4" />
@@ -704,6 +710,11 @@ export default function AdminSystemMonitor() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Security Testing Tab */}
+          <TabsContent value="sec-testing" className="space-y-4">
+            <SecurityMonitorPanel />
           </TabsContent>
 
           {/* Payments Tab */}

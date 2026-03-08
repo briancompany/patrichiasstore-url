@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import storeLogo from '@/assets/logo-with-patrichia.png';
+import { rateLimit, rateLimitTimeRemaining, logAuditEvent, sanitizeText, detectSuspiciousActivity } from '@/lib/security';
 
 const ADMIN_EMAIL = 'brianmuia777@gmail.com';
 
@@ -47,17 +48,31 @@ export default function AdminLogin() {
       return;
     }
 
+    // Rate limit: max 5 login attempts per 2 minutes
+    if (!rateLimit('admin-login', 5, 120_000)) {
+      const remaining = rateLimitTimeRemaining('admin-login', 120_000);
+      toast.error(`Too many login attempts. Wait ${remaining}s.`);
+      logAuditEvent('LOGIN_RATE_LIMITED', `Login rate limited`, 'warning');
+      return;
+    }
+
+    const sanitizedEmail = sanitizeText(loginData.email).toLowerCase();
+
+    // Detect suspicious rapid attempts
+    if (detectSuspiciousActivity('login-attempt', 8, 60_000)) {
+      logAuditEvent('SUSPICIOUS_LOGIN', `Rapid login attempts detected for: ${sanitizedEmail}`, 'critical');
+    }
+
     // Check if email matches admin email
-    if (loginData.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    if (sanitizedEmail !== ADMIN_EMAIL.toLowerCase()) {
       setFailedAttempts(prev => prev + 1);
-      
-      // Log unauthorized attempt (in production, this would be stored in database)
-      console.warn(`Unauthorized admin login attempt: ${loginData.email}`);
+      logAuditEvent('LOGIN_DENIED', `Unauthorized admin login attempt: ${sanitizedEmail}`, 'warning');
       
       // Lock after 3 failed attempts
       if (failedAttempts >= 2) {
         setIsLocked(true);
-        setLockoutTimer(60); // 60 second lockout
+        setLockoutTimer(60);
+        logAuditEvent('ACCOUNT_LOCKED', `Admin login locked after 3 failed attempts`, 'critical');
         toast.error('Too many failed attempts. Account temporarily locked.');
         return;
       }
@@ -85,6 +100,7 @@ export default function AdminLogin() {
       return;
     }
 
+    logAuditEvent('LOGIN_SUCCESS', 'Admin login successful', 'info');
     toast.success('Logged in successfully!');
     setFailedAttempts(0);
     navigate('/admin/dashboard');
