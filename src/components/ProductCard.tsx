@@ -38,6 +38,8 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           src={product.image}
           alt={product.name}
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
         />
         {!product.inStock && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">

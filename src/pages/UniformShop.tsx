@@ -81,47 +81,8 @@ export default function UniformShop() {
     sizes: p.sizes as ProductSize[],
   }));
 
-  // Fetch pricing chart and general products on mount
-  useEffect(() => {
-    const fetchPricingChart = async () => {
-      const { data, error } = await supabase
-        .from('pricing_chart')
-        .select('*')
-        .order('uniform_type')
-        .order('size');
-
-      if (!error && data) {
-        const grouped: Record<string, ProductSize[]> = {};
-        data.forEach((item: { uniform_type: string; size: string; price: number }) => {
-          if (!grouped[item.uniform_type]) {
-            grouped[item.uniform_type] = [];
-          }
-          grouped[item.uniform_type].push({ size: item.size, price: item.price });
-        });
-        setPricingChart(grouped);
-      }
-    };
-
-    const fetchGeneralProducts = async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .is('school_id', null)
-        .eq('in_stock', true)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        const mapped = data.map((p) => ({
-          ...p,
-          sizes: (p.sizes as unknown as ProductSize[]) || [],
-        }));
-        setGeneralProducts(mapped);
-      }
-    };
-
-    fetchPricingChart();
-    fetchGeneralProducts();
-  }, []);
+  // Fetch school-specific products only when needed (not on mount)
+  // Pricing chart and general products come from shared cache hooks
 
   // Debounced search
   const handleSearch = useCallback(async (query: string) => {
