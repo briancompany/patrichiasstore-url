@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { FlashSaleBanner } from '@/components/FlashSaleBanner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
@@ -129,6 +130,11 @@ export default function Shop() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Shop Uniforms</h1>
           <p className="text-muted-foreground">Browse our collection and add items to your order</p>
+        </div>
+
+        {/* Flash Sales */}
+        <div className="mb-6">
+          <FlashSaleBanner />
         </div>
 
         {/* Search for School CTA */}

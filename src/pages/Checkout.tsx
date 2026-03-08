@@ -13,6 +13,7 @@ import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle, Truck } from 'lucide-react';
 import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
+import { CouponApply } from '@/components/CouponApply';
 import { toast } from 'sonner';
 
 const getBackendErrorMessage = (err: unknown) => {
@@ -75,6 +76,7 @@ export default function Checkout() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -86,7 +88,8 @@ export default function Checkout() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const deliveryFee = formData.deliveryType === 'delivery' && deliveryZone ? deliveryZone.delivery_fee : 0;
-  const grandTotal = cartTotal + deliveryFee;
+  const couponDiscount = appliedCoupon?.amount || 0;
+  const grandTotal = Math.max(0, cartTotal + deliveryFee - couponDiscount);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -276,7 +279,14 @@ export default function Checkout() {
                   <span className="font-medium">Ksh {item.price.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="border-t pt-3 space-y-1">
+              <div className="border-t pt-3 space-y-2">
+                {/* Coupon Code */}
+                <CouponApply
+                  cartTotal={cartTotal}
+                  onApply={setAppliedCoupon}
+                  onRemove={() => setAppliedCoupon(null)}
+                  appliedCoupon={appliedCoupon}
+                />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>Ksh {cartTotal.toLocaleString()}</span>
@@ -287,6 +297,12 @@ export default function Checkout() {
                       <Truck className="h-3 w-3" /> Delivery:
                     </span>
                     <span>Ksh {deliveryFee.toLocaleString()}</span>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>Discount:</span>
+                    <span>-Ksh {couponDiscount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-1">
