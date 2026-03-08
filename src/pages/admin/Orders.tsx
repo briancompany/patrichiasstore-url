@@ -49,6 +49,7 @@ interface Order {
   created_at: string;
   is_new_school: boolean;
   linked_school_id: string | null;
+  scheduled_delivery_date: string | null;
   order_items?: OrderItem[];
 }
 
