@@ -29,6 +29,8 @@ import AdminSettings from "./pages/admin/Settings";
 import PricingChart from "./pages/admin/PricingChart";
 import AdminPayments from "./pages/admin/Payments";
 import AdminSystemMonitor from "./pages/admin/SystemMonitor";
+import AdminReviews from "./pages/admin/ReviewsManager";
+import Wishlist from "./pages/Wishlist";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +68,8 @@ const App = () => (
             <Route path="/admin/pricing" element={<PricingChart />} />
             <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/monitor" element={<AdminSystemMonitor />} />
+            <Route path="/admin/reviews" element={<AdminReviews />} />
+            <Route path="/wishlist" element={<Wishlist />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

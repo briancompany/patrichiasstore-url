@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      discount_codes: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number
+          description: string | null
+          discount_amount: number
+          discount_percent: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          min_order_amount: number
+          starts_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number
+          description?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_order_amount?: number
+          starts_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number
+          description?: string | null
+          discount_amount?: number
+          discount_percent?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_order_amount?: number
+          starts_at?: string
+        }
+        Relationships: []
+      }
       order_contacts: {
         Row: {
           created_at: string
@@ -274,6 +319,47 @@ export type Database = {
         }
         Relationships: []
       }
+      product_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          is_approved: boolean
+          product_id: string
+          rating: number
+          review_text: string | null
+          reviewer_email: string
+          reviewer_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          product_id: string
+          rating: number
+          review_text?: string | null
+          reviewer_email: string
+          reviewer_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          product_id?: string
+          rating?: number
+          review_text?: string | null
+          reviewer_email?: string
+          reviewer_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           created_at: string
@@ -284,6 +370,7 @@ export type Database = {
           name: string
           school_id: string | null
           sizes: Json
+          stock_quantity: number
           type: Database["public"]["Enums"]["uniform_type"]
           updated_at: string
         }
@@ -296,6 +383,7 @@ export type Database = {
           name: string
           school_id?: string | null
           sizes?: Json
+          stock_quantity?: number
           type?: Database["public"]["Enums"]["uniform_type"]
           updated_at?: string
         }
@@ -308,6 +396,7 @@ export type Database = {
           name?: string
           school_id?: string | null
           sizes?: Json
+          stock_quantity?: number
           type?: Database["public"]["Enums"]["uniform_type"]
           updated_at?: string
         }

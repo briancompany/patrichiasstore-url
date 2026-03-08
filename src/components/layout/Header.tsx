@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Package, Download } from 'lucide-react';
+import { Menu, X, User, Package, Download, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import storeLogo from '@/assets/logo-with-patrichia.png';
 const navLinks = [
   { name: 'Home', path: '/' },
   { name: 'Shop', path: '/shop' },
+  { name: 'Wishlist', path: '/wishlist' },
   { name: 'Track Order', path: '/track-order' },
   { name: 'About', path: '/about' },
   { name: 'Contact', path: '/contact' },
