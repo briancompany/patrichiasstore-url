@@ -71,6 +71,7 @@ const App = () => (
             <Route path="/admin/monitor" element={<AdminSystemMonitor />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
             <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/order-history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
