@@ -64,7 +64,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
     setSubmitting(true);
     const { error } = await supabase.from('product_reviews').insert({
       product_id: productId,
-      reviewer_name: sanitizeInput(name.trim()),
+      reviewer_name: sanitizeText(name.trim()),
       reviewer_email: email.trim().toLowerCase(),
       rating,
       review_text: reviewText.trim() ? sanitizeInput(reviewText.trim()) : null,
