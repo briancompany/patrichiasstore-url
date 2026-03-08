@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
+import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
 
 interface ProductSize {
   size: string;
