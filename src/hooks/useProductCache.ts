@@ -30,7 +30,7 @@ let _schools: DBSchool[] | null = null;
 let _pricingChart: Record<string, PricingSize[]> | null = null;
 let _fetchPromises: Record<string, Promise<void>> = {};
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 function isCacheStale(): boolean {
   const ts = storageGet<number>(STORAGE_KEYS.cacheTimestamp);
