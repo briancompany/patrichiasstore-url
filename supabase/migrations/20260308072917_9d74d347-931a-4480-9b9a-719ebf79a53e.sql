@@ -1,0 +1,11 @@
+CREATE INDEX IF NOT EXISTS idx_products_type ON public.products (type);
+CREATE INDEX IF NOT EXISTS idx_products_school_id_in_stock ON public.products (school_id, in_stock);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_order_id ON public.payments (order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_mpesa_code ON public.payments (mpesa_code);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_tracking_tracking_code ON public.order_tracking (tracking_code);
+CREATE INDEX IF NOT EXISTS idx_order_tracking_order_id ON public.order_tracking (order_id);
+CREATE INDEX IF NOT EXISTS idx_pricing_chart_uniform_type ON public.pricing_chart (uniform_type);
+CREATE INDEX IF NOT EXISTS idx_order_contacts_order_id ON public.order_contacts (order_id);
