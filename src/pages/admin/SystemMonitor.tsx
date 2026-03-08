@@ -544,7 +544,7 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -552,6 +552,10 @@ export default function AdminSystemMonitor() {
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="sec-testing" className="gap-2">
+              <Bug className="h-4 w-4" />
+              <span className="hidden sm:inline">Sec Testing</span>
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2">
               <Receipt className="h-4 w-4" />
