@@ -43,7 +43,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, amount, customerName, customerPhone, callbackUrl } = await req.json();
+    const body = await req.json();
+
+    // Warmup ping — boot the function without doing real work
+    if (body.warmup) {
+      return new Response(JSON.stringify({ ok: true, warmed: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { orderId, amount, customerName, customerPhone, callbackUrl } = body;
 
     if (!orderId || !amount || !customerName || !callbackUrl) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
