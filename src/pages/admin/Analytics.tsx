@@ -207,6 +207,9 @@ export default function AdminAnalytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Exports */}
+        <AdminExports />
       </div>
     </AdminLayout>
   );
