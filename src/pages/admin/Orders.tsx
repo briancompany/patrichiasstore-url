@@ -535,6 +535,42 @@ export default function AdminOrders() {
                                 </span>
                               </div>
 
+                              {/* Delivery Scheduling for delivery orders */}
+                              {selectedOrder.delivery_type === 'delivery' && (
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                                  <div className="flex items-center gap-2 text-blue-800">
+                                    <Truck className="h-4 w-4" />
+                                    <span className="font-medium">Delivery Scheduling</span>
+                                  </div>
+                                  {selectedOrder.scheduled_delivery_date ? (
+                                    <p className="text-sm text-blue-700">
+                                      📅 Scheduled: <strong>{new Date(selectedOrder.scheduled_delivery_date).toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-blue-600 italic">No delivery date scheduled yet.</p>
+                                  )}
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="outline" size="sm" className="border-blue-300 text-blue-700">
+                                        <CalendarDays className="h-4 w-4 mr-1" />
+                                        {selectedOrder.scheduled_delivery_date ? 'Reschedule' : 'Schedule Delivery'}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <CalendarComponent
+                                        mode="single"
+                                        selected={selectedOrder.scheduled_delivery_date ? new Date(selectedOrder.scheduled_delivery_date) : undefined}
+                                        onSelect={(date) => {
+                                          if (date) scheduleDelivery(selectedOrder.id, date);
+                                        }}
+                                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              )}
+
                               <div className="flex gap-2 flex-wrap">
                                 <Button
                                   variant="outline"
