@@ -90,8 +90,22 @@ export default function TrackOrder() {
         };
       case 'pending':
         return {
-          label: 'Payment Received',
+          label: 'Order Received',
           color: 'bg-blue-100 text-blue-800 border-blue-300',
+          icon: Package,
+          description: 'Your order has been received',
+        };
+      case 'confirmed':
+        return {
+          label: 'Payment Confirmed',
+          color: 'bg-green-100 text-green-800 border-green-300',
+          icon: CheckCircle,
+          description: 'Payment confirmed – preparing your order',
+        };
+      case 'processing':
+        return {
+          label: 'Processing',
+          color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
           icon: Package,
           description: 'Your order is being prepared',
         };
@@ -102,7 +116,20 @@ export default function TrackOrder() {
           icon: Package,
           description: 'Your order is ready for pickup/delivery',
         };
-      case 'confirmed':
+      case 'out_for_delivery':
+        return {
+          label: 'Out for Delivery',
+          color: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+          icon: Package,
+          description: 'Your order is on the way!',
+        };
+      case 'delivered':
+        return {
+          label: 'Delivered',
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          icon: CheckCircle,
+          description: 'Your order has been delivered',
+        };
       case 'completed':
         return {
           label: 'Completed',
@@ -234,7 +261,7 @@ export default function TrackOrder() {
                 </CardContent>
               </Card>
 
-              {(order.status === 'confirmed' || order.status === 'completed') && (
+              {(order.status === 'confirmed' || order.status === 'delivered' || order.status === 'completed') && (
                 <Card className="bg-green-50 border-green-200">
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="flex-1">

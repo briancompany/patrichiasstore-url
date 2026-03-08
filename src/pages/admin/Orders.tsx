@@ -79,8 +79,8 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
-  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed' | 'confirmed' | 'awaiting_payment') => {
-    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    const { error } = await supabase.from('orders').update({ status: status as any }).eq('id', orderId);
 
     if (error) {
       toast.error('Error updating order');
@@ -91,6 +91,9 @@ export default function AdminOrders() {
         completed: 'Order completed',
         confirmed: 'Payment confirmed',
         awaiting_payment: 'Order updated to awaiting payment',
+        processing: 'Order is being processed',
+        out_for_delivery: 'Order is out for delivery',
+        delivered: 'Order delivered successfully',
       };
       toast.success(statusMessages[status] || `Order marked as ${status}`);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status } : o)));
@@ -134,6 +137,13 @@ export default function AdminOrders() {
       case 'ready':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'confirmed':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'processing':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      case 'out_for_delivery':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+      case 'delivered':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'completed':
         return 'bg-green-100 text-green-800 border-green-300';
       default:
@@ -153,6 +163,12 @@ export default function AdminOrders() {
         return 'Ready';
       case 'confirmed':
         return 'Confirmed';
+      case 'processing':
+        return 'Processing';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'delivered':
+        return 'Delivered';
       case 'completed':
         return 'Completed';
       default:
@@ -285,6 +301,9 @@ export default function AdminOrders() {
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
@@ -534,12 +553,21 @@ export default function AdminOrders() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => updateOrderStatus(order.id, 'ready')}
+                          onClick={() => updateOrderStatus(order.id, 'processing')}
                         >
-                          Mark Ready
+                          Start Processing
                         </Button>
                       )}
                       {order.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updateOrderStatus(order.id, 'processing')}
+                        >
+                          Start Processing
+                        </Button>
+                      )}
+                      {order.status === 'processing' && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -549,6 +577,23 @@ export default function AdminOrders() {
                         </Button>
                       )}
                       {order.status === 'ready' && (
+                        <Button
+                          size="sm"
+                          onClick={() => updateOrderStatus(order.id, 'out_for_delivery')}
+                        >
+                          Out for Delivery
+                        </Button>
+                      )}
+                      {order.status === 'out_for_delivery' && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => updateOrderStatus(order.id, 'delivered')}
+                        >
+                          Mark Delivered
+                        </Button>
+                      )}
+                      {order.status === 'delivered' && (
                         <Button size="sm" onClick={() => updateOrderStatus(order.id, 'completed')}>
                           Complete
                         </Button>
