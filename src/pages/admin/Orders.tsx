@@ -82,6 +82,16 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
+  const sendDeliveryEmail = async (orderId: string, payload: { scheduledDate?: string; statusUpdate?: string }) => {
+    try {
+      await supabase.functions.invoke('send-delivery-update', {
+        body: { orderId, ...payload },
+      });
+    } catch {
+      // Non-fatal
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, status: string) => {
     const { error } = await supabase.from('orders').update({ status: status as any }).eq('id', orderId);
 
@@ -103,6 +113,32 @@ export default function AdminOrders() {
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status });
       }
+
+      // Send delivery email notifications for delivery orders
+      const order = orders.find(o => o.id === orderId);
+      if (order?.delivery_type === 'delivery' && (status === 'out_for_delivery' || status === 'delivered')) {
+        sendDeliveryEmail(orderId, { statusUpdate: status });
+      }
+    }
+  };
+
+  const scheduleDelivery = async (orderId: string, date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const { error } = await supabase
+      .from('orders')
+      .update({ scheduled_delivery_date: dateStr } as any)
+      .eq('id', orderId);
+
+    if (error) {
+      toast.error('Error scheduling delivery');
+    } else {
+      toast.success(`Delivery scheduled for ${date.toLocaleDateString()}`);
+      setOrders(orders.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, scheduled_delivery_date: dateStr });
+      }
+      // Send email notification about scheduled delivery
+      sendDeliveryEmail(orderId, { scheduledDate: dateStr });
     }
   };
 
