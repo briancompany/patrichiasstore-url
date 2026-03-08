@@ -137,6 +137,13 @@ export default function AdminOrders() {
       case 'ready':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'confirmed':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'processing':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      case 'out_for_delivery':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-300';
+      case 'delivered':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'completed':
         return 'bg-green-100 text-green-800 border-green-300';
       default:
