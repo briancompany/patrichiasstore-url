@@ -20,7 +20,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink } from 'lucide-react';
+import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink, Truck, CalendarDays } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 
 interface OrderItem {
@@ -49,6 +51,7 @@ interface Order {
   created_at: string;
   is_new_school: boolean;
   linked_school_id: string | null;
+  scheduled_delivery_date: string | null;
   order_items?: OrderItem[];
 }
 
@@ -79,6 +82,16 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
+  const sendDeliveryEmail = async (orderId: string, payload: { scheduledDate?: string; statusUpdate?: string }) => {
+    try {
+      await supabase.functions.invoke('send-delivery-update', {
+        body: { orderId, ...payload },
+      });
+    } catch {
+      // Non-fatal
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, status: string) => {
     const { error } = await supabase.from('orders').update({ status: status as any }).eq('id', orderId);
 
@@ -100,6 +113,32 @@ export default function AdminOrders() {
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status });
       }
+
+      // Send delivery email notifications for delivery orders
+      const order = orders.find(o => o.id === orderId);
+      if (order?.delivery_type === 'delivery' && (status === 'out_for_delivery' || status === 'delivered')) {
+        sendDeliveryEmail(orderId, { statusUpdate: status });
+      }
+    }
+  };
+
+  const scheduleDelivery = async (orderId: string, date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const { error } = await supabase
+      .from('orders')
+      .update({ scheduled_delivery_date: dateStr } as any)
+      .eq('id', orderId);
+
+    if (error) {
+      toast.error('Error scheduling delivery');
+    } else {
+      toast.success(`Delivery scheduled for ${date.toLocaleDateString()}`);
+      setOrders(orders.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, scheduled_delivery_date: dateStr });
+      }
+      // Send email notification about scheduled delivery
+      sendDeliveryEmail(orderId, { scheduledDate: dateStr });
     }
   };
 
@@ -360,6 +399,12 @@ export default function AdminOrders() {
                           <Calendar className="h-4 w-4" />
                           {new Date(order.created_at).toLocaleDateString()}
                         </span>
+                        {order.delivery_type === 'delivery' && order.scheduled_delivery_date && (
+                          <span className="flex items-center gap-1 text-blue-600 font-medium">
+                            <Truck className="h-4 w-4" />
+                            Delivery: {new Date(order.scheduled_delivery_date).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                       <p className="font-semibold text-primary">
                         Total: Ksh {order.total_amount.toLocaleString()}
@@ -495,6 +540,42 @@ export default function AdminOrders() {
                                   Ksh {selectedOrder.total_amount.toLocaleString()}
                                 </span>
                               </div>
+
+                              {/* Delivery Scheduling for delivery orders */}
+                              {selectedOrder.delivery_type === 'delivery' && (
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                                  <div className="flex items-center gap-2 text-blue-800">
+                                    <Truck className="h-4 w-4" />
+                                    <span className="font-medium">Delivery Scheduling</span>
+                                  </div>
+                                  {selectedOrder.scheduled_delivery_date ? (
+                                    <p className="text-sm text-blue-700">
+                                      📅 Scheduled: <strong>{new Date(selectedOrder.scheduled_delivery_date).toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-blue-600 italic">No delivery date scheduled yet.</p>
+                                  )}
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="outline" size="sm" className="border-blue-300 text-blue-700">
+                                        <CalendarDays className="h-4 w-4 mr-1" />
+                                        {selectedOrder.scheduled_delivery_date ? 'Reschedule' : 'Schedule Delivery'}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                      <CalendarComponent
+                                        mode="single"
+                                        selected={selectedOrder.scheduled_delivery_date ? new Date(selectedOrder.scheduled_delivery_date) : undefined}
+                                        onSelect={(date) => {
+                                          if (date) scheduleDelivery(selectedOrder.id, date);
+                                        }}
+                                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                        initialFocus
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              )}
 
                               <div className="flex gap-2 flex-wrap">
                                 <Button

@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN scheduled_delivery_date date DEFAULT NULL;
