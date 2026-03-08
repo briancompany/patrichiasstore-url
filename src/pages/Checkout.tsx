@@ -276,11 +276,25 @@ export default function Checkout() {
                   <span className="font-medium">Ksh {item.price.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="border-t pt-3 flex justify-between">
-                <span className="font-semibold">Total:</span>
-                <span className="text-lg font-bold text-primary">
-                  Ksh {cartTotal.toLocaleString()}
-                </span>
+              <div className="border-t pt-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>Ksh {cartTotal.toLocaleString()}</span>
+                </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Truck className="h-3 w-3" /> Delivery:
+                    </span>
+                    <span>Ksh {deliveryFee.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-1">
+                  <span className="font-semibold">Total:</span>
+                  <span className="text-lg font-bold text-primary">
+                    Ksh {grandTotal.toLocaleString()}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>
