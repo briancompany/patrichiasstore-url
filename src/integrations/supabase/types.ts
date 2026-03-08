@@ -157,6 +157,7 @@ export type Database = {
           is_new_school: boolean
           linked_school_id: string | null
           notes: string | null
+          scheduled_delivery_date: string | null
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
           updated_at: string
@@ -173,6 +174,7 @@ export type Database = {
           is_new_school?: boolean
           linked_school_id?: string | null
           notes?: string | null
+          scheduled_delivery_date?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
@@ -189,6 +191,7 @@ export type Database = {
           is_new_school?: boolean
           linked_school_id?: string | null
           notes?: string | null
+          scheduled_delivery_date?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
