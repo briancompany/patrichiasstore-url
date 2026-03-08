@@ -553,12 +553,21 @@ export default function AdminOrders() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => updateOrderStatus(order.id, 'ready')}
+                          onClick={() => updateOrderStatus(order.id, 'processing')}
                         >
-                          Mark Ready
+                          Start Processing
                         </Button>
                       )}
                       {order.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => updateOrderStatus(order.id, 'processing')}
+                        >
+                          Start Processing
+                        </Button>
+                      )}
+                      {order.status === 'processing' && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -568,6 +577,23 @@ export default function AdminOrders() {
                         </Button>
                       )}
                       {order.status === 'ready' && (
+                        <Button
+                          size="sm"
+                          onClick={() => updateOrderStatus(order.id, 'out_for_delivery')}
+                        >
+                          Out for Delivery
+                        </Button>
+                      )}
+                      {order.status === 'out_for_delivery' && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          onClick={() => updateOrderStatus(order.id, 'delivered')}
+                        >
+                          Mark Delivered
+                        </Button>
+                      )}
+                      {order.status === 'delivered' && (
                         <Button size="sm" onClick={() => updateOrderStatus(order.id, 'completed')}>
                           Complete
                         </Button>

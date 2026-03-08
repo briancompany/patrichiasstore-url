@@ -261,7 +261,7 @@ export default function TrackOrder() {
                 </CardContent>
               </Card>
 
-              {(order.status === 'confirmed' || order.status === 'completed') && (
+              {(order.status === 'confirmed' || order.status === 'delivered' || order.status === 'completed') && (
                 <Card className="bg-green-50 border-green-200">
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="flex-1">
