@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
+import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
 
 interface ProductSize {
   size: string;
@@ -66,55 +67,22 @@ export default function UniformShop() {
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [printingRequired, setPrintingRequired] = useState<boolean | null>(null);
-  const [pricingChart, setPricingChart] = useState<Record<string, ProductSize[]>>({});
   const [showCustomOrderFlow, setShowCustomOrderFlow] = useState(false);
   const [customSchoolName, setCustomSchoolName] = useState('');
-  const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
   const [sampleImage, setSampleImage] = useState<File | null>(null);
   const [uploadingSample, setUploadingSample] = useState(false);
 
-  // Fetch pricing chart and general products on mount
-  useEffect(() => {
-    const fetchPricingChart = async () => {
-      const { data, error } = await supabase
-        .from('pricing_chart')
-        .select('*')
-        .order('uniform_type')
-        .order('size');
+  // Use shared cached hooks — no duplicate API calls
+  const pricingChart = usePricingChart();
+  const { products: cachedGeneralProducts } = useGeneralProducts();
+  const generalProducts = cachedGeneralProducts.map((p) => ({
+    ...p,
+    sizes: p.sizes as ProductSize[],
+  }));
 
-      if (!error && data) {
-        const grouped: Record<string, ProductSize[]> = {};
-        data.forEach((item: { uniform_type: string; size: string; price: number }) => {
-          if (!grouped[item.uniform_type]) {
-            grouped[item.uniform_type] = [];
-          }
-          grouped[item.uniform_type].push({ size: item.size, price: item.price });
-        });
-        setPricingChart(grouped);
-      }
-    };
-
-    const fetchGeneralProducts = async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .is('school_id', null)
-        .eq('in_stock', true)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        const mapped = data.map((p) => ({
-          ...p,
-          sizes: (p.sizes as unknown as ProductSize[]) || [],
-        }));
-        setGeneralProducts(mapped);
-      }
-    };
-
-    fetchPricingChart();
-    fetchGeneralProducts();
-  }, []);
+  // Fetch school-specific products only when needed (not on mount)
+  // Pricing chart and general products come from shared cache hooks
 
   // Debounced search
   const handleSearch = useCallback(async (query: string) => {

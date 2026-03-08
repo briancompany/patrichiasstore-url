@@ -4,6 +4,9 @@ export const STORAGE_KEYS = {
   pendingOrder: 'ps_pending_order_v1',
   pesapalTrackingId: 'ps_pesapal_tracking_id',
   generalProductsCache: 'ps_general_products_cache_v1',
+  schoolsCache: 'ps_schools_cache_v1',
+  pricingChartCache: 'ps_pricing_chart_cache_v1',
+  cacheTimestamp: 'ps_cache_ts_v1',
 } as const;
 
 type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

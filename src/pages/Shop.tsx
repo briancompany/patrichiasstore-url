@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { products, uniformTypes } from '@/data/products';
-import { Product, CartItem, ProductSize } from '@/types/product';
+import { Product, CartItem } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,15 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
+import { useGeneralProducts, useSchoolsList } from '@/hooks/useProductCache';
 import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
-
-interface DBSchool {
-  id: string;
-  name: string;
-  logo_url: string | null;
-}
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -32,66 +26,27 @@ export default function Shop() {
   const [cart, setCart] = useState<CartItem[]>(() => storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
   const [showCart, setShowCart] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState('');
-  const [dbSchools, setDbSchools] = useState<DBSchool[]>([]);
   const [showSchoolSearch, setShowSchoolSearch] = useState(false);
-  const [generalProducts, setGeneralProducts] = useState<Product[]>([]);
-  const [generalLoaded, setGeneralLoaded] = useState(false);
 
-  // Fetch schools in background (non-blocking)
-  useEffect(() => {
-    supabase
-      .from('schools')
-      .select('id, name, logo_url')
-      .order('name')
-      .then(({ data }) => setDbSchools(data || []));
-  }, []);
+  // Shared cached hooks — no duplicate API calls
+  const dbSchools = useSchoolsList();
+  const { products: rawGeneralProducts, loaded: generalLoaded } = useGeneralProducts();
 
-  // Fetch general products with offline-first stale-while-revalidate cache
-  useEffect(() => {
-    const cached = storageGet<Product[]>(STORAGE_KEYS.generalProductsCache);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      setGeneralProducts(cached);
-      setGeneralLoaded(true);
-    }
+  // Map DB products to the Product type used by ProductCard
+  const generalProducts: Product[] = useMemo(() => {
+    return rawGeneralProducts.map((p) => ({
+      id: p.id,
+      name: p.name,
+      school: 'General',
+      type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
+      image: p.image_url || '/placeholder.svg',
+      sizes: p.sizes,
+      inStock: p.in_stock,
+      description: p.description || undefined,
+    }));
+  }, [rawGeneralProducts]);
 
-    const fetchFreshProducts = async () => {
-      const { data: productsData } = await supabase
-        .from('products')
-        .select('id, name, description, image_url, type, sizes, in_stock, school_id')
-        .is('school_id', null)
-        .eq('in_stock', true)
-        .order('name');
-
-      if (productsData) {
-        const mapped: Product[] = productsData.map((p) => {
-          const sizesArray = Array.isArray(p.sizes)
-            ? (p.sizes as { size: string; price: number }[])
-            : [];
-          return {
-            id: p.id,
-            name: p.name,
-            school: 'General',
-            type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
-            image: p.image_url || '/placeholder.svg',
-            sizes: sizesArray,
-            inStock: p.in_stock,
-            description: p.description || undefined,
-          };
-        });
-        setGeneralProducts(mapped);
-        storageSet(STORAGE_KEYS.generalProductsCache, mapped);
-      }
-
-      setGeneralLoaded(true);
-    };
-
-    fetchFreshProducts().catch(() => {
-      // Offline fallback: show cached products only
-      if (!cached) setGeneralLoaded(true);
-    });
-  }, []);
-
-  // Filter database schools based on search
+  // Filter database schools based on search (client-side only)
   const filteredDbSchools = useMemo(() => {
     if (!schoolSearch.trim()) return [];
     return dbSchools.filter((school) =>
@@ -99,7 +54,6 @@ export default function Shop() {
     );
   }, [dbSchools, schoolSearch]);
 
-  // Get unique schools from static products plus "General" if we have general products
   const staticSchools = useMemo(() => {
     const schools = [...new Set(products.map((p) => p.school))];
     if (generalProducts.length > 0 && !schools.includes('General')) {
@@ -108,7 +62,6 @@ export default function Shop() {
     return schools;
   }, [generalProducts]);
 
-  // Combine general products with static products
   const allProducts = useMemo(() => {
     return [...generalProducts, ...products];
   }, [generalProducts]);
@@ -149,14 +102,11 @@ export default function Shop() {
   }, [cart]);
 
   const handleProceedToCheckout = () => {
-    // Persist cart so published site refresh/navigation never loses it
     storageSet(STORAGE_KEYS.shopCart, cart);
-
-    // Navigate to Order page (which now goes to payment, not WhatsApp)
     navigate('/order', { state: { cart } });
   };
 
-  const handleGoToUniformShop = (schoolId?: string) => {
+  const handleGoToUniformShop = () => {
     navigate('/uniform-shop');
     setShowSchoolSearch(false);
     setSchoolSearch('');
@@ -175,7 +125,6 @@ export default function Shop() {
   return (
     <Layout>
       <div className="container-shop py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Shop Uniforms</h1>
           <p className="text-muted-foreground">Browse our collection and add items to your order</p>
@@ -197,7 +146,6 @@ export default function Shop() {
               </Button>
             </div>
 
-            {/* School Search Input */}
             {showSchoolSearch && (
               <div className="mt-4 space-y-3">
                 <div className="relative">
@@ -216,7 +164,7 @@ export default function Shop() {
                     {filteredDbSchools.map((school) => (
                       <button
                         key={school.id}
-                        onClick={() => handleGoToUniformShop(school.id)}
+                        onClick={() => handleGoToUniformShop()}
                         className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
                       >
                         {school.logo_url ? (
@@ -224,6 +172,7 @@ export default function Shop() {
                             src={school.logo_url}
                             alt={school.name}
                             className="w-10 h-10 rounded-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -263,7 +212,7 @@ export default function Shop() {
           </CardContent>
         </Card>
 
-        {/* Filters */}
+        {/* Filters — client-side only, no API calls */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <Select value={selectedSchool} onValueChange={setSelectedSchool}>
             <SelectTrigger className="w-full sm:w-[200px]">
@@ -382,7 +331,6 @@ export default function Shop() {
           </>
         )}
 
-        {/* Selected General filter */}
         {selectedSchool === 'General' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {generalProducts
