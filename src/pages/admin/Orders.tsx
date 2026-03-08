@@ -79,8 +79,8 @@ export default function AdminOrders() {
     setIsLoading(false);
   };
 
-  const updateOrderStatus = async (orderId: string, status: 'pending' | 'ready' | 'completed' | 'confirmed' | 'awaiting_payment') => {
-    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    const { error } = await supabase.from('orders').update({ status: status as any }).eq('id', orderId);
 
     if (error) {
       toast.error('Error updating order');
@@ -91,6 +91,9 @@ export default function AdminOrders() {
         completed: 'Order completed',
         confirmed: 'Payment confirmed',
         awaiting_payment: 'Order updated to awaiting payment',
+        processing: 'Order is being processed',
+        out_for_delivery: 'Order is out for delivery',
+        delivered: 'Order delivered successfully',
       };
       toast.success(statusMessages[status] || `Order marked as ${status}`);
       setOrders(orders.map((o) => (o.id === orderId ? { ...o, status } : o)));
