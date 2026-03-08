@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Package, Download } from 'lucide-react';
+import { Menu, X, User, Package, Download, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
