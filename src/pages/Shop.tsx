@@ -132,6 +132,11 @@ export default function Shop() {
           <p className="text-muted-foreground">Browse our collection and add items to your order</p>
         </div>
 
+        {/* Flash Sales */}
+        <div className="mb-6">
+          <FlashSaleBanner />
+        </div>
+
         {/* Search for School CTA */}
         <Card className="mb-6 bg-primary/5 border-primary/20">
           <CardContent className="p-4">
