@@ -100,6 +100,7 @@ export default function AdminLogin() {
       return;
     }
 
+    logAuditEvent('LOGIN_SUCCESS', 'Admin login successful', 'info');
     toast.success('Logged in successfully!');
     setFailedAttempts(0);
     navigate('/admin/dashboard');
