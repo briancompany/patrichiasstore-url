@@ -279,7 +279,14 @@ export default function Checkout() {
                   <span className="font-medium">Ksh {item.price.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="border-t pt-3 space-y-1">
+              <div className="border-t pt-3 space-y-2">
+                {/* Coupon Code */}
+                <CouponApply
+                  cartTotal={cartTotal}
+                  onApply={setAppliedCoupon}
+                  onRemove={() => setAppliedCoupon(null)}
+                  appliedCoupon={appliedCoupon}
+                />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
                   <span>Ksh {cartTotal.toLocaleString()}</span>
@@ -290,6 +297,12 @@ export default function Checkout() {
                       <Truck className="h-3 w-3" /> Delivery:
                     </span>
                     <span>Ksh {deliveryFee.toLocaleString()}</span>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>Discount:</span>
+                    <span>-Ksh {couponDiscount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-1">
