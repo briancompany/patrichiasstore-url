@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Star, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { sanitizeInput } from '@/lib/security';
+import { sanitizeText } from '@/lib/security';
 
 interface Review {
   id: string;
