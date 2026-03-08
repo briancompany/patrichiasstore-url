@@ -12,33 +12,35 @@ Deno.serve(async (req) => {
   }
 
   const start = Date.now();
-  const checks: Record<string, { ok: boolean; latencyMs: number; error?: string }> = {};
 
-  // Database check
-  try {
-    const t = Date.now();
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-    const { error } = await supabase.from("products").select("id").limit(1);
-    checks.database = { ok: !error, latencyMs: Date.now() - t, error: error?.message };
-  } catch (e) {
-    checks.database = { ok: false, latencyMs: Date.now() - start, error: String(e) };
-  }
+  // Single client instance — reuse for all checks
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
-  // Storage check
-  try {
-    const t = Date.now();
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-    const { error } = await supabase.storage.from("product-images").list("", { limit: 1 });
-    checks.storage = { ok: !error, latencyMs: Date.now() - t, error: error?.message };
-  } catch (e) {
-    checks.storage = { ok: false, latencyMs: Date.now() - start, error: String(e) };
-  }
+  // Run all checks in PARALLEL instead of sequential
+  const [dbResult, storageResult] = await Promise.allSettled([
+    (async () => {
+      const t = Date.now();
+      const { error } = await supabase.from("products").select("id").limit(1);
+      return { ok: !error, latencyMs: Date.now() - t, error: error?.message };
+    })(),
+    (async () => {
+      const t = Date.now();
+      const { error } = await supabase.storage.from("product-images").list("", { limit: 1 });
+      return { ok: !error, latencyMs: Date.now() - t, error: error?.message };
+    })(),
+  ]);
+
+  const checks = {
+    database: dbResult.status === "fulfilled"
+      ? dbResult.value
+      : { ok: false, latencyMs: Date.now() - start, error: "Promise rejected" },
+    storage: storageResult.status === "fulfilled"
+      ? storageResult.value
+      : { ok: false, latencyMs: Date.now() - start, error: "Promise rejected" },
+  };
 
   const allOk = Object.values(checks).every((c) => c.ok);
 
