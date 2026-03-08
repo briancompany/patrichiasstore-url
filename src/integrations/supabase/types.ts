@@ -150,6 +150,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_school: string | null
+          delivered_at: string | null
           delivery_location: string | null
           delivery_type: Database["public"]["Enums"]["delivery_type"]
           id: string
@@ -165,6 +166,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           customer_school?: string | null
+          delivered_at?: string | null
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
@@ -180,6 +182,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           customer_school?: string | null
+          delivered_at?: string | null
           delivery_location?: string | null
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
@@ -435,6 +438,9 @@ export type Database = {
         | "completed"
         | "awaiting_payment"
         | "confirmed"
+        | "processing"
+        | "out_for_delivery"
+        | "delivered"
         | "new_school_setup"
       uniform_type:
         | "tshirt"
@@ -579,6 +585,9 @@ export const Constants = {
         "completed",
         "awaiting_payment",
         "confirmed",
+        "processing",
+        "out_for_delivery",
+        "delivered",
         "new_school_setup",
       ],
       uniform_type: [
