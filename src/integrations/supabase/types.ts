@@ -664,7 +664,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      product_rating_summary: {
+        Row: {
+          avg_rating: number | null
+          product_id: string | null
+          review_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }

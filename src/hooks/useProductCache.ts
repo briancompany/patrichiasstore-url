@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { STORAGE_KEYS, storageGet, storageSet } from '@/lib/persist';
+import { idbGetWithTTL, idbSetWithTTL } from '@/lib/idb-cache';
 
 interface DBSchool {
   id: string;
@@ -24,187 +24,137 @@ interface PricingSize {
   price: number;
 }
 
-// In-memory singleton caches so multiple components share the same data
+// In-memory singleton caches
 let _generalProducts: GeneralProduct[] | null = null;
 let _schools: DBSchool[] | null = null;
 let _pricingChart: Record<string, PricingSize[]> | null = null;
 let _fetchPromises: Record<string, Promise<void>> = {};
 
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-function isCacheStale(): boolean {
-  const ts = storageGet<number>(STORAGE_KEYS.cacheTimestamp);
-  if (!ts) return true;
-  return Date.now() - ts > CACHE_TTL;
-}
-
-function touchCacheTimestamp() {
-  storageSet(STORAGE_KEYS.cacheTimestamp, Date.now());
-}
+const IDB_KEYS = {
+  products: 'ps_general_products',
+  schools: 'ps_schools',
+  pricing: 'ps_pricing_chart',
+};
 
 /**
- * Shared hook for general products — fetches once, caches in localStorage + memory.
- * All pages that need general products use this single hook.
+ * Generic SWR fetch: serve from memory → IDB → network.
+ * Background refresh when stale.
  */
+function useSWRCache<T>(
+  key: string,
+  memRef: { current: T | null },
+  fetcher: () => Promise<T | null>,
+  setMem: (v: T) => void,
+) {
+  const [data, setData] = useState<T | null>(memRef.current);
+  const [loaded, setLoaded] = useState(memRef.current !== null);
+
+  useEffect(() => {
+    // 1. Already in memory and fresh
+    if (memRef.current) {
+      setData(memRef.current);
+      setLoaded(true);
+    }
+
+    // 2. Deduplicated fetch: IDB → network
+    if (!_fetchPromises[key]) {
+      _fetchPromises[key] = (async () => {
+        try {
+          // Try IDB first
+          const cached = await idbGetWithTTL<T>(key);
+          if (cached) {
+            setMem(cached.data);
+            memRef.current = cached.data;
+            // If not stale, done
+            if (!cached.stale && memRef.current) return;
+          }
+
+          // Fetch from network
+          const fresh = await fetcher();
+          if (fresh) {
+            setMem(fresh);
+            memRef.current = fresh;
+            await idbSetWithTTL(key, fresh);
+          }
+        } catch {
+          // Offline — use whatever we have
+        } finally {
+          delete _fetchPromises[key];
+        }
+      })();
+    }
+
+    _fetchPromises[key]!.then(() => {
+      if (memRef.current) setData(memRef.current);
+      setLoaded(true);
+    });
+  }, []);
+
+  return { data, loaded };
+}
+
+// Memory refs as stable objects
+const _productsRef = { get current() { return _generalProducts; }, set current(v) { _generalProducts = v; } };
+const _schoolsRef = { get current() { return _schools; }, set current(v) { _schools = v; } };
+const _pricingRef = { get current() { return _pricingChart; }, set current(v) { _pricingChart = v; } };
+
 export function useGeneralProducts() {
-  const [products, setProducts] = useState<GeneralProduct[]>(() => {
-    if (_generalProducts) return _generalProducts;
-    const cached = storageGet<GeneralProduct[]>(STORAGE_KEYS.generalProductsCache);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      _generalProducts = cached;
-      return cached;
-    }
-    return [];
-  });
-  const [loaded, setLoaded] = useState(_generalProducts !== null && _generalProducts.length > 0);
-
-  useEffect(() => {
-    // Already have fresh in-memory data
-    if (_generalProducts && _generalProducts.length > 0 && !isCacheStale()) {
-      setProducts(_generalProducts);
-      setLoaded(true);
-      return;
-    }
-
-    // Deduplicate concurrent fetches
-    if (!_fetchPromises.generalProducts) {
-      _fetchPromises.generalProducts = (async () => {
-        try {
-          const { data } = await supabase
-            .from('products')
-            .select('id, name, description, image_url, type, sizes, in_stock, school_id')
-            .is('school_id', null)
-            .eq('in_stock', true)
-            .order('name');
-
-          if (data) {
-            const mapped = data.map((p) => ({
-              ...p,
-              sizes: Array.isArray(p.sizes) ? (p.sizes as { size: string; price: number }[]) : [],
-            }));
-            _generalProducts = mapped;
-            storageSet(STORAGE_KEYS.generalProductsCache, mapped);
-            touchCacheTimestamp();
-          }
-        } catch {
-          // Offline — use cached
-        } finally {
-          delete _fetchPromises.generalProducts;
-        }
-      })();
-    }
-
-    _fetchPromises.generalProducts.then(() => {
-      if (_generalProducts) {
-        setProducts(_generalProducts);
-      }
-      setLoaded(true);
-    });
-  }, []);
-
-  return { products, loaded };
+  const { data, loaded } = useSWRCache<GeneralProduct[]>(
+    IDB_KEYS.products,
+    _productsRef,
+    async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, description, image_url, type, sizes, in_stock, school_id')
+        .is('school_id', null)
+        .eq('in_stock', true)
+        .order('name');
+      if (!data) return null;
+      return data.map((p) => ({
+        ...p,
+        sizes: Array.isArray(p.sizes) ? (p.sizes as { size: string; price: number }[]) : [],
+      }));
+    },
+    (v) => { _generalProducts = v; },
+  );
+  return { products: data ?? [], loaded };
 }
 
-/**
- * Shared hook for schools list — fetches once, caches in localStorage + memory.
- */
 export function useSchoolsList() {
-  const [schools, setSchools] = useState<DBSchool[]>(() => {
-    if (_schools) return _schools;
-    const cached = storageGet<DBSchool[]>(STORAGE_KEYS.schoolsCache);
-    if (cached && Array.isArray(cached)) {
-      _schools = cached;
-      return cached;
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    if (_schools && _schools.length > 0 && !isCacheStale()) {
-      setSchools(_schools);
-      return;
-    }
-
-    if (!_fetchPromises.schools) {
-      _fetchPromises.schools = (async () => {
-        try {
-          const { data } = await supabase
-            .from('schools')
-            .select('id, name, logo_url')
-            .order('name');
-
-          if (data) {
-            _schools = data;
-            storageSet(STORAGE_KEYS.schoolsCache, data);
-            touchCacheTimestamp();
-          }
-        } catch {
-          // Offline
-        } finally {
-          delete _fetchPromises.schools;
-        }
-      })();
-    }
-
-    _fetchPromises.schools.then(() => {
-      if (_schools) setSchools(_schools);
-    });
-  }, []);
-
-  return schools;
+  const { data } = useSWRCache<DBSchool[]>(
+    IDB_KEYS.schools,
+    _schoolsRef,
+    async () => {
+      const { data } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .order('name');
+      return data ?? null;
+    },
+    (v) => { _schools = v; },
+  );
+  return data ?? [];
 }
 
-/**
- * Shared hook for pricing chart — fetches once, caches in localStorage + memory.
- */
 export function usePricingChart() {
-  const [chart, setChart] = useState<Record<string, PricingSize[]>>(() => {
-    if (_pricingChart) return _pricingChart;
-    const cached = storageGet<Record<string, PricingSize[]>>(STORAGE_KEYS.pricingChartCache);
-    if (cached && typeof cached === 'object') {
-      _pricingChart = cached;
-      return cached;
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    if (_pricingChart && Object.keys(_pricingChart).length > 0 && !isCacheStale()) {
-      setChart(_pricingChart);
-      return;
-    }
-
-    if (!_fetchPromises.pricingChart) {
-      _fetchPromises.pricingChart = (async () => {
-        try {
-          const { data } = await supabase
-            .from('pricing_chart')
-            .select('uniform_type, size, price')
-            .order('uniform_type')
-            .order('size');
-
-          if (data) {
-            const grouped: Record<string, PricingSize[]> = {};
-            data.forEach((item: { uniform_type: string; size: string; price: number }) => {
-              if (!grouped[item.uniform_type]) grouped[item.uniform_type] = [];
-              grouped[item.uniform_type].push({ size: item.size, price: item.price });
-            });
-            _pricingChart = grouped;
-            storageSet(STORAGE_KEYS.pricingChartCache, grouped);
-            touchCacheTimestamp();
-          }
-        } catch {
-          // Offline
-        } finally {
-          delete _fetchPromises.pricingChart;
-        }
-      })();
-    }
-
-    _fetchPromises.pricingChart.then(() => {
-      if (_pricingChart) setChart(_pricingChart);
-    });
-  }, []);
-
-  return chart;
+  const { data } = useSWRCache<Record<string, PricingSize[]>>(
+    IDB_KEYS.pricing,
+    _pricingRef,
+    async () => {
+      const { data } = await supabase
+        .from('pricing_chart')
+        .select('uniform_type, size, price')
+        .order('uniform_type')
+        .order('size');
+      if (!data) return null;
+      const grouped: Record<string, PricingSize[]> = {};
+      data.forEach((item: { uniform_type: string; size: string; price: number }) => {
+        if (!grouped[item.uniform_type]) grouped[item.uniform_type] = [];
+        grouped[item.uniform_type].push({ size: item.size, price: item.price });
+      });
+      return grouped;
+    },
+    (v) => { _pricingChart = v; },
+  );
+  return data ?? {};
 }
