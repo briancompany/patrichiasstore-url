@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, Mail, Code } from 'lucide-react';
+import { MapPin, Phone, Clock, Mail, Code, Star } from 'lucide-react';
 import { DeveloperProfileDialog } from '../DeveloperProfileDialog';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 import developerImage from '@/assets/developer-brian.jpg';
