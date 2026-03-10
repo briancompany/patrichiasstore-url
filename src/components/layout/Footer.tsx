@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, Mail, Code } from 'lucide-react';
+import { MapPin, Phone, Clock, Mail, Code, Star } from 'lucide-react';
 import { DeveloperProfileDialog } from '../DeveloperProfileDialog';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 import developerImage from '@/assets/developer-brian.jpg';
@@ -58,6 +58,16 @@ export function Footer() {
                 <Clock className="h-5 w-5 flex-shrink-0" />
                 <span className="text-primary-foreground/80">Mon - Sat: 8AM - 6PM</span>
               </div>
+              {/* Google Review */}
+              <a
+                href="https://g.page/r/CfxttwFIeWTmEAE/review"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 bg-accent/20 hover:bg-accent/30 text-primary-foreground px-4 py-2 rounded-lg transition-colors"
+              >
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                <span className="text-sm font-medium">Leave us a Google Review</span>
+              </a>
             </div>
           </div>
         </div>
