@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +20,7 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,6 +40,7 @@ serve(async (req) => {
       Deno.env.get('RECEIPT_FROM_EMAIL') ?? 'Patrichia Store <onboarding@resend.dev>';
 
     if (!resendApiKey) {
+      console.error('RESEND_API_KEY not configured');
       return new Response(JSON.stringify({ success: false, error: 'Email service unavailable' }), {
         status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -49,6 +49,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { orderId, paymentCode, paymentMethod } = (await req.json()) as ReceiptRequest;
+
+    console.log(`Receipt email request: orderId=${orderId}, code=${paymentCode}, method=${paymentMethod}`);
 
     if (!orderId || !paymentCode || !paymentMethod) {
       return new Response(JSON.stringify({ success: false, error: 'Missing required fields' }), {
@@ -64,6 +66,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (orderError || !order) {
+      console.error('Order fetch error:', orderError);
       return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -71,6 +74,7 @@ serve(async (req) => {
     }
 
     if (order.status !== 'confirmed' && order.status !== 'completed') {
+      console.log(`Order status is '${order.status}', skipping email`);
       return new Response(JSON.stringify({ success: false, error: 'Order not paid' }), {
         status: 409,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,6 +86,7 @@ serve(async (req) => {
     });
 
     if (emailError || !emailValue) {
+      console.error('Email lookup error:', emailError, 'value:', emailValue);
       return new Response(
         JSON.stringify({ success: false, error: 'Customer email unavailable for this order' }),
         {
@@ -92,6 +97,7 @@ serve(async (req) => {
     }
 
     const customerEmail = String(emailValue).trim().toLowerCase();
+    console.log(`Sending receipt to: ${customerEmail}`);
 
     const { data: existingLog } = await supabase
       .from('receipt_emails')
@@ -100,6 +106,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingLog) {
+      console.log('Receipt already sent for this order');
       return new Response(JSON.stringify({ success: true, alreadySent: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -246,6 +253,8 @@ serve(async (req) => {
 
     const text = `Patrichia's Store - Payment Confirmed!\n\nHello ${order.customer_name},\n\nOrder: ${order.id.slice(0, 8).toUpperCase()}\nPayment Code: ${paymentCode}\nTotal Paid: Ksh ${Number(order.total_amount).toLocaleString()}\n\n${isDelivery ? `Delivery to: ${order.delivery_location || 'TBD'}\n${scheduledDate ? `Estimated Delivery: ${scheduledDate}` : 'Delivery date will be scheduled soon.'}` : 'Pickup at: Uhuru Market, Store F47'}\n\nTrack your order: patrichiastore.com/track-order\n\nThank you for shopping with us!`;
 
+    console.log(`Sending email via Resend from: ${fromEmail} to: ${customerEmail}`);
+
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -261,8 +270,12 @@ serve(async (req) => {
       }),
     });
 
+    const resendBody = await resendResponse.text();
+    console.log(`Resend response: status=${resendResponse.status}, body=${resendBody}`);
+
     if (!resendResponse.ok) {
-      return new Response(JSON.stringify({ success: false, error: 'Failed to send email' }), {
+      console.error('Resend API error:', resendBody);
+      return new Response(JSON.stringify({ success: false, error: 'Failed to send email', details: resendBody }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -274,10 +287,13 @@ serve(async (req) => {
       payment_code: paymentCode,
     });
 
+    console.log(`Receipt email sent successfully to ${customerEmail}`);
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch {
+  } catch (err) {
+    console.error('Receipt email error:', err);
     return new Response(JSON.stringify({ success: false, error: 'Unable to send receipt email' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

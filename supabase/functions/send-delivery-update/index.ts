@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +20,7 @@ interface DeliveryUpdateRequest {
   statusUpdate?: 'processing' | 'out_for_delivery' | 'delivered';
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,6 +40,7 @@ serve(async (req) => {
       Deno.env.get('RECEIPT_FROM_EMAIL') ?? 'Patrichia Store <onboarding@resend.dev>';
 
     if (!resendApiKey) {
+      console.error('RESEND_API_KEY not configured');
       return new Response(JSON.stringify({ success: false, error: 'Email service unavailable' }), {
         status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -49,6 +49,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { orderId, scheduledDate, statusUpdate } = (await req.json()) as DeliveryUpdateRequest;
+
+    console.log(`Delivery update request: orderId=${orderId}, scheduled=${scheduledDate}, status=${statusUpdate}`);
 
     if (!orderId) {
       return new Response(JSON.stringify({ success: false, error: 'Missing order ID' }), {
@@ -64,6 +66,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (orderError || !order) {
+      console.error('Order fetch error:', orderError);
       return new Response(JSON.stringify({ success: false, error: 'Order not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -75,6 +78,7 @@ serve(async (req) => {
     });
 
     if (!emailValue) {
+      console.error('No email found for order:', orderId);
       return new Response(
         JSON.stringify({ success: false, error: 'Customer email unavailable' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -181,6 +185,8 @@ serve(async (req) => {
 
     const text = `Patrichia's Store\n\n${headerTitle}\n\nHello ${order.customer_name},\n${bodyMessage}\n\nOrder: ${order.id.slice(0, 8).toUpperCase()}\nDelivery to: ${order.delivery_location || 'N/A'}\n${formattedDate ? `Delivery date: ${formattedDate}\n` : ''}Total: Ksh ${Number(order.total_amount).toLocaleString()}\n\nTrack: patrichiastore.com/track-order`;
 
+    console.log(`Sending delivery update email to: ${customerEmail}`);
+
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -196,10 +202,12 @@ serve(async (req) => {
       }),
     });
 
+    const resendBody = await resendResponse.text();
+    console.log(`Resend response: status=${resendResponse.status}, body=${resendBody}`);
+
     if (!resendResponse.ok) {
-      const errBody = await resendResponse.text();
-      console.error('Resend error:', errBody);
-      return new Response(JSON.stringify({ success: false, error: 'Failed to send email' }), {
+      console.error('Resend API error:', resendBody);
+      return new Response(JSON.stringify({ success: false, error: 'Failed to send email', details: resendBody }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
