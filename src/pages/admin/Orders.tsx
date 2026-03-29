@@ -61,17 +61,27 @@ export default function AdminOrders() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPeriod, setFilterPeriod] = useState<'month' | 'all'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [filterPeriod]);
 
   const fetchOrders = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select('*, order_items(*)')
       .order('created_at', { ascending: false });
+
+    if (filterPeriod === 'month') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      query = query.gte('created_at', startOfMonth.toISOString());
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast.error('Error fetching orders');
@@ -344,6 +354,15 @@ export default function AdminOrders() {
               <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as 'month' | 'all')}>
+            <SelectTrigger className="w-full sm:w-[160px]">
+              <SelectValue placeholder="Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
         </div>

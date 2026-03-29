@@ -86,6 +86,20 @@ export default function AdminSystemMonitor() {
     nextRun: null,
   });
 
+  // Fetch warm-up logs
+  const { data: warmupLogs, refetch: refetchWarmupLogs } = useQuery({
+    queryKey: ['warmup-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warmup_logs')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch counts from database
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['system-stats'],
@@ -416,12 +430,28 @@ export default function AdminSystemMonitor() {
 
       toast.success('System fully warmed up to 100%!');
       refetchStats();
+      refetchWarmupLogs();
     } catch (error) {
       console.error('Warm-up error:', error);
       toast.error('Partial warm-up completed with errors');
     } finally {
       setIsWarmingUp(false);
       setWarmUpStage('');
+    }
+  };
+
+  const triggerScheduledWarmup = async () => {
+    try {
+      toast.info('Triggering scheduled warm-up...');
+      const { data, error } = await supabase.functions.invoke('scheduled-warmup', {
+        body: { trigger: 'manual' },
+      });
+      if (error) throw error;
+      toast.success(data?.summary || 'Warm-up completed');
+      refetchWarmupLogs();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to trigger warm-up');
     }
   };
 
@@ -943,78 +973,87 @@ export default function AdminSystemMonitor() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Scheduled Warm-Up
+                  Automated Warm-Up (Active)
                 </CardTitle>
                 <CardDescription>
-                  Automatically warm up the system to prevent idle failures
+                  System automatically warms up every 6 hours via scheduled backend job. You can also trigger manually.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-                  <div className="space-y-2 flex-1">
-                    <p className="text-sm font-medium">Frequency</p>
-                    <select
-                      value={warmUpSchedule.frequency}
-                      onChange={(e) => updateScheduleFrequency(e.target.value as 'daily' | 'weekly' | 'custom')}
-                      className="w-full p-2 border rounded-md bg-background"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="custom">Custom Time</option>
-                    </select>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="font-medium">Automated warm-up is active</span>
                   </div>
-                  
-                  <div className="space-y-2 flex-1">
-                    <p className="text-sm font-medium">Time</p>
-                    <input
-                      type="time"
-                      value={warmUpSchedule.time}
-                      onChange={(e) => updateScheduleTime(e.target.value)}
-                      className="w-full p-2 border rounded-md bg-background"
-                    />
-                  </div>
-                  
-                  <Button
-                    onClick={toggleSchedule}
-                    variant={warmUpSchedule.enabled ? 'destructive' : 'default'}
-                    className="w-full sm:w-auto"
-                  >
-                    {warmUpSchedule.enabled ? 'Disable Schedule' : 'Enable Schedule'}
-                  </Button>
+                  <p className="text-sm text-green-700 mt-1">
+                    Runs every 6 hours (00:00, 06:00, 12:00, 18:00 UTC). All stages logged with fault auto-resolution.
+                  </p>
                 </div>
-                
-                {warmUpSchedule.enabled && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-green-800">
-                      <CheckCircle className="h-5 w-5" />
-                      <span className="font-medium">Scheduled warm-up is active</span>
+
+                <Button onClick={triggerScheduledWarmup} className="gap-2">
+                  <Zap className="h-4 w-4" />
+                  Trigger Warm-Up Now
+                </Button>
+
+                {/* Warm-up Log History */}
+                <div className="space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Warm-Up Log History
+                  </h4>
+                  {!warmupLogs || warmupLogs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No warm-up logs yet. Trigger a warm-up to see results.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {warmupLogs.map((log: any) => {
+                        const stagesData = typeof log.stages === 'string' ? JSON.parse(log.stages) : (log.stages || []);
+                        const faultsData = typeof log.faults === 'string' ? JSON.parse(log.faults) : (log.faults || []);
+                        return (
+                          <div key={log.id} className="border rounded-lg p-3 bg-muted/30">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                {log.status === 'success' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                ) : log.status === 'partial' ? (
+                                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                                ) : log.status === 'running' ? (
+                                  <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-red-600" />
+                                )}
+                                <Badge className={
+                                  log.status === 'success' ? 'bg-green-100 text-green-800' :
+                                  log.status === 'partial' ? 'bg-amber-100 text-amber-800' :
+                                  'bg-red-100 text-red-800'
+                                }>
+                                  {log.status}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">{log.trigger_type}</Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {log.started_at ? format(new Date(log.started_at), 'dd/MM HH:mm:ss') : ''}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{log.summary}</p>
+                            {log.duration_ms && (
+                              <p className="text-xs text-muted-foreground mt-1">Duration: {log.duration_ms}ms</p>
+                            )}
+                            {faultsData.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {faultsData.map((fault: any, i: number) => (
+                                  <div key={i} className={`text-xs p-1.5 rounded ${fault.resolved ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                    <span className="font-medium">{fault.stage}:</span> {fault.error}
+                                    {fault.resolved && <span className="ml-1">✓ {fault.resolution}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-sm text-green-700 mt-1">
-                      {warmUpSchedule.frequency === 'daily' && `Runs daily at ${warmUpSchedule.time}`}
-                      {warmUpSchedule.frequency === 'weekly' && `Runs weekly at ${warmUpSchedule.time}`}
-                      {warmUpSchedule.frequency === 'custom' && `Runs at ${warmUpSchedule.time}`}
-                    </p>
-                    {warmUpSchedule.lastRun && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Last run: {format(warmUpSchedule.lastRun, 'dd/MM/yyyy HH:mm')}
-                      </p>
-                    )}
-                    {warmUpSchedule.nextRun && (
-                      <p className="text-xs text-green-600">
-                        Next run: {format(warmUpSchedule.nextRun, 'dd/MM/yyyy HH:mm')}
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {!warmUpSchedule.enabled && (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Enable scheduled warm-up to automatically refresh the system and prevent idle failures.
-                      Recommended for production use.
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
 

@@ -662,6 +662,42 @@ export type Database = {
           },
         ]
       }
+      warmup_logs: {
+        Row: {
+          completed_at: string | null
+          duration_ms: number | null
+          faults: Json
+          id: string
+          stages: Json
+          started_at: string
+          status: string
+          summary: string | null
+          trigger_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          faults?: Json
+          id?: string
+          stages?: Json
+          started_at?: string
+          status?: string
+          summary?: string | null
+          trigger_type?: string
+        }
+        Update: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          faults?: Json
+          id?: string
+          stages?: Json
+          started_at?: string
+          status?: string
+          summary?: string | null
+          trigger_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       product_rating_summary: {
