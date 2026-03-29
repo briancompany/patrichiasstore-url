@@ -356,6 +356,15 @@ export default function AdminOrders() {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={filterPeriod} onValueChange={(v) => setFilterPeriod(v as 'month' | 'all')}>
+            <SelectTrigger className="w-full sm:w-[160px]">
+              <SelectValue placeholder="Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Orders List */}
