@@ -66,7 +66,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [filterPeriod]);
 
   const fetchOrders = async () => {
     let query = supabase
