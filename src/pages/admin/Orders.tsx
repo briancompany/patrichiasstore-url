@@ -61,6 +61,7 @@ export default function AdminOrders() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPeriod, setFilterPeriod] = useState<'month' | 'all'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
@@ -68,10 +69,19 @@ export default function AdminOrders() {
   }, []);
 
   const fetchOrders = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('orders')
       .select('*, order_items(*)')
       .order('created_at', { ascending: false });
+
+    if (filterPeriod === 'month') {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      query = query.gte('created_at', startOfMonth.toISOString());
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast.error('Error fetching orders');
