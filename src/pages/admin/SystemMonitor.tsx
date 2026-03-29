@@ -86,6 +86,20 @@ export default function AdminSystemMonitor() {
     nextRun: null,
   });
 
+  // Fetch warm-up logs
+  const { data: warmupLogs, refetch: refetchWarmupLogs } = useQuery({
+    queryKey: ['warmup-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warmup_logs')
+        .select('*')
+        .order('started_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch counts from database
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['system-stats'],
@@ -416,12 +430,28 @@ export default function AdminSystemMonitor() {
 
       toast.success('System fully warmed up to 100%!');
       refetchStats();
+      refetchWarmupLogs();
     } catch (error) {
       console.error('Warm-up error:', error);
       toast.error('Partial warm-up completed with errors');
     } finally {
       setIsWarmingUp(false);
       setWarmUpStage('');
+    }
+  };
+
+  const triggerScheduledWarmup = async () => {
+    try {
+      toast.info('Triggering scheduled warm-up...');
+      const { data, error } = await supabase.functions.invoke('scheduled-warmup', {
+        body: { trigger: 'manual' },
+      });
+      if (error) throw error;
+      toast.success(data?.summary || 'Warm-up completed');
+      refetchWarmupLogs();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to trigger warm-up');
     }
   };
 
