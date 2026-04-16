@@ -30,6 +30,7 @@ import PricingChart from "./pages/admin/PricingChart";
 import AdminPayments from "./pages/admin/Payments";
 import AdminSystemMonitor from "./pages/admin/SystemMonitor";
 import AdminReviews from "./pages/admin/ReviewsManager";
+import AdminStoreContent from "./pages/admin/StoreContent";
 import Wishlist from "./pages/Wishlist";
 import OrderHistory from "./pages/OrderHistory";
 
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/monitor" element={<AdminSystemMonitor />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
+            <Route path="/admin/store-content" element={<AdminStoreContent />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />
