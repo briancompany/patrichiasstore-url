@@ -1,7 +1,6 @@
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { useWishlist } from '@/hooks/useWishlist';
-import { products } from '@/data/products';
 import { useGeneralProducts } from '@/hooks/useProductCache';
 import { useMemo } from 'react';
 import { Product } from '@/types/product';
@@ -27,8 +26,7 @@ export default function Wishlist() {
     }));
   }, [rawGeneral]);
 
-  const allProducts = useMemo(() => [...generalProducts, ...products], [generalProducts]);
-  const wishlisted = allProducts.filter((p) => wishlist.includes(p.id));
+  const wishlisted = generalProducts.filter((p) => wishlist.includes(p.id));
 
   const handleAddToCart = () => {};
 
