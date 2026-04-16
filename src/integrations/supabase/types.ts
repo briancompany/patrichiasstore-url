@@ -662,6 +662,33 @@ export type Database = {
           },
         ]
       }
+      store_content: {
+        Row: {
+          created_at: string
+          id: string
+          owner_photo_url: string | null
+          price_chart_url: string | null
+          shop_description: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_photo_url?: string | null
+          price_chart_url?: string | null
+          shop_description?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_photo_url?: string | null
+          price_chart_url?: string | null
+          shop_description?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       warmup_logs: {
         Row: {
           completed_at: string | null
