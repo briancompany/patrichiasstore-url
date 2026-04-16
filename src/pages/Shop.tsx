@@ -19,6 +19,7 @@ import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persi
 import { useGeneralProducts, useSchoolsList } from '@/hooks/useProductCache';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
+import { ShopPriceChart } from '@/components/ShopPriceChart';
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -299,6 +300,9 @@ export default function Shop() {
             </Button>
           </div>
         )}
+
+        {/* Price Chart & Description */}
+        <ShopPriceChart />
 
         {/* General Products Section */}
         {generalProducts.length > 0 && selectedSchool === 'all' && (
