@@ -3,7 +3,6 @@ import { FlashSaleBanner } from '@/components/FlashSaleBanner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
-import { products, uniformTypes } from '@/data/products';
 import { Product, CartItem } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +17,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { useGeneralProducts, useSchoolsList } from '@/hooks/useProductCache';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
-import { ShoppingCart, X, Search, ChevronRight, Package } from 'lucide-react';
+import { ShoppingCart, X, Search, ChevronRight, Package, Clock } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('type') || 'all');
   const [cart, setCart] = useState<CartItem[]>(() => storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
   const [showCart, setShowCart] = useState(false);
@@ -57,25 +55,12 @@ export default function Shop() {
     );
   }, [dbSchools, schoolSearch]);
 
-  const staticSchools = useMemo(() => {
-    const schools = [...new Set(products.map((p) => p.school))];
-    if (generalProducts.length > 0 && !schools.includes('General')) {
-      schools.unshift('General');
-    }
-    return schools;
-  }, [generalProducts]);
-
-  const allProducts = useMemo(() => {
-    return [...generalProducts, ...products];
-  }, [generalProducts]);
-
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product) => {
-      const schoolMatch = selectedSchool === 'all' || product.school === selectedSchool;
+    return generalProducts.filter((product) => {
       const typeMatch = selectedType === 'all' || product.type === selectedType;
-      return schoolMatch && typeMatch;
+      return typeMatch;
     });
-  }, [allProducts, selectedSchool, selectedType]);
+  }, [generalProducts, selectedType]);
 
   const handleAddToCart = (product: Product, size: string, quantity: number, price: number) => {
     const existingIndex = cart.findIndex(
@@ -124,6 +109,8 @@ export default function Shop() {
     skirt: 'Skirts',
     sweater: 'Sweaters',
   };
+
+  const uniformTypes = ['tshirt', 'tracksuit', 'socks', 'shorts', 'skirt', 'sweater'];
 
   return (
     <Layout>
@@ -220,22 +207,8 @@ export default function Shop() {
           </CardContent>
         </Card>
 
-        {/* Filters — client-side only, no API calls */}
+        {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Select School" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Schools</SelectItem>
-              {staticSchools.map((school) => (
-                <SelectItem key={school} value={school}>
-                  {school}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Select Type" />
@@ -276,7 +249,7 @@ export default function Shop() {
                   <div>
                     <p className="font-medium">{item.product.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.product.school} • Size: {item.selectedSize} • Qty: {item.quantity}
+                      Size: {item.selectedSize} • Qty: {item.quantity}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -304,61 +277,45 @@ export default function Shop() {
         {/* Price Chart & Description */}
         <ShopPriceChart />
 
-        {/* General Products Section */}
-        {generalProducts.length > 0 && selectedSchool === 'all' && (
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-6">
-              <Package className="h-6 w-6 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">General Products</h2>
-              <span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-medium">
-                Available for all
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {generalProducts
-                .filter(p => selectedType === 'all' || p.type === selectedType)
-                .map((product) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* School Products Grid */}
-        {selectedSchool !== 'General' && (
-          <>
-            {selectedSchool === 'all' && generalProducts.length > 0 && (
-              <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-xl font-bold text-foreground">School-Specific Products</h2>
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {(selectedSchool === 'all' ? products : filteredProducts.filter(p => p.school !== 'General'))
-                .filter(p => selectedType === 'all' || p.type === selectedType)
-                .map((product) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-                ))}
-            </div>
-          </>
-        )}
-
-        {selectedSchool === 'General' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {generalProducts
-              .filter(p => selectedType === 'all' || p.type === selectedType)
-              .map((product) => (
-                <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-              ))}
-          </div>
-        )}
-
+        {/* Products Loading */}
         {!generalLoaded && (
           <ProductGridSkeleton count={8} />
         )}
 
-        {filteredProducts.length === 0 && generalProducts.length === 0 && generalLoaded && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">No products found matching your filters.</p>
+        {/* Products Coming Soon */}
+        {generalLoaded && filteredProducts.length === 0 && (
+          <Card className="border-dashed border-2 border-primary/30">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Clock className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Products Coming Soon!</h3>
+              <p className="text-muted-foreground max-w-md mb-4">
+                We're updating our collection with fresh uniforms. Check back soon or search for your school's specific uniforms.
+              </p>
+              <Button onClick={() => handleGoToUniformShop()} className="gap-2">
+                <Search className="h-4 w-4" />
+                Search by School
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Products Grid */}
+        {filteredProducts.length > 0 && (
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <Package className="h-6 w-6 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Our Products</h2>
+              <span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-medium">
+                {filteredProducts.length} items
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -56,22 +56,20 @@ function useSWRCache<T>(
       setLoaded(true);
     }
 
-    // 2. Deduplicated fetch: IDB → network
+    // 2. Deduplicated fetch: IDB → network (always refresh from network)
     if (!_fetchPromises[key]) {
       _fetchPromises[key] = (async () => {
         try {
-          // Try IDB first
+          // Try IDB first for instant display
           const cached = await idbGetWithTTL<T>(key);
-          if (cached) {
+          if (cached && !cached.stale) {
             setMem(cached.data);
             memRef.current = cached.data;
-            // If not stale, done
-            if (!cached.stale && memRef.current) return;
           }
 
-          // Fetch from network
+          // Always fetch from network to get latest data
           const fresh = await fetcher();
-          if (fresh) {
+          if (fresh !== null) {
             setMem(fresh);
             memRef.current = fresh;
             await idbSetWithTTL(key, fresh);
@@ -85,7 +83,7 @@ function useSWRCache<T>(
     }
 
     _fetchPromises[key]!.then(() => {
-      if (memRef.current) setData(memRef.current);
+      setData(memRef.current);
       setLoaded(true);
     });
   }, []);
