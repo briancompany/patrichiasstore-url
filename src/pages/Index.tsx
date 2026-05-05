@@ -60,13 +60,13 @@ export default function Index() {
         <div className="relative z-10 container-shop py-16 md:py-24">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-primary-foreground animate-fade-in">
-              Patrichia's Store
+              Patrichia Kavingo Uniform Store
             </h1>
             <p className="text-xl md:text-2xl text-primary-foreground/90 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Quality School Uniforms at Affordable Prices
+              Affordable School Uniforms, Tracksuits & Clothes in Nairobi
             </p>
             <p className="text-lg text-primary-foreground/80 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              Located at Uhuru Market, Store F47 • Serving all Kenyan schools
+              We are located at Uhuru Market, Jogoo Road, Nairobi (Store F47) • Serving all Kenyan schools
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
               <Button asChild size="lg" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground text-lg px-8">
@@ -194,6 +194,35 @@ export default function Index() {
           <Button asChild size="lg" className="btn-secondary text-lg px-8">
             <Link to="/shop">Browse All Uniforms</Link>
           </Button>
+        </div>
+      </section>
+
+      {/* Local SEO Section */}
+      <section className="py-12 bg-background border-t">
+        <div className="container-shop max-w-4xl">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            School Uniforms & Tracksuits at Uhuru Market, Nairobi
+          </h2>
+          <div className="space-y-3 text-muted-foreground">
+            <p>
+              Looking for affordable <strong>school uniforms in Nairobi</strong>? Patrichia Kavingo
+              Uniform Store is your trusted shop for quality <strong>uniforms, tracksuits and
+              clothes at Uhuru Market</strong>, Jogoo Road. We supply schools across Kenya with
+              durable, well-stitched uniforms at prices families can afford.
+            </p>
+            <p>
+              Visit us at <strong>Uhuru Market, Store F47, Jogoo Road, Nairobi</strong>, or call
+              <a href="tel:+254726075180" className="text-primary font-medium"> +254 726 075 180</a>
+              {' '}to place an order. We stock <Link to="/shop?type=tshirt" className="text-primary underline">school t-shirts</Link>,
+              {' '}<Link to="/shop?type=tracksuit" className="text-primary underline">affordable tracksuits</Link>,
+              {' '}<Link to="/shop?type=socks" className="text-primary underline">socks and accessories</Link>,
+              and branded clothing for primary and secondary schools.
+            </p>
+            <p>
+              Popular searches: <em>uniforms Uhuru Market Nairobi, school uniforms Nairobi,
+              tracksuits Jogoo Road, clothes Uhuru Market, affordable tracksuits Kenya.</em>
+            </p>
+          </div>
         </div>
       </section>
     </Layout>
