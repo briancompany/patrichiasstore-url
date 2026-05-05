@@ -36,6 +36,9 @@ const uniformTypes = [
   { value: 'shorts', label: 'Shorts' },
   { value: 'skirt', label: 'Skirt' },
   { value: 'sweater', label: 'Sweater' },
+  { value: 'tie', label: 'Tie' },
+  { value: 'dress', label: 'Dress' },
+  { value: 'fleece_jacket', label: 'Fleece Jacket' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -152,7 +155,7 @@ export default function ProductForm() {
       const productData = {
         name: formData.name,
         school_id: formData.school_id || null,
-        type: formData.type as 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'other',
+        type: formData.type as 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'tie' | 'dress' | 'fleece_jacket' | 'other',
         description: formData.description || null,
         image_url: imageUrl || null,
         in_stock: formData.in_stock,
