@@ -48,6 +48,9 @@ const uniformTypes = [
   { value: 'shorts', label: 'Shorts' },
   { value: 'skirt', label: 'Skirt' },
   { value: 'sweater', label: 'Sweater' },
+  { value: 'tie', label: 'Tie' },
+  { value: 'dress', label: 'Dress' },
+  { value: 'fleece_jacket', label: 'Fleece Jacket' },
   { value: 'other', label: 'Other' },
 ];
 

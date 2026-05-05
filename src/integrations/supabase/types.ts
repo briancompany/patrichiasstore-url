@@ -801,6 +801,9 @@ export type Database = {
         | "skirt"
         | "sweater"
         | "other"
+        | "tie"
+        | "dress"
+        | "fleece_jacket"
       user_role: "admin" | "customer"
     }
     CompositeTypes: {
@@ -949,6 +952,9 @@ export const Constants = {
         "skirt",
         "sweater",
         "other",
+        "tie",
+        "dress",
+        "fleece_jacket",
       ],
       user_role: ["admin", "customer"],
     },

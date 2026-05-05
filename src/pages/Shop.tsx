@@ -108,9 +108,12 @@ export default function Shop() {
     shorts: 'Shorts',
     skirt: 'Skirts',
     sweater: 'Sweaters',
+    tie: 'Ties',
+    dress: 'Dresses',
+    fleece_jacket: 'Fleece Jackets',
   };
 
-  const uniformTypes = ['tshirt', 'tracksuit', 'socks', 'shorts', 'skirt', 'sweater'];
+  const uniformTypes = ['tshirt', 'tracksuit', 'socks', 'shorts', 'skirt', 'sweater', 'tie', 'dress', 'fleece_jacket'];
 
   return (
     <Layout>
