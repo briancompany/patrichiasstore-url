@@ -31,9 +31,11 @@ interface School {
 
 const uniformTypes = [
   { value: 'tshirt', label: 'T-Shirt' },
+  { value: 'shirts', label: 'Shirts' },
   { value: 'tracksuit', label: 'Tracksuit' },
   { value: 'socks', label: 'Socks' },
   { value: 'shorts', label: 'Shorts' },
+  { value: 'trousers', label: 'Trousers' },
   { value: 'skirt', label: 'Skirt' },
   { value: 'sweater', label: 'Sweater' },
   { value: 'tie', label: 'Tie' },

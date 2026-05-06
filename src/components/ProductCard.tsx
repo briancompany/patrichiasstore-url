@@ -30,11 +30,17 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
 
   const typeLabels: Record<string, string> = {
     tshirt: 'T-Shirt',
+    shirts: 'Shirts',
     tracksuit: 'Tracksuit',
     socks: 'Socks',
     shorts: 'Shorts',
+    trousers: 'Trousers',
     skirt: 'Skirt',
     sweater: 'Sweater',
+    tie: 'Tie',
+    dress: 'Dress',
+    fleece_jacket: 'Fleece Jacket',
+    other: 'Uniform',
   };
 
   return (

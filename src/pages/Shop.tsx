@@ -39,7 +39,7 @@ export default function Shop() {
       id: p.id,
       name: p.name,
       school: 'General',
-      type: (p.type === 'other' ? 'tshirt' : p.type) as Product['type'],
+      type: p.type as Product['type'],
       image: p.image_url || '/placeholder.svg',
       sizes: p.sizes,
       inStock: p.in_stock,
@@ -103,17 +103,20 @@ export default function Shop() {
   const typeLabels: Record<string, string> = {
     all: 'All Types',
     tshirt: 'T-Shirts',
+    shirts: 'Shirts',
     tracksuit: 'Tracksuits',
     socks: 'Socks',
     shorts: 'Shorts',
+    trousers: 'Trousers',
     skirt: 'Skirts',
     sweater: 'Sweaters',
     tie: 'Ties',
     dress: 'Dresses',
     fleece_jacket: 'Fleece Jackets',
+    other: 'Other',
   };
 
-  const uniformTypes = ['tshirt', 'tracksuit', 'socks', 'shorts', 'skirt', 'sweater', 'tie', 'dress', 'fleece_jacket'];
+  const uniformTypes = ['tshirt', 'shirts', 'tracksuit', 'socks', 'shorts', 'trousers', 'skirt', 'sweater', 'tie', 'dress', 'fleece_jacket'];
 
   return (
     <Layout>

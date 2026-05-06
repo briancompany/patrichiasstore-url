@@ -7,7 +7,7 @@ export interface Product {
   id: string;
   name: string;
   school: string;
-  type: 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'tie' | 'dress' | 'fleece_jacket';
+  type: 'tshirt' | 'shirts' | 'tracksuit' | 'socks' | 'shorts' | 'trousers' | 'skirt' | 'sweater' | 'tie' | 'dress' | 'fleece_jacket' | 'other';
   image: string;
   sizes: ProductSize[];
   inStock: boolean;
