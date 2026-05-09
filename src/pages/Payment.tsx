@@ -65,6 +65,7 @@ export default function Payment() {
   const [pesapalTrackingId, setPesapalTrackingId] = useState<string | null>(null);
   const [pollingStatus, setPollingStatus] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pesapalSubmittingRef = useRef(false);
 
   const PAYBILL_NUMBER = '247247';
   const ACCOUNT_NUMBER = '0726075180';
@@ -260,6 +261,9 @@ export default function Payment() {
 
   const handlePesapalPayment = async () => {
     if (!orderDetails) return;
+    // Hard guard against double-submit (button disable + ref-lock)
+    if (pesapalSubmittingRef.current || isPesapalLoading) return;
+    pesapalSubmittingRef.current = true;
     setIsPesapalLoading(true);
 
     try {
@@ -297,6 +301,7 @@ export default function Payment() {
       toast.error('Failed to initiate payment. Please try M-Pesa Paybill instead.');
     } finally {
       setIsPesapalLoading(false);
+      pesapalSubmittingRef.current = false;
     }
   };
 
