@@ -61,6 +61,41 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Basic input validation to prevent abuse
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 1_000_000) {
+      return new Response(JSON.stringify({ error: "Invalid amount" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Idempotency: if order already paid, reject. If already has tracking, do not duplicate.
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("id, status, notes")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!existingOrder) {
+      return new Response(JSON.stringify({ error: "Order not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (existingOrder.status === "confirmed") {
+      return new Response(JSON.stringify({ error: "Order already paid" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const token = await getAuthToken();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -99,11 +134,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     await supabase
       .from("orders")
