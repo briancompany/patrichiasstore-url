@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://patrichiakavingostore.lovable.app/sitemap.xml
+Sitemap: https://patrichiasstore-url.vercel.app/sitemap.xml
