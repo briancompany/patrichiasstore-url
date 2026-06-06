@@ -37,10 +37,9 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
 
   const fetchReviews = async () => {
     const { data } = await supabase
-      .from('product_reviews')
+      .from('public_product_reviews' as any)
       .select('id, reviewer_name, rating, review_text, created_at')
       .eq('product_id', productId)
-      .eq('is_approved', true)
       .order('created_at', { ascending: false })
       .limit(10);
 
