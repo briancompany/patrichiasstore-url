@@ -743,6 +743,44 @@ export type Database = {
           },
         ]
       }
+      public_product_reviews: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          is_approved: boolean | null
+          product_id: string | null
+          rating: number | null
+          review_text: string | null
+          reviewer_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          product_id?: string | null
+          rating?: number | null
+          review_text?: string | null
+          reviewer_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          product_id?: string | null
+          rating?: number | null
+          review_text?: string | null
+          reviewer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }

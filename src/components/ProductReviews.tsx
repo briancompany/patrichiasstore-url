@@ -36,17 +36,17 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
   }, [productId]);
 
   const fetchReviews = async () => {
-    const { data } = await supabase
-      .from('product_reviews')
+    const { data } = await (supabase as any)
+      .from('public_product_reviews')
       .select('id, reviewer_name, rating, review_text, created_at')
       .eq('product_id', productId)
-      .eq('is_approved', true)
       .order('created_at', { ascending: false })
       .limit(10);
 
     if (data && data.length > 0) {
-      setReviews(data);
-      setAvgRating(data.reduce((s, r) => s + r.rating, 0) / data.length);
+      const rows = data as Review[];
+      setReviews(rows);
+      setAvgRating(rows.reduce((s, r) => s + r.rating, 0) / rows.length);
     }
   };
 
