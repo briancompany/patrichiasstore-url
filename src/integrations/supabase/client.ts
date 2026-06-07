@@ -2,12 +2,34 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
-  "https://jkdxlbkckpwzmhdaoaoo.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+const FALLBACK_SUPABASE_URL = "https://jkdxlbkckpwzmhdaoaoo.supabase.co";
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprZHhsYmtja3B3em1oZGFvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NzI2MDcsImV4cCI6MjA4NDA0ODYwN30.u7hEkXp0wsNBm8dGzMhq1AsPCdMWdte1_6PziiLFyOI";
+
+function isValidPublishableKey(key: string | undefined) {
+  if (!key) return false;
+
+  try {
+    const [, payload] = key.split('.');
+    if (!payload) return false;
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decodedPayload = JSON.parse(
+      atob(normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=')),
+    );
+
+    return decodedPayload.ref === 'jkdxlbkckpwzmhdaoaoo' && decodedPayload.role === 'anon';
+  } catch {
+    return false;
+  }
+}
+
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL === FALLBACK_SUPABASE_URL
+    ? import.meta.env.VITE_SUPABASE_URL
+    : FALLBACK_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = isValidPublishableKey(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  ? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  : FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
