@@ -41,7 +41,7 @@ if (missingEnvVars.length > 0) {
       if ("requestIdleCallback" in window) {
         window.requestIdleCallback(() => warmupEdgeFunctions());
       } else {
-        window.setTimeout(warmupEdgeFunctions, 2000);
+        globalThis.setTimeout(warmupEdgeFunctions, 2000);
       }
     });
   });
