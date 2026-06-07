@@ -8,8 +8,11 @@ export function warmupEdgeFunctions() {
   if (_warmedUp) return;
   _warmedUp = true;
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const projectId =
+    import.meta.env.VITE_SUPABASE_PROJECT_ID || "jkdxlbkckpwzmhdaoaoo";
+  const anonKey =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprZHhsYmtja3B3em1oZGFvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NzI2MDcsImV4cCI6MjA4NDA0ODYwN30.u7hEkXp0wsNBm8dGzMhq1AsPCdMWdte1_6PziiLFyOI";
   if (!projectId || !anonKey) return;
 
   const base = `https://${projectId}.supabase.co/functions/v1`;
