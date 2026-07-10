@@ -49,7 +49,7 @@ export function warmupEdgeFunctions() {
   fetch(`${base}/health-check`, { method: 'GET', headers }).catch(() => {});
 
   // For payment functions, send a minimal warmup body so they boot without doing real work
-  ['confirm-payment', 'pesapal-pay'].forEach((fn) => {
+  ['confirm-payment', 'pesapal-pay', 'staff-login'].forEach((fn) => {
     fetch(`${base}/${fn}`, {
       method: 'POST',
       headers,

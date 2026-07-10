@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   CreditCard,
   FileImage,
+  UserCog,
 } from 'lucide-react';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 
@@ -32,6 +33,7 @@ const navItems = [
   { name: 'Orders', path: '/admin/orders', icon: ClipboardList },
   { name: 'Payments', path: '/admin/payments', icon: CreditCard },
   { name: 'Users', path: '/admin/users', icon: Users },
+  { name: 'Staff', path: '/admin/staff', icon: UserCog },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
   { name: 'Store Content', path: '/admin/store-content', icon: FileImage },
   { name: 'Monitor', path: '/admin/monitor', icon: AlertTriangle },
