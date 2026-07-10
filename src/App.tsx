@@ -33,6 +33,9 @@ import AdminReviews from "./pages/admin/ReviewsManager";
 import AdminStoreContent from "./pages/admin/StoreContent";
 import Wishlist from "./pages/Wishlist";
 import OrderHistory from "./pages/OrderHistory";
+import StaffLogin from "./pages/staff/Login";
+import StaffDashboard from "./pages/staff/Dashboard";
+import AdminStaff from "./pages/admin/Staff";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +75,9 @@ const App = () => (
             <Route path="/admin/monitor" element={<AdminSystemMonitor />} />
             <Route path="/admin/reviews" element={<AdminReviews />} />
             <Route path="/admin/store-content" element={<AdminStoreContent />} />
+            <Route path="/admin/staff" element={<AdminStaff />} />
+            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/staff" element={<StaffDashboard />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />
