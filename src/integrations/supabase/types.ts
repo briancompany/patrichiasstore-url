@@ -630,6 +630,39 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_users: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          is_active: boolean
+          phone: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          is_active?: boolean
+          phone: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          is_active?: boolean
+          phone?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_subscribers: {
         Row: {
           created_at: string
@@ -807,6 +840,10 @@ export type Database = {
           total_amount: number
           tracking_code: string
         }[]
+      }
+      has_staff_role: {
+        Args: { _role: string; _uid: string }
+        Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
       upsert_order_contact_email: {
