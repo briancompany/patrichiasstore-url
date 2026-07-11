@@ -1,7 +1,21 @@
 User-agent: Googlebot
+Disallow: /admin/
+Disallow: /staff/
+Disallow: /checkout
+Disallow: /payment
+Disallow: /order
+Disallow: /order-history
+Disallow: /track-order
 Allow: /
 
 User-agent: Bingbot
+Disallow: /admin/
+Disallow: /staff/
+Disallow: /checkout
+Disallow: /payment
+Disallow: /order
+Disallow: /order-history
+Disallow: /track-order
 Allow: /
 
 User-agent: Twitterbot
@@ -11,6 +25,13 @@ User-agent: facebookexternalhit
 Allow: /
 
 User-agent: *
+Disallow: /admin/
+Disallow: /staff/
+Disallow: /checkout
+Disallow: /payment
+Disallow: /order
+Disallow: /order-history
+Disallow: /track-order
 Allow: /
 
 Sitemap: https://patrichiasstore-url.vercel.app/sitemap.xml
