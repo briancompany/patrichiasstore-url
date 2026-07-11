@@ -53,6 +53,39 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       delivery_zones: {
         Row: {
           created_at: string
@@ -573,6 +606,121 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      quotation_items: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          line_total: number
+          notes: string | null
+          product_id: string | null
+          product_name: string
+          quantity: number
+          quotation_id: string
+          size: string | null
+          unit_price: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          line_total: number
+          notes?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          quotation_id: string
+          size?: string | null
+          unit_price: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          line_total?: number
+          notes?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          quotation_id?: string
+          size?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_id: string | null
+          customer_name: string
+          customer_phone: string
+          discount: number
+          id: string
+          notes: string | null
+          quote_number: string
+          staff_name: string | null
+          staff_user_id: string
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name: string
+          customer_phone: string
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number?: string
+          staff_name?: string | null
+          staff_user_id: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          customer_phone?: string
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number?: string
+          staff_name?: string | null
+          staff_user_id?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       receipt_emails: {
         Row: {
