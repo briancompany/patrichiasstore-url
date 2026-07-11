@@ -36,6 +36,10 @@ import OrderHistory from "./pages/OrderHistory";
 import StaffLogin from "./pages/staff/Login";
 import StaffDashboard from "./pages/staff/Dashboard";
 import AdminStaff from "./pages/admin/Staff";
+import { lazy, Suspense } from "react";
+const QuotationNew = lazy(() => import("./pages/staff/QuotationNew"));
+const QuotationHistory = lazy(() => import("./pages/staff/QuotationHistory"));
+const StaffCustomers = lazy(() => import("./pages/staff/Customers"));
 
 const queryClient = new QueryClient();
 
@@ -78,6 +82,18 @@ const App = () => (
             <Route path="/admin/staff" element={<AdminStaff />} />
             <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/staff" element={<StaffDashboard />} />
+            <Route
+              path="/staff/quotations"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><QuotationHistory /></Suspense>}
+            />
+            <Route
+              path="/staff/quotations/new"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><QuotationNew /></Suspense>}
+            />
+            <Route
+              path="/staff/customers"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffCustomers /></Suspense>}
+            />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />

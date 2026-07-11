@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Package, Download, Heart } from 'lucide-react';
+import { Menu, X, User, Package, Download, Heart, Smartphone, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -131,6 +131,22 @@ export function Header() {
                     <User className="h-4 w-4" />
                     Admin Login
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/staff/login" className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    Staff Login
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    href="/downloads/patrichias-store.apk"
+                    download
+                    className="flex items-center gap-2"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    Download APK
+                  </a>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

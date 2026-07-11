@@ -16,10 +16,19 @@ export default function StaffLogin() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // If already signed in, go straight to staff dashboard
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate('/staff', { replace: true });
-    });
+    // Only redirect if session belongs to an active staff user.
+    // An admin session (non-staff) must NOT be bounced away from this page.
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user?.id;
+      if (!uid) return;
+      const { data: staffRow } = await supabase
+        .from('staff_users')
+        .select('user_id,is_active')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (staffRow?.is_active) navigate('/staff', { replace: true });
+    })();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
