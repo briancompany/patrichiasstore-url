@@ -40,6 +40,9 @@ import { lazy, Suspense } from "react";
 const QuotationNew = lazy(() => import("./pages/staff/QuotationNew"));
 const QuotationHistory = lazy(() => import("./pages/staff/QuotationHistory"));
 const StaffCustomers = lazy(() => import("./pages/staff/Customers"));
+const StaffPriceBook = lazy(() => import("./pages/staff/PriceBook"));
+const StaffReports = lazy(() => import("./pages/staff/Reports"));
+const StaffSettings = lazy(() => import("./pages/staff/Settings"));
 
 const queryClient = new QueryClient();
 
@@ -93,6 +96,18 @@ const App = () => (
             <Route
               path="/staff/customers"
               element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffCustomers /></Suspense>}
+            />
+            <Route
+              path="/staff/price-book"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffPriceBook /></Suspense>}
+            />
+            <Route
+              path="/staff/reports"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffReports /></Suspense>}
+            />
+            <Route
+              path="/staff/settings"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffSettings /></Suspense>}
             />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
