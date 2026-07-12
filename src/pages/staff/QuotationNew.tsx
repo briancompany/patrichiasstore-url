@@ -249,7 +249,7 @@ export default function QuotationNew() {
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Items</h2>
               <Button variant="outline" size="sm" onClick={addBlankLine}>
-                <Plus className="h-4 w-4 mr-1" /> Custom line
+                <Plus className="h-4 w-4 mr-1" /> Add New Product
               </Button>
             </div>
 
@@ -297,7 +297,7 @@ export default function QuotationNew() {
 
             <div className="space-y-2 pt-2">
               {items.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">No items yet — search above or add a custom line.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No items yet — search above or add a new product.</p>
               )}
               {items.map((it, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-2">
