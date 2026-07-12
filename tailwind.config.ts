@@ -28,7 +28,7 @@ export default {
   				'sans-serif'
   			],
   			serif: [
-  				'Lora',
+  				'Playfair Display',
   				'ui-serif',
   				'Georgia',
   				'Cambria',
@@ -73,6 +73,11 @@ export default {
   			accent: {
   				DEFAULT: 'hsl(var(--accent))',
   				foreground: 'hsl(var(--accent-foreground))'
+  			},
+  			gold: {
+  				DEFAULT: 'hsl(var(--gold))',
+  				foreground: 'hsl(var(--gold-foreground))',
+  				soft: 'hsl(var(--gold-soft))'
   			},
   			success: {
   				DEFAULT: 'hsl(var(--success))',
