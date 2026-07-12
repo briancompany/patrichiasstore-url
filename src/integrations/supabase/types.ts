@@ -667,6 +667,7 @@ export type Database = {
           discount: number
           id: string
           notes: string | null
+          pdf_path: string | null
           quote_number: string
           staff_name: string | null
           staff_user_id: string
@@ -685,6 +686,7 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          pdf_path?: string | null
           quote_number?: string
           staff_name?: string | null
           staff_user_id: string
@@ -703,6 +705,7 @@ export type Database = {
           discount?: number
           id?: string
           notes?: string | null
+          pdf_path?: string | null
           quote_number?: string
           staff_name?: string | null
           staff_user_id?: string
