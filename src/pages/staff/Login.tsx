@@ -9,6 +9,10 @@ import { toast } from 'sonner';
 import { normalizePhone, isValidKePhone } from '@/lib/phone';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 
+const SUPABASE_URL = 'https://jkdxlbkckpwzmhdaoaoo.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprZHhsYmtja3B3em1oZGFvYW9vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NzI2MDcsImV4cCI6MjA4NDA0ODYwN30.u7hEkXp0wsNBm8dGzMhq1AsPCdMWdte1_6PziiLFyOI';
+
 export default function StaffLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -44,11 +48,27 @@ export default function StaffLogin() {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('staff-login', {
-        body: { email: cleanEmail, phone: normalizePhone(phone) },
+      // Use direct fetch so we can read the JSON error body on non-2xx responses
+      // (supabase.functions.invoke swallows the body into a generic error).
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/staff-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email: cleanEmail, phone: normalizePhone(phone) }),
       });
-      if (error || !data?.ok || !data?.token_hash) {
-        toast.error(data?.error || error?.message || 'Login failed');
+      const data = await res.json().catch(() => ({} as { ok?: boolean; token_hash?: string; error?: string }));
+      if (!res.ok || !data?.ok || !data?.token_hash) {
+        const msg =
+          data?.error ||
+          (res.status === 401
+            ? 'Invalid email or phone. Contact your administrator.'
+            : res.status === 429
+            ? 'Too many attempts. Please wait a minute and try again.'
+            : 'Login failed. Please try again.');
+        toast.error(msg);
         return;
       }
       const { error: otpErr } = await supabase.auth.verifyOtp({
@@ -61,6 +81,8 @@ export default function StaffLogin() {
       }
       toast.success('Welcome back');
       navigate('/staff', { replace: true });
+    } catch (err) {
+      toast.error((err as Error)?.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }
