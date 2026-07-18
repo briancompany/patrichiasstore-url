@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,9 @@ const ADMIN_EMAIL = 'brianmuia777@gmail.com';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextParam = searchParams.get('next');
+  const safeNext = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
   const { signIn, isAdmin, user, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -25,9 +28,13 @@ export default function AdminLogin() {
   // Redirect if already logged in as admin
   useEffect(() => {
     if (!authLoading && user && isAdmin) {
-      navigate('/admin/dashboard');
+      if (safeNext) {
+        window.location.replace(safeNext);
+      } else {
+        navigate('/admin/dashboard');
+      }
     }
-  }, [user, isAdmin, authLoading, navigate]);
+  }, [user, isAdmin, authLoading, navigate, safeNext]);
 
   // Lockout timer countdown
   useEffect(() => {
@@ -103,7 +110,11 @@ export default function AdminLogin() {
     logAuditEvent('LOGIN_SUCCESS', 'Admin login successful', 'info');
     toast.success('Logged in successfully!');
     setFailedAttempts(0);
-    navigate('/admin/dashboard');
+    if (safeNext) {
+      window.location.replace(safeNext);
+    } else {
+      navigate('/admin/dashboard');
+    }
     setIsLoading(false);
   };
 
