@@ -36,6 +36,7 @@ import OrderHistory from "./pages/OrderHistory";
 import StaffLogin from "./pages/staff/Login";
 import StaffDashboard from "./pages/staff/Dashboard";
 import AdminStaff from "./pages/admin/Staff";
+import OAuthConsent from "./pages/OAuthConsent";
 import { lazy, Suspense } from "react";
 const QuotationNew = lazy(() => import("./pages/staff/QuotationNew"));
 const QuotationHistory = lazy(() => import("./pages/staff/QuotationHistory"));
@@ -111,6 +112,7 @@ const App = () => (
             />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
