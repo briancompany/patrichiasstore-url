@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { FlashSaleBanner } from '@/components/FlashSaleBanner';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { slugify } from '@/lib/slug';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { Product, CartItem } from '@/types/product';
@@ -163,31 +164,40 @@ export default function Shop() {
                 {filteredDbSchools.length > 0 && (
                   <div className="bg-background rounded-lg border divide-y">
                     {filteredDbSchools.map((school) => (
-                      <button
-                        key={school.id}
-                        onClick={() => handleGoToUniformShop()}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
-                      >
-                        {school.logo_url ? (
-                          <img
-                            src={school.logo_url}
-                            alt={school.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-primary font-bold">
-                              {school.name.charAt(0)}
-                            </span>
+                      <div key={school.id} className="relative">
+                        <button
+                          onClick={() => handleGoToUniformShop()}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
+                        >
+                          {school.logo_url ? (
+                            <img
+                              src={school.logo_url}
+                              alt={school.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span className="text-primary font-bold">
+                                {school.name.charAt(0)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium">{school.name}</p>
+                            <p className="text-xs text-muted-foreground">Tap to view uniforms</p>
                           </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium">{school.name}</p>
-                          <p className="text-xs text-muted-foreground">Click to view uniforms</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </button>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <Link
+                          to={`/uniform-shop/school/${slugify(school.name)}`}
+                          className="sr-only"
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        >
+                          {school.name} uniform
+                        </Link>
+                      </div>
                     ))}
                   </div>
                 )}
