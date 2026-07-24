@@ -9,6 +9,7 @@ import { InstallAppBanner } from "@/components/InstallAppBanner";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import UniformShop from "./pages/UniformShop";
+import SchoolUniformPage from "./pages/SchoolUniformPage";
 import Order from "./pages/Order";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/uniform-shop" element={<UniformShop />} />
+            <Route path="/uniform-shop/school/:schoolSlug" element={<SchoolUniformPage />} />
             <Route path="/order" element={<Order />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment" element={<Payment />} />
