@@ -760,14 +760,28 @@ export default function UniformShop() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
             ) : products.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">
-                    No uniforms available for this school yet.
+              <Card className="border-primary/20">
+                <CardContent className="py-10 px-6 text-center space-y-4">
+                  <Badge className="mx-auto">In Stock At Our Store</Badge>
+                  <p className="text-xl font-bold text-foreground">
+                    Yes! We supply {selectedSchool?.name} uniforms
                   </p>
-                  <Button variant="link" onClick={() => setStep('search')}>
-                    Try another school
-                  </Button>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Photos for this school aren't posted online yet, but our shelves at Uhuru Market are stocked and ready. Most orders are fitted and ready for pickup or delivery the same day you reach out — no need to wait.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <Button asChild size="lg">
+                      <a href="tel:+254726075180">
+                        Call / WhatsApp Now
+                      </a>
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={() => setStep('search')}>
+                      Try Another School
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Uhuru Market, Store F47, Jogoo Road, Nairobi &middot; Open Mon&ndash;Sat, 8am&ndash;6pm
+                  </p>
                 </CardContent>
               </Card>
             ) : (
