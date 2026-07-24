@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart } from 'lucide-react';
@@ -77,6 +78,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <div>
           <h3 className="font-semibold text-lg text-foreground">{product.name}</h3>
           <p className="text-sm text-muted-foreground">{typeLabels[product.type]}</p>
+          <Link
+            to={`/shop/product/${product.id}`}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+          >
+            {product.name} school uniform
+          </Link>
         </div>
 
         {/* Out of stock notification */}
