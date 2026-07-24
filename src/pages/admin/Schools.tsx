@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +74,61 @@ export default function AdminSchools() {
   const [showLogoCreator, setShowLogoCreator] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('schools');
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+
+  const handleBulkImport = async () => {
+    const rawLines = bulkText
+      .split('\n')
+      .map((line) => line.split(',')[0].trim())
+      .filter((name) => name.length > 0 && name.toLowerCase() !== 'school name');
+
+    const uniqueNames = Array.from(new Set(rawLines));
+
+    if (uniqueNames.length === 0) {
+      toast.error('Paste at least one school name first');
+      return;
+    }
+
+    setIsBulkImporting(true);
+    try {
+      const existingNames = new Set(schools.map((s) => s.name.toLowerCase()));
+      const toInsert = uniqueNames
+        .filter((name) => !existingNames.has(name.toLowerCase()))
+        .map((name) => ({ name }));
+
+      if (toInsert.length === 0) {
+        toast.info('All those schools are already in your system');
+        setIsBulkImporting(false);
+        return;
+      }
+
+      const { error } = await supabase.from('schools').insert(toInsert);
+      if (error) throw error;
+
+      toast.success(`Added ${toInsert.length} schools (${uniqueNames.length - toInsert.length} were already in your system)`);
+      setBulkText('');
+      setBulkDialogOpen(false);
+      await fetchSchools();
+    } catch (error) {
+      console.error('Error bulk importing schools:', error);
+      toast.error('Error importing schools');
+    } finally {
+      setIsBulkImporting(false);
+    }
+  };
+
+  const handleCSVFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setBulkText(text);
+    };
+    reader.readAsText(file);
+  };
 
   // Check for pre-filled data from order creation
   useEffect(() => {
@@ -398,14 +454,54 @@ export default function AdminSchools() {
             <h1 className="text-3xl font-bold text-foreground">Schools & Products</h1>
             <p className="text-muted-foreground">Manage schools, logos and general products</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add School
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="flex gap-2">
+            <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Bulk Import
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Bulk Import Schools</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Paste school names below (one per line), or upload a CSV file. Only the school name is needed — extra columns are ignored.
+                  </p>
+                  <div>
+                    <Label htmlFor="csvUpload">Upload CSV file</Label>
+                    <Input id="csvUpload" type="file" accept=".csv,.txt" onChange={handleCSVFileUpload} />
+                  </div>
+                  <div>
+                    <Label htmlFor="bulkText">Or paste names here</Label>
+                    <Textarea
+                      id="bulkText"
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                      placeholder={'Pangani Girls High School\nStarehe Boys Centre\nBuruburu I Primary School'}
+                      rows={10}
+                    />
+                  </div>
+                  <Button onClick={handleBulkImport} disabled={isBulkImporting} className="w-full">
+                    {isBulkImporting ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importing...</>
+                    ) : (
+                      'Import Schools'
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => resetForm()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add School
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingSchool ? 'Edit School' : pendingOrderId ? 'Create School Profile from Order' : 'Add New School'}
@@ -489,8 +585,9 @@ export default function AdminSchools() {
                   </Button>
                 </div>
               </form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Tabs for Schools and General Products */}
