@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
+import { Link } from 'react-router-dom';
+import { slugify } from '@/lib/slug';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
 import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
@@ -430,30 +432,40 @@ export default function UniformShop() {
                 </CardHeader>
                 <CardContent className="p-2">
                   {searchResults.map((school) => (
-                    <button
-                      key={school.id}
-                      onClick={() => handleSchoolSelect(school)}
-                      className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
-                    >
-                      {school.logo_url ? (
-                        <img
-                          src={school.logo_url}
-                          alt={school.name}
-                          className="w-12 h-12 rounded-full object-cover bg-muted"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <School className="h-5 w-5 text-primary" />
+                    <div key={school.id} className="relative">
+                      <button
+                        onClick={() => handleSchoolSelect(school)}
+                        className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-muted transition-colors text-left"
+                      >
+                        {school.logo_url ? (
+                          <img
+                            src={school.logo_url}
+                            alt={school.name}
+                            className="w-12 h-12 rounded-full object-cover bg-muted"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            <School className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-semibold">{school.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Tap to view uniforms
+                          </p>
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <p className="font-semibold">{school.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Click to view uniforms
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </button>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      {/* Crawlable link for Google — hidden visually but discoverable by crawlers */}
+                      <Link
+                        to={`/uniform-shop/school/${slugify(school.name)}`}
+                        className="sr-only"
+                        tabIndex={-1}
+                        aria-hidden="true"
+                      >
+                        {school.name} uniform
+                      </Link>
+                    </div>
                   ))}
                 </CardContent>
               </Card>
