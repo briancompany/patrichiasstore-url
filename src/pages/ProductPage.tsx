@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Phone, ArrowLeft, ShoppingCart } from 'lucide-react';
+import { ShopPriceChart } from '@/components/ShopPriceChart';
 
 interface ProductSize {
   size: string;
@@ -219,6 +220,7 @@ export default function ProductPage() {
             </Card>
           </div>
         </div>
+        <ShopPriceChart />
       </div>
     </Layout>
   );
