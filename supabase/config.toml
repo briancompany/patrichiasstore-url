@@ -6,9 +6,6 @@ verify_jwt = true
 [functions.generate-logo]
 verify_jwt = true
 
-[functions.search-school]
-verify_jwt = true
-
 [functions.send-receipt-email]
 verify_jwt = true
 
@@ -24,6 +21,5 @@ verify_jwt = false
 [functions.pesapal-status]
 verify_jwt = false
 
-verify_jwt = false
 [functions.generate-sitemap]
 verify_jwt = false
