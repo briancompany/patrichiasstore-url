@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Phone, ArrowLeft } from 'lucide-react';
 import { slugify } from '@/lib/slug';
+import { ShopPriceChart } from '@/components/ShopPriceChart';
 
 interface ProductSize {
   size: string;
@@ -214,6 +215,7 @@ export default function SchoolUniformPage() {
             </div>
           </div>
         )}
+        <ShopPriceChart />
       </div>
     </Layout>
   );
