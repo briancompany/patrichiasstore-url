@@ -34,4 +34,4 @@ Disallow: /order-history
 Disallow: /track-order
 Allow: /
 
-Sitemap: https://patrichiasstore-url.vercel.app/sitemap.xml
+Sitemap: https://jkdxlbkckpwzmhdaoaoo.supabase.co/functions/v1/generate-sitemap
