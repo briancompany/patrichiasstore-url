@@ -102,9 +102,19 @@ export function Footer() {
                 </div>
               </div>
               <p className="text-xs text-primary-foreground/60 mb-3 text-center">
-                I create clean, fast, and user-friendly websites that help businesses grow and operate smoothly online.
+                Need a website or custom business system? Contact the developer:{' '}
+                <a href="tel:0113867444" className="font-medium text-primary-foreground/90 hover:underline">
+                  0113867444
+                </a>
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-sm">
+                <a
+                  href="tel:0113867444"
+                  className="flex items-center gap-1 text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                >
+                  <Phone className="h-4 w-4" />
+                  0113867444
+                </a>
                 <a 
                   href="mailto:brianmutie777@gmail.com" 
                   className="flex items-center gap-1 text-primary-foreground/80 hover:text-primary-foreground transition-colors"
