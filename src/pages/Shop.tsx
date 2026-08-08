@@ -1,12 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { FlashSaleBanner } from '@/components/FlashSaleBanner';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { slugify } from '@/lib/slug';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { Product, CartItem } from '@/types/product';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -16,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
-import { useGeneralProducts, useSchoolsList } from '@/hooks/useProductCache';
+import { useGeneralProducts } from '@/hooks/useProductCache';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import { ShoppingCart, X, Search, ChevronRight, Package, Clock } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
