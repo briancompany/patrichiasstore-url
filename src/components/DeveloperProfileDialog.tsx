@@ -6,7 +6,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Mail, MapPin, Code, Briefcase, CheckCircle } from 'lucide-react';
+import { Mail, MapPin, Code, Briefcase, CheckCircle, Phone, MessageCircle } from 'lucide-react';
+
+const DEV_PHONE = '0113867444';
+const DEV_WHATSAPP = '254113867444';
 
 interface DeveloperProfileDialogProps {
   trigger?: React.ReactNode;
@@ -85,6 +88,24 @@ export function DeveloperProfileDialog({ trigger }: DeveloperProfileDialogProps)
           </div>
           
           <div className="bg-muted rounded-lg p-4 space-y-2">
+            <a
+              href={`tel:${DEV_PHONE}`}
+              className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+            >
+              <Phone className="h-4 w-4" />
+              {DEV_PHONE}
+            </a>
+            <a
+              href={`https://wa.me/${DEV_WHATSAPP}?text=${encodeURIComponent(
+                'Hello Brian, I would like to discuss a website / business system project.'
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Chat on WhatsApp
+            </a>
             <a 
               href="mailto:brianmutie777@gmail.com" 
               className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
