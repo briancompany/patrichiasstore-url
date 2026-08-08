@@ -27,11 +27,7 @@ export default function Shop() {
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('type') || 'all');
   const [cart, setCart] = useState<CartItem[]>(() => storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
   const [showCart, setShowCart] = useState(false);
-  const [schoolSearch, setSchoolSearch] = useState('');
-  const [showSchoolSearch, setShowSchoolSearch] = useState(false);
-
   // Shared cached hooks — no duplicate API calls
-  const dbSchools = useSchoolsList();
   const { products: rawGeneralProducts, loaded: generalLoaded } = useGeneralProducts();
 
   // Map DB products to the Product type used by ProductCard
@@ -47,14 +43,6 @@ export default function Shop() {
       description: p.description || undefined,
     }));
   }, [rawGeneralProducts]);
-
-  // Filter database schools based on search (client-side only)
-  const filteredDbSchools = useMemo(() => {
-    if (!schoolSearch.trim()) return [];
-    return dbSchools.filter((school) =>
-      school.name.toLowerCase().includes(schoolSearch.toLowerCase())
-    );
-  }, [dbSchools, schoolSearch]);
 
   const filteredProducts = useMemo(() => {
     return generalProducts.filter((product) => {
@@ -97,8 +85,6 @@ export default function Shop() {
 
   const handleGoToUniformShop = () => {
     navigate('/uniform-shop');
-    setShowSchoolSearch(false);
-    setSchoolSearch('');
   };
 
   const typeLabels: Record<string, string> = {
