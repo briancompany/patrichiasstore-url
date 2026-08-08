@@ -46,6 +46,8 @@ const StaffCustomers = lazy(() => import("./pages/staff/Customers"));
 const StaffPriceBook = lazy(() => import("./pages/staff/PriceBook"));
 const StaffReports = lazy(() => import("./pages/staff/Reports"));
 const StaffSettings = lazy(() => import("./pages/staff/Settings"));
+const StaffProducts = lazy(() => import("./pages/staff/Products"));
+const StaffOrders = lazy(() => import("./pages/staff/Orders"));
 
 const queryClient = new QueryClient();
 
@@ -109,6 +111,14 @@ const App = () => (
             <Route
               path="/staff/reports"
               element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffReports /></Suspense>}
+            />
+            <Route
+              path="/staff/products"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffProducts /></Suspense>}
+            />
+            <Route
+              path="/staff/orders"
+              element={<Suspense fallback={<div className="p-10 text-center">Loading…</div>}><StaffOrders /></Suspense>}
             />
             <Route
               path="/staff/settings"

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { Link } from 'react-router-dom';
@@ -16,6 +16,13 @@ import { slugify } from '@/lib/slug';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
 import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
+
+const STORE_PHONE = '0726075180';
+const STORE_WHATSAPP = '254726075180';
+
+function schoolEnquiryMessage(schoolName: string) {
+  return `Hello Patrichia's Store,\n\nI would like to enquire about school uniforms for *${schoolName}*.\n\nPlease share available items, sizes and prices. Thank you.`;
+}
 
 interface ProductSize {
   size: string;
@@ -456,6 +463,30 @@ export default function UniformShop() {
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </button>
+                      <div className="flex items-center gap-2 px-4 pb-3 -mt-1">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 gap-2 border-whatsapp/40 text-whatsapp hover:bg-whatsapp hover:text-whatsapp-foreground"
+                        >
+                          <a
+                            href={`https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(schoolEnquiryMessage(school.name))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Enquire on WhatsApp about ${school.name} uniforms`}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            WhatsApp
+                          </a>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="flex-1 gap-2">
+                          <a href={`tel:${STORE_PHONE}`} aria-label={`Call the store about ${school.name} uniforms`}>
+                            <Phone className="h-4 w-4" />
+                            Call
+                          </a>
+                        </Button>
+                      </div>
                       {/* Crawlable link for Google — hidden visually but discoverable by crawlers */}
                       <Link
                         to={`/uniform-shop/school/${slugify(school.name)}`}

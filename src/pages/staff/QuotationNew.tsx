@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Trash2, Plus, ArrowLeft, Save } from 'lucide-react';
+import { Trash2, Plus, Save } from 'lucide-react';
+import { StaffLayout } from '@/components/layout/StaffLayout';
 import { toast } from 'sonner';
 import { normalizePhone, isValidKePhone } from '@/lib/phone';
 import { downloadQuotation, printQuotation, whatsappQuotation, type QuotationPDFData } from '@/lib/quotation-pdf';
-import { Link } from 'react-router-dom';
 
 interface Line {
   product_id?: string | null;
@@ -208,18 +208,8 @@ export default function QuotationNew() {
   }
 
   return (
-    <div className="min-h-screen bg-muted pb-32">
-      <header className="bg-card border-b border-border sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/staff" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Link>
-          <h1 className="font-semibold">New Quotation</h1>
-          <div className="w-16" />
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <StaffLayout title="New Quotation">
+      <div className="pb-28 space-y-6">
         <Card>
           <CardContent className="p-4 space-y-3">
             <h2 className="font-semibold">Customer</h2>
@@ -366,7 +356,7 @@ export default function QuotationNew() {
             </div>
           </CardContent>
         </Card>
-      </main>
+      </div>
 
       <div className="fixed bottom-0 inset-x-0 bg-card border-t p-3 z-30">
         <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-end">
@@ -378,6 +368,6 @@ export default function QuotationNew() {
           <Button disabled={saving} onClick={() => handleSave('whatsapp')}>Save & Send WhatsApp</Button>
         </div>
       </div>
-    </div>
+    </StaffLayout>
   );
 }

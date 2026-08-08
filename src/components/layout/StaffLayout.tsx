@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   MessageCircle,
+  Package,
+  ClipboardList,
 } from 'lucide-react';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 import { Button } from '@/components/ui/button';
@@ -25,7 +27,9 @@ const NAV = [
   { to: '/staff/quotations/new', label: 'New Quotation', icon: FilePlus },
   { to: '/staff/quotations', label: 'Quotation History', icon: History },
   { to: '/staff/price-book', label: 'Price Book', icon: BookOpen },
+  { to: '/staff/products', label: 'Products', icon: Package },
   { to: '/staff/customers', label: 'Customers', icon: Users },
+  { to: '/staff/orders', label: 'Orders', icon: ClipboardList },
   { to: '/staff/reports', label: 'Reports', icon: BarChart3 },
   { to: '/staff/settings', label: 'Settings', icon: SettingsIcon },
 ];
@@ -56,99 +60,97 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
   }
 
   return (
-    <div className="min-h-screen bg-muted">
-      {/* Top bar */}
-      <header className="bg-primary text-primary-foreground border-b-2 border-gold sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <Link to="/staff" className="flex items-center gap-3 min-w-0">
-            <img src={storeLogo} alt="Patrichia's Store" className="h-9 w-9 rounded object-contain bg-white/5 p-0.5" />
-            <div className="min-w-0">
-              <p className="font-serif text-gold leading-tight truncate">Patrichia's Store</p>
-              <p className="text-[10px] tracking-[0.2em] uppercase opacity-70 truncate">Staff Portal · {staff?.full_name}</p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-primary-foreground hover:bg-white/10 hidden sm:inline-flex"
+    <div className="min-h-screen bg-muted md:flex">
+      {/* Mobile drawer backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed z-50 inset-y-0 left-0 w-[262px] bg-primary text-primary-foreground border-r border-gold/30 flex flex-col transition-transform duration-200 md:translate-x-0 md:sticky md:top-0 md:h-screen md:shrink-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <Link to="/staff" className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
+          <img
+            src={storeLogo}
+            alt="Patrichia's Store"
+            className="h-11 w-11 rounded-lg object-contain bg-white/5 p-1 ring-1 ring-gold/40"
+          />
+          <div className="min-w-0">
+            <p className="font-serif text-gold leading-tight truncate">Patrichia's Store</p>
+            <p className="text-[10px] tracking-[0.2em] uppercase opacity-70 truncate">Staff Portal</p>
+          </div>
+        </Link>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) =>
+                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                  isActive
+                    ? 'bg-gold text-primary font-semibold shadow'
+                    : 'text-primary-foreground/80 hover:bg-white/10 hover:text-gold'
+                }`
+              }
             >
-              <LogOut className="h-4 w-4 mr-1" /> Sign out
-            </Button>
+              <n.icon className="h-[18px] w-[18px] shrink-0" />
+              <span className="truncate">{n.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="px-3 py-4 border-t border-white/10">
+          <p className="px-3 pb-2 text-[11px] text-primary-foreground/60 truncate">
+            {staff?.full_name}
+          </p>
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-primary-foreground/80 hover:bg-white/10 hover:text-gold"
+          >
+            <LogOut className="h-[18px] w-[18px]" /> Sign Out
+          </button>
+        </div>
+      </aside>
+
+      {/* Content column */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-30 bg-primary/95 backdrop-blur text-primary-foreground border-b-2 border-gold">
+          <div className="px-4 py-3 flex items-center gap-3">
             <button
-              className="md:hidden text-gold p-2 -mr-2"
+              className="md:hidden text-gold p-2 -ml-2"
               onClick={() => setOpen((v) => !v)}
               aria-label="Toggle menu"
             >
               {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
-          </div>
-        </div>
-
-        {/* Desktop nav bar */}
-        <nav className="hidden md:block border-t border-white/10 bg-primary/95">
-          <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 overflow-x-auto">
-            {NAV.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-colors ${
-                    isActive
-                      ? 'text-gold border-gold'
-                      : 'text-primary-foreground/80 border-transparent hover:text-gold'
-                  }`
-                }
-              >
-                <n.icon className="h-4 w-4" />
-                {n.label}
-              </NavLink>
-            ))}
-          </div>
-        </nav>
-
-        {/* Mobile nav drawer */}
-        {open && (
-          <nav className="md:hidden border-t border-white/10 bg-primary animate-fade-in">
-            <div className="px-4 py-2 grid grid-cols-1 gap-1">
-              {NAV.map((n) => (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  end={n.end}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-3 rounded-md text-sm ${
-                      isActive ? 'bg-gold text-primary' : 'text-primary-foreground/90 hover:bg-white/10'
-                    }`
-                  }
-                >
-                  <n.icon className="h-4 w-4" />
-                  {n.label}
-                </NavLink>
-              ))}
-              <button
-                onClick={signOut}
-                className="flex items-center gap-3 px-3 py-3 rounded-md text-sm text-primary-foreground/90 hover:bg-white/10 text-left"
-              >
-                <LogOut className="h-4 w-4" /> Sign out
-              </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] tracking-[0.25em] uppercase text-gold/80">Staff Portal</p>
+              <h1 className="font-serif text-lg md:text-xl text-gold truncate">
+                {title || 'Dashboard'}
+              </h1>
             </div>
-          </nav>
-        )}
-      </header>
-
-      {title && (
-        <div className="bg-primary text-primary-foreground">
-          <div className="max-w-7xl mx-auto px-4 pb-6">
-            <span className="gold-pill mt-2">Staff Portal</span>
-            <h1 className="font-serif text-3xl md:text-4xl text-gold mt-3">{title}</h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-primary-foreground hover:bg-white/10 hidden md:inline-flex"
+            >
+              <LogOut className="h-4 w-4 mr-1" /> Sign Out
+            </Button>
           </div>
-        </div>
-      )}
+        </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+        <main className="flex-1 px-4 py-6 max-w-7xl w-full mx-auto">{children}</main>
+      </div>
 
       <a
         href={`https://wa.me/${STORE_WHATSAPP}`}

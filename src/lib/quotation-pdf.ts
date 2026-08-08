@@ -258,14 +258,16 @@ export async function openQuotationPDF(q: QuotationPDFData) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-export function whatsappQuotationLink(q: QuotationPDFData, downloadUrl: string) {
+const STORE_SITE_URL = 'https://patrichiasstore-url.vercel.app/';
+
+export function whatsappQuotationLink(q: QuotationPDFData, _downloadUrl?: string) {
   const phone = String(q.customer_phone).replace(/[^0-9]/g, '');
   const to = phone.startsWith('254') ? phone : '254' + phone.replace(/^0/, '');
   const msg =
     `Hello ${q.customer_name}, here is your quotation *${q.quote_number}* from ${STORE_NAME}.%0A%0A` +
     `Total: Ksh ${q.total.toLocaleString()}%0A` +
     (q.valid_until ? `Valid until: ${new Date(q.valid_until).toLocaleDateString()}%0A` : '') +
-    `%0ADownload your PDF here:%0A${encodeURIComponent(downloadUrl)}%0A%0ATo order, call ${STORE_PHONE}.`;
+    `%0AView & download here:%0A${encodeURIComponent(STORE_SITE_URL)}%0A%0ATo order, call ${STORE_PHONE}.`;
   window.open(`https://wa.me/${to}?text=${msg}`, '_blank');
 }
 

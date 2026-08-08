@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStaffAuth } from '@/hooks/useStaffAuth';
+import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, FileText, Trash2, Download, Printer, MessageCircle, Search, Plus } from 'lucide-react';
+import { FileText, Trash2, Download, Printer, MessageCircle, Search, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadQuotation, printQuotation, whatsappQuotation, type QuotationPDFData } from '@/lib/quotation-pdf';
 
@@ -93,20 +94,13 @@ export default function QuotationHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-muted">
-      <header className="bg-card border-b border-border sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/staff" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </Link>
-          <h1 className="font-semibold">Quotations</h1>
+    <StaffLayout title="Quotation History">
+      <div className="space-y-4">
+        <div className="flex justify-end">
           <Link to="/staff/quotations/new">
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New</Button>
+            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Quotation</Button>
           </Link>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -159,7 +153,7 @@ export default function QuotationHistory() {
             <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </StaffLayout>
   );
 }

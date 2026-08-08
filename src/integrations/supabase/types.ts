@@ -344,6 +344,7 @@ export type Database = {
           notes: string | null
           scheduled_delivery_date: string | null
           status: Database["public"]["Enums"]["order_status"]
+          stock_deducted: boolean
           total_amount: number
           updated_at: string
         }
@@ -361,6 +362,7 @@ export type Database = {
           notes?: string | null
           scheduled_delivery_date?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_deducted?: boolean
           total_amount?: number
           updated_at?: string
         }
@@ -378,6 +380,7 @@ export type Database = {
           notes?: string | null
           scheduled_delivery_date?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_deducted?: boolean
           total_amount?: number
           updated_at?: string
         }
@@ -967,6 +970,11 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_product_stock: {
+        Args: { _delta: number; _product_id: string }
+        Returns: number
+      }
+      deduct_order_stock: { Args: { _order_id: string }; Returns: boolean }
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }
       get_order_history_by_phone: {
         Args: { _phone: string }
@@ -997,6 +1005,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      set_product_stock: {
+        Args: { _product_id: string; _quantity: number }
+        Returns: number
+      }
       upsert_order_contact_email: {
         Args: {
           _customer_email: string

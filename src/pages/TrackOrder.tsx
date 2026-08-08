@@ -41,8 +41,11 @@ export default function TrackOrder() {
       return;
     }
 
-    if (!/^([A-Z0-9]{6,10}|PS-[A-Z0-9]{6,10})$/.test(searchCode)) {
-      toast.error('Use 6–10 letters/numbers (example: PS-ABC123 or ABC123)');
+    const isUuid = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(searchCode);
+    const isCode = /^(PS-)?[A-Z0-9]{4,16}$/.test(searchCode);
+
+    if (!isUuid && !isCode) {
+      toast.error('Enter a tracking code (PS-ABC123) or your full Order ID');
       return;
     }
 
@@ -186,14 +189,16 @@ export default function TrackOrder() {
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="text-center">
             <h1 className="text-3xl font-bold mb-2">Track Your Order</h1>
-            <p className="text-muted-foreground">Enter your tracking code to check your order status</p>
+            <p className="text-muted-foreground">
+              Enter your tracking code or Order ID — orders never expire, old ones included
+            </p>
           </div>
 
           <Card>
             <CardContent className="pt-6">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Enter tracking code (e.g., PS-ABC123)"
+                  placeholder="Tracking code (PS-ABC123) or Order ID"
                   value={trackingCode}
                   onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -202,6 +207,12 @@ export default function TrackOrder() {
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Lost your code?{' '}
+                <Link to="/order-history" className="text-primary underline">
+                  Find all your orders by phone number
+                </Link>
+              </p>
             </CardContent>
           </Card>
 
@@ -210,6 +221,13 @@ export default function TrackOrder() {
               <CardContent className="py-8 text-center">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-semibold text-lg mb-2">Order Not Found</h3>
+                <p className="text-sm text-muted-foreground">
+                  Double-check the code, or{' '}
+                  <Link to="/order-history" className="text-primary underline">
+                    search all your orders by phone number
+                  </Link>
+                  .
+                </p>
               </CardContent>
             </Card>
           )}
