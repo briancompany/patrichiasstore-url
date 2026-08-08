@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useStaffAuth } from '@/hooks/useStaffAuth';
+import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Search, Users, MessageCircle } from 'lucide-react';
+import { Search, Users, MessageCircle } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -49,15 +50,8 @@ export default function StaffCustomers() {
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
   return (
-    <div className="min-h-screen bg-muted">
-      <header className="bg-card border-b sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/staff" className="flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="h-4 w-4" /> Back</Link>
-          <h1 className="font-semibold">Customers</h1>
-          <div className="w-16" />
-        </div>
-      </header>
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+    <StaffLayout title="Customers">
+      <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search name, phone or email" value={search} onChange={(e) => { setPage(0); setSearch(e.target.value); }} />
@@ -90,7 +84,7 @@ export default function StaffCustomers() {
             <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </StaffLayout>
   );
 }
