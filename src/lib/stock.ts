@@ -12,7 +12,14 @@ export interface StockInfo {
  * genuinely low, otherwise we keep it vague to avoid revealing inventory.
  */
 export function getStockInfo(quantity: number | null | undefined, inStock = true): StockInfo {
-  const qty = Number.isFinite(Number(quantity)) ? Math.max(0, Number(quantity)) : 0;
+  // Unknown quantity (e.g. generated/custom items): fall back to the in_stock flag.
+  if (quantity === null || quantity === undefined || !Number.isFinite(Number(quantity))) {
+    return inStock
+      ? { status: 'ok', label: 'In stock', orderable: true, max: Number.POSITIVE_INFINITY }
+      : { status: 'out', label: 'SOLD OUT', orderable: false, max: 0 };
+  }
+
+  const qty = Math.max(0, Number(quantity));
 
   if (!inStock || qty <= 0) {
     return { status: 'out', label: 'SOLD OUT', orderable: false, max: 0 };
