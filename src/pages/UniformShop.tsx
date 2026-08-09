@@ -38,6 +38,7 @@ interface Product {
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
+  stock_quantity?: number | null;
   school_id: string | null;
   schools?: { id: string; name: string; logo_url: string | null } | null;
 }
@@ -134,7 +135,6 @@ export default function UniformShop() {
       .from('products')
       .select('*, schools(id, name, logo_url)')
       .eq('school_id', schoolId)
-      .eq('in_stock', true)
       .order('type');
 
     if (error) {
@@ -243,6 +243,10 @@ export default function UniformShop() {
 
   const handleAddToCart = async () => {
     if (!currentProduct || !selectedSize) return;
+    if (!getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable) {
+      toast.error('This item is sold out. Message or call us to reserve yours.');
+      return;
+    }
 
     let sampleImageUrl: string | null = null;
     if (sampleImage) {
