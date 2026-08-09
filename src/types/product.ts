@@ -12,6 +12,7 @@ export interface Product {
   sizes: ProductSize[];
   inStock: boolean;
   description?: string;
+  stockQuantity?: number;
 }
 
 export interface CartItem {

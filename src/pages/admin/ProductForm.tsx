@@ -64,6 +64,7 @@ export default function ProductForm() {
     description: '',
     image_url: '',
     in_stock: true,
+    stock_quantity: 0,
     sizes: [{ size: 'M', price: 500, stock: 10 }] as SizePrice[],
   });
 
@@ -98,6 +99,7 @@ export default function ProductForm() {
       description: data.description || '',
       image_url: data.image_url || '',
       in_stock: data.in_stock,
+      stock_quantity: Number(data.stock_quantity ?? 0),
       sizes: sizesData,
     });
 
@@ -161,6 +163,7 @@ export default function ProductForm() {
         description: formData.description || null,
         image_url: imageUrl || null,
         in_stock: formData.in_stock,
+        stock_quantity: Math.max(0, Number(formData.stock_quantity) || 0),
         sizes: JSON.parse(JSON.stringify(formData.sizes)),
       };
 
@@ -309,6 +312,25 @@ export default function ProductForm() {
                   onCheckedChange={(checked) => setFormData({ ...formData, in_stock: checked })}
                 />
                 <Label htmlFor="in_stock">In Stock</Label>
+              </div>
+
+              <div>
+                <Label htmlFor="stock_quantity">Stock quantity (pieces available)</Label>
+                <Input
+                  id="stock_quantity"
+                  inputMode="numeric"
+                  value={String(formData.stock_quantity)}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      stock_quantity: parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0,
+                    })
+                  }
+                  placeholder="e.g. 299"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Stock reduces automatically after a confirmed payment. At 0 the item shows “Sold out” and cannot be ordered.
+                </p>
               </div>
             </CardContent>
           </Card>
