@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
+import { getStockInfo } from '@/lib/stock';
+import { StockBadge } from '@/components/StockBadge';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { Link } from 'react-router-dom';
 import { slugify } from '@/lib/slug';
