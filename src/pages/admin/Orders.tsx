@@ -24,6 +24,7 @@ import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, A
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { toast } from 'sonner';
+import { printReceiptPDF } from '@/lib/receipt-pdf';
 
 interface OrderItem {
   id: string;
@@ -225,60 +226,30 @@ export default function AdminOrders() {
     }
   };
 
-  const printReceipt = (order: Order) => {
-    const printContent = `
-      <html>
-        <head>
-          <title>Order Receipt - ${order.id.slice(0, 8)}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
-            h1 { font-size: 18px; text-align: center; margin-bottom: 5px; }
-            h2 { font-size: 14px; text-align: center; margin-top: 0; color: #666; }
-            .divider { border-top: 1px dashed #ccc; margin: 15px 0; }
-            .row { display: flex; justify-content: space-between; margin: 5px 0; }
-            .items { margin: 15px 0; }
-            .item { margin: 10px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; }
-            .total { font-weight: bold; font-size: 16px; }
-            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            .new-school { background: #FEF3C7; padding: 10px; border-radius: 4px; margin: 10px 0; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <h1>Patrichia's Store</h1>
-          <h2>Uhuru Market, Store F47</h2>
-          ${order.is_new_school ? '<div class="new-school">⚠️ New School - Setup Required</div>' : ''}
-          <div class="divider"></div>
-          <div class="row"><span>Order ID:</span><span>${order.id.slice(0, 8).toUpperCase()}</span></div>
-          <div class="row"><span>Date:</span><span>${new Date(order.created_at).toLocaleDateString()}</span></div>
-          <div class="row"><span>Customer:</span><span>${order.customer_name}</span></div>
-          <div class="row"><span>Phone:</span><span>${order.customer_phone}</span></div>
-          <div class="row"><span>School:</span><span>${order.customer_school || 'N/A'}</span></div>
-          ${order.delivery_type === 'delivery' ? `<div class="row"><span>Delivery:</span><span>${order.delivery_location}</span></div>` : '<div class="row"><span>Pickup:</span><span>Store F47</span></div>'}
-          <div class="divider"></div>
-          <div class="items">
-            ${order.order_items?.map((item) => `
-              <div class="item">
-                <div class="row"><strong>${item.product_name}</strong></div>
-                <div class="row"><span>Size: ${item.size} × ${item.quantity}</span><span>Ksh ${item.price_at_purchase.toLocaleString()}</span></div>
-                ${item.printing_required ? '<div class="row"><span>🖨️ Logo printing required</span></div>' : ''}
-              </div>
-            `).join('') || ''}
-          </div>
-          <div class="divider"></div>
-          <div class="row total"><span>TOTAL:</span><span>Ksh ${order.total_amount.toLocaleString()}</span></div>
-          <div class="footer">
-            <p>Thank you for shopping with us!</p>
-            <p>+254 700 000 000</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
+  const printReceipt = async (order: Order) => {
+    try {
+      await printReceiptPDF({
+        order_id: order.id,
+        customer_name: order.customer_name,
+        customer_phone: order.customer_phone,
+        customer_school: order.customer_school,
+        date: order.created_at,
+        status: order.status === 'completed' ? 'COMPLETED' : order.status === 'confirmed' ? 'PAID' : order.status.toUpperCase(),
+        delivery_type: order.delivery_type,
+        delivery_location: order.delivery_location,
+        total: order.total_amount,
+        note: order.is_new_school ? 'New school — uniform setup required before fulfilment.' : null,
+        items: (order.order_items || []).map((it) => ({
+          product_name: it.product_name,
+          size: it.size,
+          color: it.color,
+          quantity: it.quantity,
+          price: it.price_at_purchase,
+          printing_required: it.printing_required,
+        })),
+      });
+    } catch {
+      toast.error('Could not generate receipt');
     }
   };
 

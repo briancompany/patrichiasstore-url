@@ -26,6 +26,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { StockControl } from '@/components/admin/StockControl';
+import { StockBadge } from '@/components/StockBadge';
 
 interface ProductSize {
   size: string;
@@ -41,6 +43,7 @@ interface Product {
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
+  stock_quantity: number;
   school_id: string | null;
   schools?: { name: string } | null;
 }
@@ -57,6 +60,7 @@ export default function AdminProducts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSchool, setFilterSchool] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterStock, setFilterStock] = useState('all');
 
   useEffect(() => {
     fetchProducts();
@@ -75,6 +79,7 @@ export default function AdminProducts() {
     } else {
       const mapped = (data || []).map((p) => ({
         ...p,
+        stock_quantity: Number(p.stock_quantity ?? 0),
         sizes: (p.sizes as unknown as ProductSize[]) || [],
       }));
       setProducts(mapped);
@@ -104,8 +109,18 @@ export default function AdminProducts() {
       product.schools?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSchool = filterSchool === 'all' || product.school_id === filterSchool;
     const matchesType = filterType === 'all' || product.type === filterType;
-    return matchesSearch && matchesSchool && matchesType;
+    const matchesStock =
+      filterStock === 'all' ||
+      (filterStock === 'out' && (!product.in_stock || product.stock_quantity <= 0)) ||
+      (filterStock === 'low' && product.stock_quantity > 0 && product.stock_quantity <= 10);
+    return matchesSearch && matchesSchool && matchesType && matchesStock;
   });
+
+  const updateStock = (id: string, qty: number) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock_quantity: qty, in_stock: qty > 0 } : p)),
+    );
+  };
 
   const typeLabels: Record<string, string> = {
     tshirt: 'T-Shirt',
@@ -175,6 +190,16 @@ export default function AdminProducts() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={filterStock} onValueChange={setFilterStock}>
+            <SelectTrigger className="w-full sm:w-[170px]">
+              <SelectValue placeholder="Stock" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All stock levels</SelectItem>
+              <SelectItem value="low">Low stock (≤10)</SelectItem>
+              <SelectItem value="out">Sold out</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Products Grid */}
@@ -217,7 +242,7 @@ export default function AdminProducts() {
                     </div>
                   )}
                   {!product.in_stock && (
-                    <Badge className="absolute top-2 right-2 bg-destructive">Out of Stock</Badge>
+                    <Badge className="absolute top-2 right-2 bg-destructive">Sold Out</Badge>
                   )}
                 </div>
                 <CardContent className="p-4">
@@ -234,6 +259,14 @@ export default function AdminProducts() {
                     {product.sizes?.length || 0} sizes • From Ksh{' '}
                     {getMinPrice(product.sizes).toLocaleString()}
                   </p>
+                  <div className="mb-3 space-y-2">
+                    <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
+                    <StockControl
+                      productId={product.id}
+                      quantity={product.stock_quantity}
+                      onChange={(qty) => updateStock(product.id, qty)}
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" asChild className="flex-1">
                       <Link to={`/admin/products/${product.id}`}>

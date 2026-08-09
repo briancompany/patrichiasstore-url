@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import storeLogo from '@/assets/logo-with-patrichia.png';
+import { downloadReceiptPDF } from '@/lib/receipt-pdf';
 
 interface OrderItem {
   id: string;
@@ -305,93 +306,33 @@ export default function Payment() {
     }
   };
 
-  const generateReceipt = () => {
+  const generateReceipt = async () => {
     if (!orderDetails) return;
-
-    const itemsHTML = orderItems.map(item => `
-      <div class="row">
-        <span>${item.product_name} (${item.size})${item.color ? ` - ${item.color}` : ''}</span>
-        <span>×${item.quantity}</span>
-        <span class="value">Ksh ${item.price_at_purchase.toLocaleString()}</span>
-      </div>
-    `).join('');
 
     const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : 'M-Pesa Paybill';
 
-    const receiptHTML = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Receipt - Patrichia's Store</title>
-  <style>
-    body { font-family: 'Georgia', 'Times New Roman', serif; padding: 40px; max-width: 480px; margin: 0 auto; color: #1e1e28; background: #fff; }
-    .header { text-align: center; margin-bottom: 24px; background: #0B1736; color: #D4AF37; padding: 22px 16px; border-radius: 10px; border-bottom: 3px solid #D4AF37; }
-    .store-name { color: #D4AF37; font-size: 26px; font-weight: bold; margin: 8px 0 4px; letter-spacing: 0.5px; }
-    .tagline { color: #e6dcbe; font-size: 12px; margin: 0; }
-    .section { margin: 16px 0; padding: 16px; background: #f7f5ee; border-radius: 8px; border-left: 3px solid #D4AF37; }
-    .row { display: flex; justify-content: space-between; margin: 8px 0; gap: 10px; font-family: Arial, sans-serif; font-size: 14px; }
-    .label { color: #6b6b7a; }
-    .value { font-weight: bold; color: #0B1736; }
-    .total-row { background: #0B1736; color: #D4AF37; padding: 14px 16px; border-radius: 8px; margin-top: 12px; display:flex; justify-content:space-between; align-items:center; }
-    .total-row .label { color: #e6dcbe; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
-    .total-row .value { color: #D4AF37; font-size: 20px; font-family: Georgia, serif; }
-    .status { background: #D4AF37; color: #0B1736; padding: 4px 12px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 12px; }
-    .items-section { margin: 16px 0; padding: 16px; background: #fbf8ec; border-radius: 8px; border: 1px solid #ecdca8; }
-    .items-title { font-weight: bold; margin-bottom: 10px; color: #0B1736; font-family: Georgia, serif; letter-spacing: 0.5px; }
-    .footer { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #D4AF37; color: #6b6b7a; font-size: 12px; font-family: Arial, sans-serif; }
-    .footer strong { color: #0B1736; }
-    .payment-method { background: #0B1736; color: #D4AF37; padding: 4px 12px; border-radius: 20px; display: inline-block; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div style="width:72px;height:72px;margin:0 auto 10px;">
-      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M50 5L90 25V75L50 95L10 75V25L50 5Z" fill="#D4AF37"/>
-        <text x="50" y="62" font-size="42" fill="#0B1736" text-anchor="middle" font-weight="bold" font-family="Georgia, serif">P</text>
-      </svg>
-    </div>
-    <h1 class="store-name">Patrichia's Store</h1>
-    <p class="tagline">Quality School Uniforms · Nairobi, Kenya</p>
-  </div>
-  
-  <div class="section">
-    <div class="row"><span class="label">Customer:</span><span class="value">${orderDetails.customerName}</span></div>
-    <div class="row"><span class="label">Order ID:</span><span class="value">${orderDetails.orderId.slice(0, 8)}</span></div>
-    <div class="row"><span class="label">Tracking:</span><span class="value">${orderDetails.trackingCode || 'N/A'}</span></div>
-    <div class="row"><span class="label">Date:</span><span class="value">${new Date().toLocaleDateString()}</span></div>
-    <div class="row"><span class="label">Payment:</span><span class="payment-method">${paymentMethodLabel}</span></div>
-  </div>
-
-  <div class="items-section">
-    <p class="items-title">Items Ordered</p>
-    ${itemsHTML || '<p>No items</p>'}
-  </div>
-  
-  <div class="section">
-    <div class="row"><span class="label">Status:</span><span class="status">PAID ✓</span></div>
-    <div class="total-row"><span class="label">Amount Paid</span><span class="value">Ksh ${orderDetails.total.toLocaleString()}</span></div>
-  </div>
-  
-  <div class="footer">
-    <p><strong>Thank you for shopping with us.</strong></p>
-    <p>Uhuru Market, Store F47 · Nairobi</p>
-    <p>0726075180</p>
-  </div>
-</body>
-</html>`;
-
-    const blob = new Blob([receiptHTML], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${orderDetails.trackingCode || orderDetails.orderId.slice(0, 8)}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Receipt downloaded!');
+    try {
+      await downloadReceiptPDF({
+        order_id: orderDetails.orderId,
+        tracking_code: orderDetails.trackingCode,
+        customer_name: orderDetails.customerName,
+        customer_phone: orderDetails.customerPhone || null,
+        date: new Date().toISOString(),
+        payment_method: paymentMethodLabel,
+        status: 'PAID',
+        total: orderDetails.total,
+        items: orderItems.map((item) => ({
+          product_name: item.product_name,
+          size: item.size,
+          color: item.color,
+          quantity: item.quantity,
+          price: item.price_at_purchase,
+        })),
+      });
+      toast.success('Receipt downloaded!');
+    } catch {
+      toast.error('Could not generate receipt. Please try again.');
+    }
   };
 
   const handleSendComplaint = () => {

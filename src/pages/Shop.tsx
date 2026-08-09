@@ -38,6 +38,7 @@ export default function Shop() {
       image: p.image_url || '/placeholder.svg',
       sizes: p.sizes,
       inStock: p.in_stock,
+      stockQuantity: p.stock_quantity,
       description: p.description || undefined,
     }));
   }, [rawGeneralProducts]);

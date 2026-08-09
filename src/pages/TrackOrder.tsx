@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Package, Clock, CheckCircle, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadReceiptPDF } from '@/lib/receipt-pdf';
 
 interface PublicTrackedOrder {
   order_id: string;
@@ -150,34 +151,27 @@ export default function TrackOrder() {
     }
   };
 
-  const downloadReceipt = () => {
+  const downloadReceipt = async () => {
     if (!order || (order.status !== 'confirmed' && order.status !== 'completed')) {
       toast.error('Receipt is only available after payment confirmation');
       return;
     }
 
-    const receiptContent = `
-      <html>
-        <head><title>Receipt - Patrichia's Store</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 24px;">
-          <h2>Patrichia's Store - Receipt</h2>
-          <p><strong>Tracking Code:</strong> ${trackingCode.trim().toUpperCase()}</p>
-          <p><strong>Order ID:</strong> ${order.order_id}</p>
-          <p><strong>Status:</strong> ${order.status}</p>
-          <p><strong>Delivery Type:</strong> ${order.delivery_type === 'pickup' ? 'Store Pickup' : 'Delivery'}</p>
-          <p><strong>Items:</strong> ${order.item_count}</p>
-          <p><strong>Total:</strong> Ksh ${order.total_amount.toLocaleString()}</p>
-        </body>
-      </html>
-    `;
-
-    const blob = new Blob([receiptContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${trackingCode.trim().toUpperCase()}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      await downloadReceiptPDF({
+        order_id: order.order_id,
+        tracking_code: trackingCode.trim().toUpperCase(),
+        customer_name: 'Valued Customer',
+        date: order.created_at,
+        status: order.status === 'completed' ? 'COMPLETED' : 'PAID',
+        delivery_type: order.delivery_type,
+        total: order.total_amount,
+        item_count: Number(order.item_count),
+      });
+      toast.success('Receipt downloaded');
+    } catch {
+      toast.error('Could not generate receipt. Please try again.');
+    }
   };
 
   const statusInfo = order ? getStatusInfo(order.status) : null;

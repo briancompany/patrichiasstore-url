@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn, MessageCircle, Phone } from 'lucide-react';
 import { toast } from 'sonner';
+import { getStockInfo } from '@/lib/stock';
+import { StockBadge } from '@/components/StockBadge';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { Link } from 'react-router-dom';
 import { slugify } from '@/lib/slug';
@@ -38,6 +40,7 @@ interface Product {
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
+  stock_quantity?: number | null;
   school_id: string | null;
   schools?: { id: string; name: string; logo_url: string | null } | null;
 }
@@ -134,7 +137,6 @@ export default function UniformShop() {
       .from('products')
       .select('*, schools(id, name, logo_url)')
       .eq('school_id', schoolId)
-      .eq('in_stock', true)
       .order('type');
 
     if (error) {
@@ -243,6 +245,10 @@ export default function UniformShop() {
 
   const handleAddToCart = async () => {
     if (!currentProduct || !selectedSize) return;
+    if (!getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable) {
+      toast.error('This item is sold out. Message or call us to reserve yours.');
+      return;
+    }
 
     let sampleImageUrl: string | null = null;
     if (sampleImage) {
@@ -1006,7 +1012,11 @@ export default function UniformShop() {
                         </div>
                         <Button
                           onClick={handleAddToCart}
-                          disabled={!selectedSize || uploadingSample}
+                          disabled={
+                            !selectedSize ||
+                            uploadingSample ||
+                            !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable
+                          }
                           className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
                           size="lg"
                         >
@@ -1015,6 +1025,8 @@ export default function UniformShop() {
                               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                               Uploading...
                             </>
+                          ) : !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable ? (
+                            <>Sold Out — Restocking Soon</>
                           ) : (
                             <>
                               <ShoppingCart className="h-5 w-5 mr-2" />
@@ -1072,6 +1084,9 @@ export default function UniformShop() {
                         <p className="text-primary font-medium">
                           From Ksh {getMinPrice(product.sizes).toLocaleString()}
                         </p>
+                        <div className="mt-2">
+                          <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
+                        </div>
                       </CardContent>
                     </Card>
                   ))}

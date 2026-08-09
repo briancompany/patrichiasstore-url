@@ -8,6 +8,9 @@ import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
 import { SizeGuide } from '@/components/SizeGuide';
 import { BackInStockNotify } from '@/components/BackInStockNotify';
+import { StockBadge } from '@/components/StockBadge';
+import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
+import { getStockInfo } from '@/lib/stock';
 
 interface ProductCardProps {
   product: Product;
@@ -19,13 +22,21 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [quantity, setQuantity] = useState(1);
   const { toggle, isWishlisted } = useWishlist();
 
+  const stock = getStockInfo(product.stockQuantity, product.inStock);
+  const soldOut = !stock.orderable;
   const totalPrice = selectedSize.price * quantity;
 
   const handleQuantityChange = (delta: number) => {
-    setQuantity(Math.max(1, quantity + delta));
+    const max = stock.max > 0 ? stock.max : 1;
+    const next = Math.min(max, Math.max(1, quantity + delta));
+    if (delta > 0 && next === quantity && stock.max > 0) {
+      return;
+    }
+    setQuantity(next);
   };
 
   const handleAddToCart = () => {
+    if (soldOut) return;
     onAddToCart(product, selectedSize.size, quantity, totalPrice);
   };
 
@@ -61,7 +72,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         {!product.inStock && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <span className="bg-destructive text-destructive-foreground px-3 py-1 rounded-full font-medium">
-              Out of Stock
+              SOLD OUT
             </span>
           </div>
         )}
@@ -88,8 +99,11 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           </Link>
         </div>
 
+        {/* Live availability */}
+        <StockBadge quantity={product.stockQuantity} inStock={product.inStock} />
+
         {/* Out of stock notification */}
-        {!product.inStock && (
+        {soldOut && (
           <BackInStockNotify productId={product.id} productName={product.name} />
         )}
 
@@ -119,6 +133,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleQuantityChange(-1)}
+              disabled={soldOut}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
               <Minus className="h-4 w-4" />
@@ -126,6 +141,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             <span className="font-semibold w-8 text-center">{quantity}</span>
             <button
               onClick={() => handleQuantityChange(1)}
+              disabled={soldOut || quantity >= stock.max}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -142,12 +158,27 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         {/* Add to Cart */}
         <Button
           onClick={handleAddToCart}
-          disabled={!product.inStock}
+          disabled={soldOut}
           className="w-full btn-secondary gap-2"
         >
           <ShoppingCart className="h-4 w-4" />
-          Add to Order
+          {soldOut ? 'Sold Out' : 'Add to Order'}
         </Button>
+
+        {soldOut && (
+          <p className="text-xs text-muted-foreground text-center">
+            Restocking soon — in a hurry? Message or call us to reserve yours.
+          </p>
+        )}
+
+        {/* Enquire about this item */}
+        <ProductEnquiryButtons
+          productName={product.name}
+          size={selectedSize?.size}
+          school={product.school}
+          imageUrl={product.image}
+          soldOut={soldOut}
+        />
 
         {/* Reviews */}
         <ProductReviews productId={product.id} productName={product.name} />

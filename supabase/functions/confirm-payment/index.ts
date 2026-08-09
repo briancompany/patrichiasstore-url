@@ -152,6 +152,10 @@ Deno.serve(async (req) => {
       console.error("Payment record error:", paymentError);
     }
 
+    // Deduct live stock exactly once per confirmed order
+    const { error: stockError } = await supabase.rpc("deduct_order_stock", { _order_id: orderId });
+    if (stockError) console.error("Stock deduction error:", stockError);
+
     await triggerReceiptEmail(orderId, code, paymentMethod === "pesapal" ? "pesapal" : "mpesa");
 
     return new Response(JSON.stringify({ success: true }), {

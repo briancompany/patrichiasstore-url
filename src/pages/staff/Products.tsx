@@ -4,7 +4,9 @@ import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Loader2, Package, Search } from 'lucide-react';
+import { StockControl } from '@/components/admin/StockControl';
 
 interface Row {
   id: string;
@@ -20,6 +22,7 @@ export default function StaffProducts() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [view, setView] = useState<'all' | 'low' | 'out'>('all');
 
   useEffect(() => {
     (async () => {
@@ -34,11 +37,24 @@ export default function StaffProducts() {
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter(
-      (r) => r.name.toLowerCase().includes(term) || (r.schools?.name || '').toLowerCase().includes(term)
+    return rows.filter((r) => {
+      const matchesTerm =
+        !term ||
+        r.name.toLowerCase().includes(term) ||
+        (r.schools?.name || '').toLowerCase().includes(term);
+      const matchesView =
+        view === 'all' ||
+        (view === 'out' && (!r.in_stock || r.stock_quantity <= 0)) ||
+        (view === 'low' && r.stock_quantity > 0 && r.stock_quantity <= 10);
+      return matchesTerm && matchesView;
+    });
+  }, [rows, q, view]);
+
+  const updateStock = (id: string, qty: number) => {
+    setRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, stock_quantity: qty, in_stock: qty > 0 } : r)),
     );
-  }, [rows, q]);
+  };
 
   const stockBadge = (r: Row) => {
     if (!r.in_stock || r.stock_quantity <= 0)
@@ -51,14 +67,29 @@ export default function StaffProducts() {
   return (
     <StaffLayout title="Products & Stock">
       <div className="space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search product or school..."
-            className="pl-10"
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search product or school..."
+              className="pl-10"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(['all', 'low', 'out'] as const).map((v) => (
+              <Button
+                key={v}
+                type="button"
+                size="sm"
+                variant={view === v ? 'default' : 'outline'}
+                onClick={() => setView(v)}
+              >
+                {v === 'all' ? 'All' : v === 'low' ? 'Low stock' : 'Sold out'}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -88,6 +119,13 @@ export default function StaffProducts() {
                       {r.schools?.name || 'General'}
                     </p>
                     <div className="mt-1.5">{stockBadge(r)}</div>
+                    <div className="mt-2">
+                      <StockControl
+                        productId={r.id}
+                        quantity={r.stock_quantity}
+                        onChange={(qty) => updateStock(r.id, qty)}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

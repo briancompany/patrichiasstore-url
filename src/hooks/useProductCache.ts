@@ -16,6 +16,7 @@ interface GeneralProduct {
   type: string;
   sizes: { size: string; price: number }[];
   in_stock: boolean;
+  stock_quantity: number;
   school_id: string | null;
 }
 
@@ -103,13 +104,13 @@ export function useGeneralProducts() {
     async () => {
       const { data } = await supabase
         .from('products')
-        .select('id, name, description, image_url, type, sizes, in_stock, school_id')
+        .select('id, name, description, image_url, type, sizes, in_stock, stock_quantity, school_id')
         .is('school_id', null)
-        .eq('in_stock', true)
         .order('name');
       if (!data) return null;
       return data.map((p) => ({
         ...p,
+        stock_quantity: Number(p.stock_quantity ?? 0),
         sizes: Array.isArray(p.sizes) ? (p.sizes as { size: string; price: number }[]) : [],
       }));
     },
