@@ -1012,7 +1012,11 @@ export default function UniformShop() {
                         </div>
                         <Button
                           onClick={handleAddToCart}
-                          disabled={!selectedSize || uploadingSample}
+                          disabled={
+                            !selectedSize ||
+                            uploadingSample ||
+                            !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable
+                          }
                           className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
                           size="lg"
                         >
@@ -1021,6 +1025,8 @@ export default function UniformShop() {
                               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                               Uploading...
                             </>
+                          ) : !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable ? (
+                            <>Sold Out — Restocking Soon</>
                           ) : (
                             <>
                               <ShoppingCart className="h-5 w-5 mr-2" />
@@ -1078,6 +1084,9 @@ export default function UniformShop() {
                         <p className="text-primary font-medium">
                           From Ksh {getMinPrice(product.sizes).toLocaleString()}
                         </p>
+                        <div className="mt-2">
+                          <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
