@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import storeLogo from '@/assets/logo-with-patrichia.png';
+import { downloadReceiptPDF } from '@/lib/receipt-pdf';
 
 interface OrderItem {
   id: string;
