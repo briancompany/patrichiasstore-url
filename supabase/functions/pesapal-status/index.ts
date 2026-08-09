@@ -115,6 +115,9 @@ Deno.serve(async (req) => {
         customer_phone: order?.customer_phone || null,
       });
 
+      const { error: stockError } = await supabase.rpc("deduct_order_stock", { _order_id: orderId });
+      if (stockError) console.error("Stock deduction error:", stockError);
+
       await triggerReceiptEmail(orderId, paymentCode);
 
       return new Response(JSON.stringify({ status: "confirmed", confirmation_code: paymentCode }), {
