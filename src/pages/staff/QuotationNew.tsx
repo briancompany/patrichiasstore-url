@@ -245,50 +245,8 @@ export default function QuotationNew() {
             </div>
 
             <div className="space-y-2">
-              <Input
-                placeholder="Search products to add…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search && (
-                <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
-                  {filteredProducts.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => addProduct(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                    >
-                      + {p.name} <span className="text-xs text-muted-foreground">Ksh {p.sizes?.[0]?.price ?? 0}</span>
-                    </button>
-                  ))}
-                  {filteredProducts.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
-                  )}
-                </div>
-              )}
-              {pricingOptions.length > 0 && (
-                <details className="border rounded-lg">
-                  <summary className="px-3 py-2 text-sm cursor-pointer">Add from pricing chart</summary>
-                  <div className="max-h-48 overflow-y-auto divide-y">
-                    {pricingOptions.map((t) =>
-                      t.sizes.map((sz) => (
-                        <button
-                          key={`${t.name}-${sz.size}`}
-                          onClick={() => addPricing(t.name, sz)}
-                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                        >
-                          + {t.name} — {sz.size} <span className="text-xs text-muted-foreground">Ksh {sz.price}</span>
-                        </button>
-                      )),
-                    )}
-                  </div>
-                </details>
-              )}
-            </div>
-
-            <div className="space-y-2 pt-2">
               {items.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">No items yet — search above or add a new product.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No items yet — search below or add a new product.</p>
               )}
               {items.map((it, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end border rounded-lg p-2">
@@ -329,6 +287,63 @@ export default function QuotationNew() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="space-y-2 border-t pt-3">
+              <Input
+                placeholder="Search products to add…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                  {filteredProducts.map((p) => {
+                    const st = getStockInfo(p.stock_quantity, p.in_stock);
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => addProduct(p)}
+                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex items-center justify-between gap-2"
+                      >
+                        <span className="min-w-0">
+                          + {p.name}{' '}
+                          <span className="text-xs text-muted-foreground">Ksh {p.sizes?.[0]?.price ?? 0}</span>
+                        </span>
+                        {st.status === 'out' ? (
+                          <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-destructive text-white whitespace-nowrap">
+                            SOLD OUT
+                          </span>
+                        ) : st.status === 'low' || st.status === 'few' ? (
+                          <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white whitespace-nowrap">
+                            {st.label}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                  {filteredProducts.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+                  )}
+                </div>
+              )}
+              {pricingOptions.length > 0 && (
+                <details className="border rounded-lg">
+                  <summary className="px-3 py-2 text-sm cursor-pointer">Add from pricing chart</summary>
+                  <div className="max-h-48 overflow-y-auto divide-y">
+                    {pricingOptions.map((t) =>
+                      t.sizes.map((sz) => (
+                        <button
+                          key={`${t.name}-${sz.size}`}
+                          onClick={() => addPricing(t.name, sz)}
+                          className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                        >
+                          + {t.name} — {sz.size} <span className="text-xs text-muted-foreground">Ksh {sz.price}</span>
+                        </button>
+                      )),
+                    )}
+                  </div>
+                </details>
+              )}
             </div>
           </CardContent>
         </Card>
