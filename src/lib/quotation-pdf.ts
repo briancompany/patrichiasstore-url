@@ -260,14 +260,14 @@ export async function openQuotationPDF(q: QuotationPDFData) {
 
 const STORE_SITE_URL = 'https://patrichiasstore-url.vercel.app/';
 
-export function whatsappQuotationLink(q: QuotationPDFData, _downloadUrl?: string) {
+export function whatsappQuotationLink(q: QuotationPDFData) {
   const phone = String(q.customer_phone).replace(/[^0-9]/g, '');
   const to = phone.startsWith('254') ? phone : '254' + phone.replace(/^0/, '');
   const msg =
     `Hello ${q.customer_name}, here is your quotation *${q.quote_number}* from ${STORE_NAME}.%0A%0A` +
     `Total: Ksh ${q.total.toLocaleString()}%0A` +
     (q.valid_until ? `Valid until: ${new Date(q.valid_until).toLocaleDateString()}%0A` : '') +
-    `%0AView & download here:%0A${encodeURIComponent(STORE_SITE_URL)}%0A%0ATo order, call ${STORE_PHONE}.`;
+    `%0AView & download your quotation at:%0A${STORE_SITE_URL}%0A%0ATo order, call ${STORE_PHONE}.`;
   window.open(`https://wa.me/${to}?text=${msg}`, '_blank');
 }
 
@@ -275,7 +275,6 @@ export function whatsappQuotationLink(q: QuotationPDFData, _downloadUrl?: string
 export const downloadQuotation = downloadQuotationPDF;
 export const printQuotation = openQuotationPDF;
 export async function whatsappQuotation(q: QuotationPDFData) {
-  const blob = await buildQuotationPDF(q);
-  const { url } = await uploadQuotationPDF(q.quote_number, blob);
-  whatsappQuotationLink(q, url);
+  // Customers get the short store link — no long storage download URL.
+  whatsappQuotationLink(q);
 }
