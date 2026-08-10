@@ -13,6 +13,7 @@ import { StaffLayout } from '@/components/layout/StaffLayout';
 import { toast } from 'sonner';
 import { normalizePhone, isValidKePhone } from '@/lib/phone';
 import { downloadQuotation, printQuotation, whatsappQuotation, type QuotationPDFData } from '@/lib/quotation-pdf';
+import { getStockInfo } from '@/lib/stock';
 
 interface Line {
   product_id?: string | null;
