@@ -66,7 +66,6 @@ export default function QuotationNew() {
   const addProduct = (p: (typeof products)[number]) => {
     const firstSize = p.sizes?.[0];
     setItems((prev) => [
-      ...prev,
       {
         product_id: p.id,
         product_name: p.name,
@@ -75,13 +74,14 @@ export default function QuotationNew() {
         unit_price: firstSize?.price || 0,
         quantity: 1,
       },
+      ...prev,
     ]);
   };
 
   const addPricing = (typeName: string, sz: { size: string; price: number }) => {
     setItems((prev) => [
-      ...prev,
       { product_name: typeName, size: sz.size, color: '', unit_price: sz.price, quantity: 1 },
+      ...prev,
     ]);
   };
 
