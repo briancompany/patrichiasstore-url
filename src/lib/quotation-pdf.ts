@@ -260,21 +260,33 @@ export async function openQuotationPDF(q: QuotationPDFData) {
 
 const STORE_SITE_URL = 'https://patrichiasstore-url.vercel.app/';
 
-export function whatsappQuotationLink(q: QuotationPDFData) {
-  const phone = String(q.customer_phone).replace(/[^0-9]/g, '');
-  const to = phone.startsWith('254') ? phone : '254' + phone.replace(/^0/, '');
+function waNumber(phone: string) {
+  const digits = String(phone).replace(/[^0-9]/g, '');
+  return digits.startsWith('254') ? digits : '254' + digits.replace(/^0/, '');
+}
+
+export function whatsappQuotationLink(q: QuotationPDFData, downloadUrl?: string) {
   const msg =
-    `Hello ${q.customer_name}, here is your quotation *${q.quote_number}* from ${STORE_NAME}.%0A%0A` +
-    `Total: Ksh ${q.total.toLocaleString()}%0A` +
-    (q.valid_until ? `Valid until: ${new Date(q.valid_until).toLocaleDateString()}%0A` : '') +
-    `%0AView & download your quotation at:%0A${STORE_SITE_URL}%0A%0ATo order, call ${STORE_PHONE}.`;
-  window.open(`https://wa.me/${to}?text=${msg}`, '_blank');
+    `Hello ${q.customer_name}, here is your quotation *${q.quote_number}* from ${STORE_NAME}.\n\n` +
+    `Total: Ksh ${q.total.toLocaleString()}\n` +
+    (q.valid_until ? `Valid until: ${new Date(q.valid_until).toLocaleDateString()}\n` : '') +
+    `\nDownload your quotation PDF here:\n${downloadUrl || STORE_SITE_URL}\n\n` +
+    `To order, call ${STORE_PHONE}.`;
+  window.open(`https://wa.me/${waNumber(q.customer_phone)}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ---- Back-compat aliases so existing imports keep working ----
 export const downloadQuotation = downloadQuotationPDF;
 export const printQuotation = openQuotationPDF;
 export async function whatsappQuotation(q: QuotationPDFData) {
-  // Customers get the short store link — no long storage download URL.
-  whatsappQuotationLink(q);
+  // Generate + upload the PDF so the customer receives a real download link.
+  let url: string | undefined;
+  try {
+    const blob = await buildQuotationPDF(q);
+    const uploaded = await uploadQuotationPDF(q.quote_number, blob);
+    url = uploaded.url;
+  } catch {
+    url = undefined; // fall back to the store site link
+  }
+  whatsappQuotationLink(q, url);
 }
