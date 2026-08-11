@@ -254,9 +254,27 @@ export default function Payment() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Surface backend messages (e.g. sold-out race) instead of a generic failure
+        let message = '';
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            message = body?.error || '';
+          }
+        } catch {
+          message = '';
+        }
+        if (message) {
+          toast.error(message, { duration: 12000 });
+          setIsVerifying(false);
+          return;
+        }
+        throw error;
+      }
       if (data?.error) {
-        toast.error(data.error);
+        toast.error(data.error, { duration: 12000 });
         setIsVerifying(false);
         return;
       }
