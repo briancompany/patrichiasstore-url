@@ -672,6 +672,7 @@ export type Database = {
           notes: string | null
           pdf_path: string | null
           quote_number: string
+          share_token: string
           staff_name: string | null
           staff_user_id: string
           status: string
@@ -691,6 +692,7 @@ export type Database = {
           notes?: string | null
           pdf_path?: string | null
           quote_number?: string
+          share_token?: string
           staff_name?: string | null
           staff_user_id: string
           status?: string
@@ -710,6 +712,7 @@ export type Database = {
           notes?: string | null
           pdf_path?: string | null
           quote_number?: string
+          share_token?: string
           staff_name?: string | null
           staff_user_id?: string
           status?: string
@@ -1000,6 +1003,7 @@ export type Database = {
           tracking_code: string
         }[]
       }
+      get_quotation_public: { Args: { _share_token: string }; Returns: Json }
       has_staff_role: {
         Args: { _role: string; _uid: string }
         Returns: boolean
