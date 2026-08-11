@@ -18,6 +18,7 @@ import { slugify } from '@/lib/slug';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
 import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
+import { useLiveStock } from '@/hooks/useLiveStock';
 
 const STORE_PHONE = '0726075180';
 const STORE_WHATSAPP = '254726075180';
