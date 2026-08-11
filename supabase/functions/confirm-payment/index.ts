@@ -125,6 +125,34 @@ Deno.serve(async (req) => {
     }
 
     const methodLabel = paymentMethod === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
+
+    // Atomically claim stock BEFORE confirming — first payment in wins.
+    const { data: claim, error: claimError } = await supabase.rpc("claim_order_stock", {
+      _order_id: orderId,
+    });
+
+    if (claimError) {
+      console.error("Stock claim error:", claimError);
+      return new Response(JSON.stringify({ error: "Could not verify stock. Please contact support." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const claimResult = claim as { ok?: boolean; reason?: string; unavailable?: { product_name?: string }[] } | null;
+    if (claimResult && claimResult.ok === false) {
+      const names = (claimResult.unavailable || []).map((u) => u.product_name || "item").join(", ");
+      return new Response(
+        JSON.stringify({
+          error: names
+            ? `Sorry — ${names} was just bought by another customer moments before you. Nothing has been charged to your order. Please contact us for a restock or refund.`
+            : "This item is no longer available.",
+          sold_out: true,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const { error: updateError } = await supabase
       .from("orders")
       .update({
@@ -151,10 +179,6 @@ Deno.serve(async (req) => {
     if (paymentError) {
       console.error("Payment record error:", paymentError);
     }
-
-    // Deduct live stock exactly once per confirmed order
-    const { error: stockError } = await supabase.rpc("deduct_order_stock", { _order_id: orderId });
-    if (stockError) console.error("Stock deduction error:", stockError);
 
     await triggerReceiptEmail(orderId, code, paymentMethod === "pesapal" ? "pesapal" : "mpesa");
 
