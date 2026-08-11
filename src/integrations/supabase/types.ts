@@ -977,6 +977,8 @@ export type Database = {
         Args: { _delta: number; _product_id: string }
         Returns: number
       }
+      check_stock_availability: { Args: { _items: Json }; Returns: Json }
+      claim_order_stock: { Args: { _order_id: string }; Returns: Json }
       deduct_order_stock: { Args: { _order_id: string }; Returns: boolean }
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }
       get_order_history_by_phone: {
