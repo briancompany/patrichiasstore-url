@@ -143,6 +143,18 @@ export default function Payment() {
           return;
         }
 
+        if (data?.status === 'sold_out') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setIsVerifying(false);
+          setPollingStatus(null);
+          toast.error(
+            data.message ||
+              'This item was bought by another customer moments before your payment cleared. Our team will contact you for a refund or restock.',
+            { duration: 12000 },
+          );
+          return;
+        }
+
         if (data?.status === 'failed') {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setIsVerifying(false);
@@ -242,9 +254,27 @@ export default function Payment() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Surface backend messages (e.g. sold-out race) instead of a generic failure
+        let message = '';
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            message = body?.error || '';
+          }
+        } catch {
+          message = '';
+        }
+        if (message) {
+          toast.error(message, { duration: 12000 });
+          setIsVerifying(false);
+          return;
+        }
+        throw error;
+      }
       if (data?.error) {
-        toast.error(data.error);
+        toast.error(data.error, { duration: 12000 });
         setIsVerifying(false);
         return;
       }

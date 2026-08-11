@@ -18,6 +18,7 @@ import { slugify } from '@/lib/slug';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
 import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
+import { useLiveStock } from '@/hooks/useLiveStock';
 
 const STORE_PHONE = '0726075180';
 const STORE_WHATSAPP = '254726075180';
@@ -92,6 +93,33 @@ export default function UniformShop() {
     ...p,
     sizes: p.sizes as ProductSize[],
   }));
+
+  // Live stock: if another shopper's payment lands first, the item flips to
+  // sold out here immediately without a page reload.
+  useLiveStock((update) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === update.id
+          ? { ...p, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
+          : p,
+      ),
+    );
+    setCurrentProduct((prev) =>
+      prev && prev.id === update.id
+        ? { ...prev, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
+        : prev,
+    );
+    if (!update.in_stock || update.stock_quantity <= 0) {
+      setCart((prev) => {
+        const affected = prev.find((item) => item.product.id === update.id);
+        if (affected) {
+          toast.error(`${affected.product.name} was just bought by another customer and is now sold out.`);
+          return prev.filter((item) => item.product.id !== update.id);
+        }
+        return prev;
+      });
+    }
+  });
 
   // Fetch school-specific products only when needed (not on mount)
   // Pricing chart and general products come from shared cache hooks

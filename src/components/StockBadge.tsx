@@ -12,16 +12,20 @@ export function StockBadge({ quantity, inStock = true, className = '' }: StockBa
 
   if (info.status === 'out') {
     return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive ${className}`}>
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-destructive px-3 py-1 text-xs font-bold uppercase tracking-wide text-destructive-foreground shadow-sm ${className}`}
+      >
         <PackageX className="h-3.5 w-3.5" />
-        SOLD OUT · Restocking soon
+        Out of stock · Restocking soon
       </span>
     );
   }
 
   if (info.status === 'low' || info.status === 'few') {
     return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full bg-secondary/15 px-2.5 py-1 text-xs font-semibold text-secondary ${className}`}>
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary-foreground shadow-sm ${className}`}
+      >
         <AlertTriangle className="h-3.5 w-3.5" />
         {info.label}
       </span>
@@ -29,7 +33,9 @@ export function StockBadge({ quantity, inStock = true, className = '' }: StockBa
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ${className}`}
+    >
       <CheckCircle2 className="h-3.5 w-3.5" />
       In stock
     </span>

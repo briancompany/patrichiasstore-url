@@ -10,6 +10,7 @@ import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { StockBadge } from '@/components/StockBadge';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
 import { getStockInfo } from '@/lib/stock';
+import { useLiveStock } from '@/hooks/useLiveStock';
 
 interface ProductSize {
   size: string;
@@ -64,6 +65,15 @@ export default function ProductPage() {
 
     load();
   }, [productId]);
+
+  // Live stock — flips to sold out the moment another order is paid for
+  useLiveStock((update) => {
+    setProduct((prev) =>
+      prev && prev.id === update.id
+        ? { ...prev, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
+        : prev,
+    );
+  });
 
   useEffect(() => {
     if (!product) return;
