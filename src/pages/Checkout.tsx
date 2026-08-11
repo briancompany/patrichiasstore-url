@@ -15,6 +15,7 @@ import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, 
 import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
 import { CouponApply } from '@/components/CouponApply';
 import { toast } from 'sonner';
+import { checkStockAvailability } from '@/hooks/useLiveStock';
 
 const getBackendErrorMessage = (err: unknown) => {
   const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
@@ -111,6 +112,23 @@ export default function Checkout() {
     setIsSubmitting(true);
 
     try {
+      // Last-second availability check — someone else may have just paid for
+      // the remaining piece.
+      const availability = await checkStockAvailability(
+        cart
+          .filter((item) => isUuid(item.product.id))
+          .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+      );
+
+      if (!availability.ok) {
+        const names = availability.unavailable.map((u) => u.product_name).join(', ');
+        toast.error(
+          `Sorry — ${names} was just bought by another customer. Please remove it from your cart or contact us to restock.`,
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       // Create the order with new school flag (generate UUID client-side to avoid relying on returned rows)
       const orderId = createUuid();
 
