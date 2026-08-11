@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { supabase } from '@/integrations/supabase/client';
 import storeLogo from '@/assets/logo-with-patrichia.png';
 
 export interface QuotationPDFData {
+  share_token?: string;
   quote_number: string;
   customer_name: string;
   customer_phone: string;
@@ -213,32 +213,6 @@ export async function buildQuotationPDF(q: QuotationPDFData): Promise<Blob> {
   return doc.output('blob');
 }
 
-/** Upload a quotation PDF to storage and return a signed public download URL. */
-export async function uploadQuotationPDF(
-  quoteNumber: string,
-  blob: Blob,
-): Promise<{ path: string; url: string }> {
-  const path = `${new Date().getFullYear()}/${quoteNumber}.pdf`;
-  const { error } = await supabase.storage
-    .from('quotations')
-    .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
-  if (error) throw error;
-  // 30-day signed URL — plenty of time for the customer to download
-  const { data, error: signErr } = await supabase.storage
-    .from('quotations')
-    .createSignedUrl(path, 60 * 60 * 24 * 30);
-  if (signErr || !data?.signedUrl) throw signErr || new Error('Could not create download link');
-  return { path, url: data.signedUrl };
-}
-
-export async function refreshQuotationLink(path: string): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from('quotations')
-    .createSignedUrl(path, 60 * 60 * 24 * 30);
-  if (error || !data?.signedUrl) throw error || new Error('Link unavailable');
-  return data.signedUrl;
-}
-
 export async function downloadQuotationPDF(q: QuotationPDFData) {
   const blob = await buildQuotationPDF(q);
   const url = URL.createObjectURL(blob);
@@ -258,19 +232,22 @@ export async function openQuotationPDF(q: QuotationPDFData) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-const STORE_SITE_URL = 'https://patrichiasstore-url.vercel.app/';
+const STORE_SITE_URL = 'https://patrichiasstore-url.vercel.app';
 
 function waNumber(phone: string) {
   const digits = String(phone).replace(/[^0-9]/g, '');
   return digits.startsWith('254') ? digits : '254' + digits.replace(/^0/, '');
 }
 
-export function whatsappQuotationLink(q: QuotationPDFData, downloadUrl?: string) {
+export function whatsappQuotationLink(q: QuotationPDFData) {
+  if (!q.share_token) throw new Error('Quotation sharing link is unavailable');
+  const viewUrl = `${STORE_SITE_URL}/quotation/${q.share_token}`;
   const msg =
     `Hello ${q.customer_name}, here is your quotation *${q.quote_number}* from ${STORE_NAME}.\n\n` +
     `Total: Ksh ${q.total.toLocaleString()}\n` +
     (q.valid_until ? `Valid until: ${new Date(q.valid_until).toLocaleDateString()}\n` : '') +
-    `\nDownload your quotation PDF here:\n${downloadUrl || STORE_SITE_URL}\n\n` +
+    `\n*View quotation:*\n${viewUrl}\n\n` +
+    `Open the link, then press Download quotation PDF.\n\n` +
     `To order, call ${STORE_PHONE}.`;
   window.open(`https://wa.me/${waNumber(q.customer_phone)}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -279,14 +256,5 @@ export function whatsappQuotationLink(q: QuotationPDFData, downloadUrl?: string)
 export const downloadQuotation = downloadQuotationPDF;
 export const printQuotation = openQuotationPDF;
 export async function whatsappQuotation(q: QuotationPDFData) {
-  // Generate + upload the PDF so the customer receives a real download link.
-  let url: string | undefined;
-  try {
-    const blob = await buildQuotationPDF(q);
-    const uploaded = await uploadQuotationPDF(q.quote_number, blob);
-    url = uploaded.url;
-  } catch {
-    url = undefined; // fall back to the store site link
-  }
-  whatsappQuotationLink(q, url);
+  whatsappQuotationLink(q);
 }

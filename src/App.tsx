@@ -35,6 +35,7 @@ import AdminReviews from "./pages/admin/ReviewsManager";
 import AdminStoreContent from "./pages/admin/StoreContent";
 import Wishlist from "./pages/Wishlist";
 import OrderHistory from "./pages/OrderHistory";
+import QuotationView from "./pages/QuotationView";
 import StaffLogin from "./pages/staff/Login";
 import StaffDashboard from "./pages/staff/Dashboard";
 import AdminStaff from "./pages/admin/Staff";
@@ -126,6 +127,7 @@ const App = () => (
             />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/order-history" element={<OrderHistory />} />
+            <Route path="/quotation/:token" element={<QuotationView />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

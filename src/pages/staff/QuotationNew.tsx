@@ -167,6 +167,7 @@ export default function QuotationNew() {
       toast.success(`Quotation ${quote.quote_number} saved`);
 
       const pdfData: QuotationPDFData = {
+        share_token: quote.share_token,
         quote_number: quote.quote_number,
         customer_name: quote.customer_name,
         customer_phone: quote.customer_phone,
