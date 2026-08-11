@@ -96,6 +96,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Atomically claim stock first — first payment to clear wins the piece.
+    const { data: claim } = await supabase.rpc("claim_order_stock", { _order_id: orderId });
+    const claimResult = claim as { ok?: boolean; unavailable?: { product_name?: string }[] } | null;
+
+    if (claimResult && claimResult.ok === false) {
+      const names = (claimResult.unavailable || []).map((u) => u.product_name || "item").join(", ");
+      await supabase
+        .from("orders")
+        .update({
+          notes: `SOLD OUT before payment cleared | Ref: ${paymentCode} | Items: ${names} | Refund required`,
+        })
+        .eq("id", orderId);
+
+      return new Response(
+        JSON.stringify({ orderNotificationType, orderTrackingId, status: "sold_out" }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     await supabase
       .from("orders")
       .update({
@@ -117,9 +136,6 @@ Deno.serve(async (req) => {
       customer_name: order?.customer_name || "Pesapal Customer",
       customer_phone: order?.customer_phone || null,
     });
-
-    const { error: stockError } = await supabase.rpc("deduct_order_stock", { _order_id: orderId });
-    if (stockError) console.error("Stock deduction error:", stockError);
 
     await triggerReceiptEmail(orderId, paymentCode);
 
