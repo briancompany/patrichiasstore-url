@@ -26,6 +26,7 @@ interface QRow {
   valid_until: string | null;
   notes: string | null;
   staff_name: string | null;
+  share_token: string;
 }
 
 export default function QuotationHistory() {
