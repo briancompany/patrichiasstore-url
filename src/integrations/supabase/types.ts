@@ -251,6 +251,7 @@ export type Database = {
           quantity: number
           sample_image_url: string | null
           school_name: string | null
+          shortfall_quantity: number
           size: string
         }
         Insert: {
@@ -266,6 +267,7 @@ export type Database = {
           quantity?: number
           sample_image_url?: string | null
           school_name?: string | null
+          shortfall_quantity?: number
           size: string
         }
         Update: {
@@ -281,6 +283,7 @@ export type Database = {
           quantity?: number
           sample_image_url?: string | null
           school_name?: string | null
+          shortfall_quantity?: number
           size?: string
         }
         Relationships: [
@@ -340,9 +343,11 @@ export type Database = {
           delivery_type: Database["public"]["Enums"]["delivery_type"]
           id: string
           is_new_school: boolean
+          is_special_order: boolean
           linked_school_id: string | null
           notes: string | null
           scheduled_delivery_date: string | null
+          special_order_note: string | null
           status: Database["public"]["Enums"]["order_status"]
           stock_deducted: boolean
           total_amount: number
@@ -358,9 +363,11 @@ export type Database = {
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
           is_new_school?: boolean
+          is_special_order?: boolean
           linked_school_id?: string | null
           notes?: string | null
           scheduled_delivery_date?: string | null
+          special_order_note?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
           total_amount?: number
@@ -376,9 +383,11 @@ export type Database = {
           delivery_type?: Database["public"]["Enums"]["delivery_type"]
           id?: string
           is_new_school?: boolean
+          is_special_order?: boolean
           linked_school_id?: string | null
           notes?: string | null
           scheduled_delivery_date?: string | null
+          special_order_note?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
           total_amount?: number
