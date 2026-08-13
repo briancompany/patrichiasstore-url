@@ -16,6 +16,14 @@ import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
 import { CouponApply } from '@/components/CouponApply';
 import { toast } from 'sonner';
 import { checkStockAvailability } from '@/hooks/useLiveStock';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const getBackendErrorMessage = (err: unknown) => {
   const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
@@ -76,6 +84,11 @@ export default function Checkout() {
   const isNewSchool = checkoutState?.isNewSchool || !selectedSchool?.isFromDB;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shortfalls, setShortfalls] = useState<
+    { product_id: string; product_name: string; requested: number; available: number }[]
+  >([]);
+  const [showSpecialDialog, setShowSpecialDialog] = useState(false);
+  const [specialNote, setSpecialNote] = useState('');
   const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(null);
   const [formData, setFormData] = useState({
@@ -106,28 +119,19 @@ export default function Checkout() {
     return code;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const placeOrder = async (
+    shortfallList: { product_id: string; product_name: string; requested: number; available: number }[],
+    note: string,
+  ) => {
     setIsSubmitting(true);
-
     try {
-      // Last-second availability check — someone else may have just paid for
-      // the remaining piece.
-      const availability = await checkStockAvailability(
-        cart
-          .filter((item) => isUuid(item.product.id))
-          .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+      const isSpecialOrder = shortfallList.length > 0;
+      const shortfallMap = new Map(
+        shortfallList.map((s) => [s.product_id, Math.max(0, s.requested - s.available)]),
       );
-
-      if (!availability.ok) {
-        const names = availability.unavailable.map((u) => u.product_name).join(', ');
-        toast.error(
-          `Sorry — ${names} was just bought by another customer. Please remove it from your cart or contact us to restock.`,
-        );
-        setIsSubmitting(false);
-        return;
-      }
+      const shortfallSummary = shortfallList
+        .map((s) => `${s.product_name}: wants ${s.requested}, available ${s.available}`)
+        .join('; ');
 
       // Create the order with new school flag (generate UUID client-side to avoid relying on returned rows)
       const orderId = createUuid();
@@ -142,6 +146,10 @@ export default function Checkout() {
           delivery_type: formData.deliveryType,
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
+          is_special_order: isSpecialOrder,
+          special_order_note: isSpecialOrder
+            ? [note.trim(), `Shortfall — ${shortfallSummary}`].filter(Boolean).join(' | ')
+            : null,
           total_amount: grandTotal,
           // Order must be saved first; payment comes after
           status: isNewSchool ? 'new_school_setup' : 'pending',
@@ -173,6 +181,10 @@ export default function Checkout() {
         logo_url: item.logoUrl,
         color: item.color || null,
         sample_image_url: item.sampleImageUrl || null,
+        shortfall_quantity: Math.min(
+          item.quantity,
+          shortfallMap.get(item.product.id) ?? 0,
+        ),
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
@@ -189,6 +201,13 @@ export default function Checkout() {
       if (trackingError) {
         console.warn('Tracking insert failed (continuing):', trackingError);
       }
+
+      // Confirmation email for every successfully placed order.
+      supabase.functions
+        .invoke('send-delivery-update', {
+          body: { orderId, statusUpdate: isNewSchool ? 'new_school_setup' : 'pending' },
+        })
+        .catch(() => undefined);
 
       const paymentState = {
         orderId,
@@ -212,6 +231,28 @@ export default function Checkout() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    // Last-second availability check — someone else may have just paid for
+    // the remaining piece, or we may not have enough for the quantity wanted.
+    const availability = await checkStockAvailability(
+      cart
+        .filter((item) => isUuid(item.product.id))
+        .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+    );
+
+    if (!availability.ok) {
+      setShortfalls(availability.unavailable);
+      setShowSpecialDialog(true);
+      setIsSubmitting(false);
+      return;
+    }
+
+    await placeOrder([], '');
   };
 
   const isFormValid =
@@ -506,6 +547,68 @@ export default function Checkout() {
           </form>
         </div>
       </div>
+
+      <Dialog open={showSpecialDialog} onOpenChange={setShowSpecialDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Some items are short on stock
+            </DialogTitle>
+            <DialogDescription>
+              You can still place this order. It will be marked as a priority special order so our
+              team restocks and contacts you first.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+              {shortfalls.map((s) => (
+                <div key={s.product_id} className="text-sm">
+                  <p className="font-medium">{s.product_name}</p>
+                  <p className="text-muted-foreground">
+                    {s.available === 0
+                      ? `Out of stock · you asked for ${s.requested}`
+                      : `Only ${s.available} left · you asked for ${s.requested}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label htmlFor="specialNote">Tell us how to handle it (optional)</Label>
+              <Textarea
+                id="specialNote"
+                value={specialNote}
+                onChange={(e) => setSpecialNote(e.target.value)}
+                placeholder="e.g. I still need all 5 pieces by Friday, or send what's available first"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowSpecialDialog(false)} disabled={isSubmitting}>
+              Go back
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowSpecialDialog(false);
+                await placeOrder(shortfalls, specialNote);
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Placing…
+                </>
+              ) : (
+                'Proceed as special order'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

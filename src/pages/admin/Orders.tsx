@@ -51,6 +51,8 @@ interface Order {
   notes: string | null;
   created_at: string;
   is_new_school: boolean;
+  is_special_order?: boolean;
+  special_order_note?: string | null;
   linked_school_id: string | null;
   scheduled_delivery_date: string | null;
   order_items?: OrderItem[];
@@ -125,11 +127,9 @@ export default function AdminOrders() {
         setSelectedOrder({ ...selectedOrder, status });
       }
 
-      // Send delivery email notifications for delivery orders
-      const order = orders.find(o => o.id === orderId);
-      if (order?.delivery_type === 'delivery' && (status === 'out_for_delivery' || status === 'delivered')) {
-        sendDeliveryEmail(orderId, { statusUpdate: status });
-      }
+      // Email the customer on every status change so they always know where
+      // their order stands.
+      sendDeliveryEmail(orderId, { statusUpdate: status });
     }
   };
 
@@ -171,7 +171,9 @@ export default function AdminOrders() {
       (order.customer_school?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     return matchesSearch && matchesStatus;
-  });
+  })
+    // Special (stock-short) orders are fast-forwarded to the top.
+    .sort((a, b) => Number(Boolean(b.is_special_order)) - Number(Boolean(a.is_special_order)));
 
   // Count new school orders
   const newSchoolOrdersCount = orders.filter(o => o.is_new_school && o.status === 'new_school_setup').length;
@@ -354,7 +356,16 @@ export default function AdminOrders() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => (
-              <Card key={order.id} className={order.is_new_school && order.status === 'new_school_setup' ? 'border-amber-200' : ''}>
+              <Card
+                key={order.id}
+                className={
+                  order.is_special_order
+                    ? 'border-2 border-destructive/60'
+                    : order.is_new_school && order.status === 'new_school_setup'
+                      ? 'border-amber-200'
+                      : ''
+                }
+              >
                 <CardContent className="p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="space-y-2">
@@ -367,7 +378,17 @@ export default function AdminOrders() {
                             New School
                           </Badge>
                         )}
+                        {order.is_special_order && (
+                          <Badge className="bg-destructive text-destructive-foreground">
+                            Priority · Special Order
+                          </Badge>
+                        )}
                       </div>
+                      {order.is_special_order && order.special_order_note && (
+                        <p className="text-sm text-destructive font-medium">
+                          Stock issue: {order.special_order_note}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />

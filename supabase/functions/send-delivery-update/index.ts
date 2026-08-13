@@ -17,7 +17,7 @@ const escapeHtml = (value: string) =>
 interface DeliveryUpdateRequest {
   orderId: string;
   scheduledDate?: string;
-  statusUpdate?: 'processing' | 'out_for_delivery' | 'delivered';
+  statusUpdate?: string;
 }
 
 Deno.serve(async (req) => {
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, customer_name, total_amount, status, delivery_type, delivery_location, scheduled_delivery_date')
+      .select('id, customer_name, total_amount, status, delivery_type, delivery_location, scheduled_delivery_date, is_special_order')
       .eq('id', orderId)
       .maybeSingle();
 
@@ -121,6 +121,73 @@ Deno.serve(async (req) => {
       headerColor = 'linear-gradient(135deg,#16a34a,#22c55e)';
       bodyMessage = `Your order has been delivered! We hope you love your items.`;
       statusBadge = `<span style="display:inline-block;background:#16a34a;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;">Delivered</span>`;
+    } else if (statusUpdate) {
+      const map: Record<string, { label: string; title: string; sub: string; body: string; color: string }> = {
+        pending: {
+          label: 'Pending',
+          title: '🧾 Order Received',
+          sub: 'We have your order and it is queued.',
+          body: 'We have received your order and it is now in our queue.',
+          color: 'linear-gradient(135deg,#0B1736,#1e3a8a)',
+        },
+        awaiting_payment: {
+          label: 'Awaiting Payment',
+          title: '⏳ Awaiting Payment',
+          sub: 'We are waiting for your payment to reflect.',
+          body: 'Your order is saved and waiting for payment confirmation.',
+          color: 'linear-gradient(135deg,#b45309,#d97706)',
+        },
+        confirmed: {
+          label: 'Payment Confirmed',
+          title: '✅ Payment Confirmed',
+          sub: 'Thank you — your payment has been confirmed.',
+          body: 'Your payment has been confirmed and your order is moving to preparation.',
+          color: 'linear-gradient(135deg,#0B1736,#D4AF37)',
+        },
+        processing: {
+          label: 'Processing',
+          title: '🧵 Order Being Prepared',
+          sub: 'We are preparing your uniforms.',
+          body: 'Our team is preparing your order right now.',
+          color: 'linear-gradient(135deg,#4338ca,#6366f1)',
+        },
+        ready: {
+          label: 'Ready',
+          title: '📦 Order Ready',
+          sub: 'Your order is ready.',
+          body: 'Your order is ready for pickup or dispatch.',
+          color: 'linear-gradient(135deg,#0f766e,#14b8a6)',
+        },
+        completed: {
+          label: 'Completed',
+          title: '🎉 Order Completed',
+          sub: 'Your order is complete.',
+          body: 'Your order has been completed. Thank you for shopping with us!',
+          color: 'linear-gradient(135deg,#166534,#22c55e)',
+        },
+        new_school_setup: {
+          label: 'School Setup',
+          title: '🏫 Setting Up Your School',
+          sub: 'We are adding your school to our catalogue.',
+          body: 'We are setting up your school profile and will confirm your uniform details shortly.',
+          color: 'linear-gradient(135deg,#7c2d12,#c2410c)',
+        },
+      };
+      const info = map[statusUpdate] ?? {
+        label: statusUpdate.replaceAll('_', ' '),
+        title: '📦 Order Update',
+        sub: "Here's the latest on your order.",
+        body: "Here's an update on your order:",
+        color: 'linear-gradient(135deg,#0B1736,#1e3a8a)',
+      };
+      subject = `${info.title.replace(/^[^\w]+\s*/, '')} - Patrichia's Store`;
+      headerTitle = info.title;
+      headerSubtitle = info.sub;
+      headerColor = info.color;
+      bodyMessage = order.is_special_order
+        ? `${info.body} This is a priority special order, so we are treating it as urgent.`
+        : info.body;
+      statusBadge = `<span style="display:inline-block;background:#0B1736;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;text-transform:capitalize;">${info.label}</span>`;
     } else {
       subject = `Order Update - Patrichia's Store`;
       headerTitle = '📦 Order Update';
