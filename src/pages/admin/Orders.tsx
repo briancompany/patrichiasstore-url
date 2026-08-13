@@ -125,11 +125,9 @@ export default function AdminOrders() {
         setSelectedOrder({ ...selectedOrder, status });
       }
 
-      // Send delivery email notifications for delivery orders
-      const order = orders.find(o => o.id === orderId);
-      if (order?.delivery_type === 'delivery' && (status === 'out_for_delivery' || status === 'delivered')) {
-        sendDeliveryEmail(orderId, { statusUpdate: status });
-      }
+      // Email the customer on every status change so they always know where
+      // their order stands.
+      sendDeliveryEmail(orderId, { statusUpdate: status });
     }
   };
 

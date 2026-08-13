@@ -540,6 +540,68 @@ export default function Checkout() {
           </form>
         </div>
       </div>
+
+      <Dialog open={showSpecialDialog} onOpenChange={setShowSpecialDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Some items are short on stock
+            </DialogTitle>
+            <DialogDescription>
+              You can still place this order. It will be marked as a priority special order so our
+              team restocks and contacts you first.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+              {shortfalls.map((s) => (
+                <div key={s.product_id} className="text-sm">
+                  <p className="font-medium">{s.product_name}</p>
+                  <p className="text-muted-foreground">
+                    {s.available === 0
+                      ? `Out of stock · you asked for ${s.requested}`
+                      : `Only ${s.available} left · you asked for ${s.requested}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label htmlFor="specialNote">Tell us how to handle it (optional)</Label>
+              <Textarea
+                id="specialNote"
+                value={specialNote}
+                onChange={(e) => setSpecialNote(e.target.value)}
+                placeholder="e.g. I still need all 5 pieces by Friday, or send what's available first"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowSpecialDialog(false)} disabled={isSubmitting}>
+              Go back
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowSpecialDialog(false);
+                await placeOrder(shortfalls, specialNote);
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Placing…
+                </>
+              ) : (
+                'Proceed as special order'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
