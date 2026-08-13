@@ -879,6 +879,48 @@ export type Database = {
         }
         Relationships: []
       }
+      system_errors: {
+        Row: {
+          auto_resolved: boolean
+          context: Json | null
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          resolution_note: string | null
+          resolved: boolean
+          resolved_at: string | null
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          auto_resolved?: boolean
+          context?: Json | null
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          resolution_note?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_resolved?: boolean
+          context?: Json | null
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          resolution_note?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       warmup_logs: {
         Row: {
           completed_at: string | null
