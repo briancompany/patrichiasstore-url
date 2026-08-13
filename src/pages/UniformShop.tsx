@@ -110,14 +110,12 @@ export default function UniformShop() {
         : prev,
     );
     if (!update.in_stock || update.stock_quantity <= 0) {
-      setCart((prev) => {
-        const affected = prev.find((item) => item.product.id === update.id);
-        if (affected) {
-          toast.error(`${affected.product.name} was just bought by another customer and is now sold out.`);
-          return prev.filter((item) => item.product.id !== update.id);
-        }
-        return prev;
-      });
+      const affected = cart.find((item) => item.product.id === update.id);
+      if (affected) {
+        toast.warning(
+          `${affected.product.name} was just bought by another customer. You can still order it as a special order — we'll confirm restocking with you at checkout.`,
+        );
+      }
     }
   });
 
@@ -273,9 +271,15 @@ export default function UniformShop() {
 
   const handleAddToCart = async () => {
     if (!currentProduct || !selectedSize) return;
-    if (!getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable) {
-      toast.error('This item is sold out. Message or call us to reserve yours.');
-      return;
+    const stockInfo = getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock);
+    if (!stockInfo.orderable) {
+      toast.warning(
+        'This item is out of stock — added as a special order. You can complete your order and we will confirm restocking with you.',
+      );
+    } else if (Number.isFinite(stockInfo.max) && quantity > stockInfo.max) {
+      toast.warning(
+        `Only ${stockInfo.max} in stock right now. The extra ${quantity - stockInfo.max} piece(s) will be treated as a special order.`,
+      );
     }
 
     let sampleImageUrl: string | null = null;
