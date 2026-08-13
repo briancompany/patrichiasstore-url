@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const escapeHtml = (value: string) =>
+const escapeHtml = (value: string) => 
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 
 async function logError(supabase: ReturnType<typeof createClient>, errorType: string, errorMessage: string, context: Record<string, unknown>, severity = 'error') {
