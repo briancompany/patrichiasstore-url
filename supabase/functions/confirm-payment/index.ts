@@ -1,5 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+async function logError(supabase: ReturnType<typeof import("https://esm.sh/@supabase/supabase-js@2").createClient>, errorType: string, errorMessage: string, context: Record<string, unknown>, severity = 'error') {
+  try {
+    await supabase.from('system_errors').insert({ error_type: errorType, error_message: errorMessage, context, severity, resolved: false });
+  } catch (e) {
+    console.error('Failed to log error to system_errors:', e);
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -118,6 +126,7 @@ Deno.serve(async (req) => {
     }
 
     if (Number(amount) !== Number(order.total_amount)) {
+      await logError(supabase, 'PAYMENT_AMOUNT_MISMATCH', `Amount mismatch for order ${orderId}: expected ${order.total_amount}, got ${amount}`, { orderId, expected: order.total_amount, received: amount }, 'error');
       return new Response(JSON.stringify({ error: "Payment amount mismatch" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -125,34 +134,6 @@ Deno.serve(async (req) => {
     }
 
     const methodLabel = paymentMethod === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
-
-    // Atomically claim stock BEFORE confirming — first payment in wins.
-    const { data: claim, error: claimError } = await supabase.rpc("claim_order_stock", {
-      _order_id: orderId,
-    });
-
-    if (claimError) {
-      console.error("Stock claim error:", claimError);
-      return new Response(JSON.stringify({ error: "Could not verify stock. Please contact support." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const claimResult = claim as { ok?: boolean; reason?: string; unavailable?: { product_name?: string }[] } | null;
-    if (claimResult && claimResult.ok === false) {
-      const names = (claimResult.unavailable || []).map((u) => u.product_name || "item").join(", ");
-      return new Response(
-        JSON.stringify({
-          error: names
-            ? `Sorry — ${names} was just bought by another customer moments before you. Nothing has been charged to your order. Please contact us for a restock or refund.`
-            : "This item is no longer available.",
-          sold_out: true,
-        }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const { error: updateError } = await supabase
       .from("orders")
       .update({
@@ -162,6 +143,7 @@ Deno.serve(async (req) => {
       .eq("id", orderId);
 
     if (updateError) {
+      await logError(supabase, 'PAYMENT_ORDER_UPDATE_FAILED', `Failed to update order ${orderId} status to confirmed`, { orderId, updateError }, 'critical');
       return new Response(JSON.stringify({ error: "Failed to update order status" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -187,6 +169,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch {
+    console.error('Unhandled payment error:', err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
