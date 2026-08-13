@@ -202,6 +202,13 @@ export default function Checkout() {
         console.warn('Tracking insert failed (continuing):', trackingError);
       }
 
+      // Confirmation email for every successfully placed order.
+      supabase.functions
+        .invoke('send-delivery-update', {
+          body: { orderId, statusUpdate: isNewSchool ? 'new_school_setup' : 'pending' },
+        })
+        .catch(() => undefined);
+
       const paymentState = {
         orderId,
         trackingCode: trackingError ? null : trackingCode,

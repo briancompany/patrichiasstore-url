@@ -171,7 +171,9 @@ export default function AdminOrders() {
       (order.customer_school?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     return matchesSearch && matchesStatus;
-  });
+  })
+    // Special (stock-short) orders are fast-forwarded to the top.
+    .sort((a, b) => Number(Boolean(b.is_special_order)) - Number(Boolean(a.is_special_order)));
 
   // Count new school orders
   const newSchoolOrdersCount = orders.filter(o => o.is_new_school && o.status === 'new_school_setup').length;
