@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendGmail } from '../_shared/gmail.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,21 +17,6 @@ async function logError(supabase: ReturnType<typeof createClient>, errorType: st
   }
 }
 
-async function sendViaResend(to: string, subject: string, html: string, text: string, resendApiKey: string) {
-  return fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: 'Patrichia Kavingo Store <onboarding@resend.dev>',
-      reply_to: 'patrichiakavingo@gmail.com',
-      to: [to],
-      subject,
-      html,
-      text,
-    }),
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -38,11 +24,10 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    if (!resendApiKey) {
-      await logError(supabase, 'EMAIL_SERVICE_UNAVAILABLE', 'RESEND_API_KEY not configured', {}, 'critical');
+    if (!Deno.env.get('GMAIL_USER') || !Deno.env.get('GMAIL_APP_PASSWORD')) {
+      await logError(supabase, 'EMAIL_SERVICE_UNAVAILABLE', 'Gmail SMTP credentials not configured', {}, 'critical');
       return new Response(JSON.stringify({ success: false, error: 'Email service unavailable' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -131,12 +116,16 @@ Deno.serve(async (req) => {
 
     const text = `Payment Confirmed!\n\nHello ${order.customer_name},\nOrder: ${order.id.slice(0, 8).toUpperCase()}\nPayment Code: ${paymentCode}\nTotal: Ksh ${Number(order.total_amount).toLocaleString()}\n\n${isDelivery ? `Delivery to: ${order.delivery_location || 'TBD'}` : 'Pickup: Uhuru Market Store F47'}\n\nTrack: patrichiasstore-url.vercel.app/track-order\nCall: +254 726 075 180`;
 
-    const emailResponse = await sendViaResend(customerEmail, `✅ Order Confirmed - ${order.id.slice(0, 8).toUpperCase()} | Patrichia Store`, html, text, resendApiKey);
-    const emailBody = await emailResponse.text();
+    const sendResult = await sendGmail({
+      to: customerEmail,
+      subject: `✅ Order Confirmed - ${order.id.slice(0, 8).toUpperCase()} | Patrichia Store`,
+      html,
+      text,
+    });
 
-    if (!emailResponse.ok) {
-      await logError(supabase, 'RECEIPT_EMAIL_SEND_FAILED', `Failed sending receipt for order ${orderId} to ${customerEmail}`, { orderId, customerEmail, status: emailResponse.status, body: emailBody }, 'error');
-      return new Response(JSON.stringify({ success: false, error: 'Failed to send email' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!sendResult.success) {
+      await logError(supabase, 'RECEIPT_EMAIL_SEND_FAILED', `Failed sending receipt for order ${orderId} to ${customerEmail}`, { orderId, customerEmail, error: sendResult.error }, 'error');
+      return new Response(JSON.stringify({ success: false, error: 'Failed to send email', details: sendResult.error }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     await supabase.from('receipt_emails').insert({ order_id: orderId, email: customerEmail, sent_at: new Date().toISOString() });
