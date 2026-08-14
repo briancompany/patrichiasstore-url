@@ -7,10 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Phone, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
-import { StockBadge } from '@/components/StockBadge';
-import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
-import { getStockInfo } from '@/lib/stock';
-import { useLiveStock } from '@/hooks/useLiveStock';
 
 interface ProductSize {
   size: string;
@@ -25,7 +21,6 @@ interface Product {
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
-  stock_quantity?: number | null;
   school_id: string | null;
   schools?: { id: string; name: string; logo_url: string | null } | null;
 }
@@ -66,15 +61,6 @@ export default function ProductPage() {
     load();
   }, [productId]);
 
-  // Live stock — flips to sold out the moment another order is paid for
-  useLiveStock((update) => {
-    setProduct((prev) =>
-      prev && prev.id === update.id
-        ? { ...prev, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
-        : prev,
-    );
-  });
-
   useEffect(() => {
     if (!product) return;
 
@@ -110,8 +96,14 @@ export default function ProductPage() {
       setMeta('meta[name="twitter:image"]', 'content', product.image_url);
     }
 
-    const canonical = document.querySelector('link[rel="canonical"]');
-    if (canonical) canonical.setAttribute('href', window.location.href);
+    // Set or create canonical tag for this specific product page
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', window.location.href);
   }, [product]);
 
   const handleOrder = () => {
@@ -152,8 +144,6 @@ export default function ProductPage() {
     ? Math.min(...product.sizes.map((s) => s.price))
     : null;
 
-  const stock = getStockInfo(product.stock_quantity, product.in_stock);
-
   return (
     <Layout>
       <div className="max-w-3xl mx-auto py-10 px-4">
@@ -190,10 +180,6 @@ export default function ProductPage() {
             <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
             <Badge variant="secondary">{product.type}</Badge>
 
-            <div>
-              <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
-            </div>
-
             {product.description && (
               <p className="text-muted-foreground">{product.description}</p>
             )}
@@ -228,23 +214,11 @@ export default function ProductPage() {
                       Call / WhatsApp to Order
                     </a>
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                    onClick={handleOrder}
-                    disabled={!stock.orderable}
-                  >
+                  <Button variant="outline" size="lg" className="w-full" onClick={handleOrder}>
                     <ShoppingCart className="h-4 w-4 mr-2" />
-                    {stock.orderable ? 'Order Online' : 'Sold Out — Restocking Soon'}
+                    Order Online
                   </Button>
                 </div>
-                <ProductEnquiryButtons
-                  productName={product.name}
-                  school={product.schools?.name}
-                  imageUrl={product.image_url}
-                  soldOut={!stock.orderable}
-                />
                 <p className="text-xs text-muted-foreground text-center">
                   Open Mon–Sat, 8am–6pm · Countrywide delivery available
                 </p>
