@@ -81,10 +81,44 @@ export default function AdminSchools() {
   const [duplicatesInSystem, setDuplicatesInSystem] = useState<{id: string; name: string}[]>([]);
   const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
 
+  // Normalize school names — strips asterisks, bullets, numbers, extra spaces
+  const normalizeName = (name: string): string => {
+    return name
+      .replace(/^[\s*\-•·–—#@!%^&()[\]{}<>|\\/"'\`~+=]+/g, '')
+      .replace(/^\d+[.):\-\s]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const findDuplicatesInSystem = () => {
+    const nameCount: Record<string, number> = {};
+    schools.forEach((s) => {
+      const key = normalizeName(s.name).toLowerCase();
+      nameCount[key] = (nameCount[key] || 0) + 1;
+    });
+    const dupes = schools.filter((s) => nameCount[normalizeName(s.name).toLowerCase()] > 1);
+    setDuplicatesInSystem(dupes.map((s) => ({ id: s.id, name: s.name })));
+    setShowDuplicatesDialog(true);
+  };
+
+  const deleteDuplicateSchool = async (id: string) => {
+    const { error } = await supabase.from('schools').delete().eq('id', id);
+    if (error) {
+      toast.error('Failed to delete school');
+    } else {
+      toast.success('School deleted');
+      setDuplicatesInSystem((prev) => prev.filter((s) => s.id !== id));
+      await fetchSchools();
+    }
+  };
+
   const handleBulkImport = async () => {
     const rawLines = bulkText
       .split('\n')
-      .map((line) => line.split(',')[0].trim())
+      .map((line) => normalizeName(line.split(',')[0]))
       .filter((name) => name.length > 0 && name.toLowerCase() !== 'school name');
 
     const uniqueNames = Array.from(new Set(rawLines));
@@ -96,10 +130,12 @@ export default function AdminSchools() {
 
     setIsBulkImporting(true);
     try {
-      const existingNames = new Set(schools.map((s) => s.name.toLowerCase()));
+      const existingNames = new Set(schools.map((s) => normalizeName(s.name).toLowerCase()));
+      const skipped = uniqueNames.filter((name) => existingNames.has(normalizeName(name).toLowerCase()));
+      setSkippedSchools(skipped);
       const toInsert = uniqueNames
-        .filter((name) => !existingNames.has(name.toLowerCase()))
-        .map((name) => ({ name }));
+        .filter((name) => !existingNames.has(normalizeName(name).toLowerCase()))
+        .map((name) => ({ name: normalizeName(name) }));
 
       if (toInsert.length === 0) {
         toast.info('All those schools are already in your system');
@@ -110,8 +146,6 @@ export default function AdminSchools() {
       const { error } = await supabase.from('schools').insert(toInsert);
       if (error) throw error;
 
-      const skipped = uniqueNames.filter((name) => existingNames.has(name.toLowerCase()));
-      setSkippedSchools(skipped);
       if (skipped.length > 0) {
         toast.success(`Added ${toInsert.length} schools. ${skipped.length} skipped (already exist).`);
       } else {
@@ -137,29 +171,6 @@ export default function AdminSchools() {
       setBulkText(text);
     };
     reader.readAsText(file);
-  };
-
-  const findDuplicatesInSystem = () => {
-    const nameCount: Record<string, number> = {};
-    schools.forEach((s) => {
-      const key = s.name.toLowerCase().trim();
-      nameCount[key] = (nameCount[key] || 0) + 1;
-    });
-    const dupes = schools.filter((s) => nameCount[s.name.toLowerCase().trim()] > 1);
-    setDuplicatesInSystem(dupes.map((s) => ({ id: s.id, name: s.name })));
-    setShowDuplicatesDialog(true);
-  };
-
-  const deleteDuplicateSchool = async (id: string) => {
-    const { error } = await supabase.from('schools').delete().eq('id', id);
-    if (error) {
-      toast.error('Failed to delete school');
-    } else {
-      toast.success('School deleted');
-      const updated = duplicatesInSystem.filter((s) => s.id !== id);
-      setDuplicatesInSystem(updated);
-      await fetchSchools();
-    }
   };
 
   // Check for pre-filled data from order creation
@@ -253,7 +264,7 @@ export default function AdminSchools() {
       }
 
       const schoolData = {
-        name: formData.name,
+        name: normalizeName(formData.name),
         logo_url: logoUrl || null,
       };
 
@@ -523,52 +534,7 @@ export default function AdminSchools() {
                       'Import Schools'
                     )}
                   </Button>
-                  {skippedSchools.length > 0 && (
-                    <div className="border border-yellow-300 bg-yellow-50 rounded-lg p-3 space-y-2">
-                      <p className="text-sm font-medium text-yellow-800">
-                        ⚠️ {skippedSchools.length} schools already exist and were NOT added:
-                      </p>
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {skippedSchools.map((name) => (
-                          <p key={name} className="text-xs text-yellow-700">• {name}</p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </DialogContent>
-            </Dialog>
-            <Button variant="outline" onClick={findDuplicatesInSystem} className="border-red-300 text-red-600 hover:bg-red-50">
-              Find Duplicates
-            </Button>
-            <Dialog open={showDuplicatesDialog} onOpenChange={setShowDuplicatesDialog}>
-              <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Duplicate Schools in System</DialogTitle>
-                </DialogHeader>
-                {duplicatesInSystem.length === 0 ? (
-                  <p className="text-sm text-green-600 py-4 text-center">✅ No duplicate schools found! Your system is clean.</p>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Found {duplicatesInSystem.length} schools with duplicate names. Delete the extra copies below:
-                    </p>
-                    <div className="divide-y border rounded-lg">
-                      {duplicatesInSystem.map((school) => (
-                        <div key={school.id} className="flex items-center justify-between px-4 py-3">
-                          <span className="text-sm font-medium">{school.name}</span>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteDuplicateSchool(school.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </DialogContent>
             </Dialog>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
