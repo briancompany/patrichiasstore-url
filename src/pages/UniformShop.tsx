@@ -8,24 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn, MessageCircle, Phone } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Check, Minus, Plus, ShoppingCart, Printer, X, Database, Loader2, AlertTriangle, School, Package, Palette, Upload, Image, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
-import { getStockInfo } from '@/lib/stock';
-import { StockBadge } from '@/components/StockBadge';
 import { searchSchools, type SchoolResult } from '@/lib/api/schoolSearch';
 import { Link } from 'react-router-dom';
 import { slugify } from '@/lib/slug';
 import { SchoolLogoViewer } from '@/components/SchoolLogoViewer';
 import { showCartConfirmation } from '@/components/CartConfirmationToast';
 import { useGeneralProducts, usePricingChart } from '@/hooks/useProductCache';
-import { useLiveStock } from '@/hooks/useLiveStock';
-
-const STORE_PHONE = '0726075180';
-const STORE_WHATSAPP = '254726075180';
-
-function schoolEnquiryMessage(schoolName: string) {
-  return `Hello Patrichia's Store,\n\nI would like to enquire about school uniforms for *${schoolName}*.\n\nPlease share available items, sizes and prices. Thank you.`;
-}
 
 interface ProductSize {
   size: string;
@@ -41,7 +31,6 @@ interface Product {
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
-  stock_quantity?: number | null;
   school_id: string | null;
   schools?: { id: string; name: string; logo_url: string | null } | null;
 }
@@ -94,31 +83,6 @@ export default function UniformShop() {
     sizes: p.sizes as ProductSize[],
   }));
 
-  // Live stock: if another shopper's payment lands first, the item flips to
-  // sold out here immediately without a page reload.
-  useLiveStock((update) => {
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === update.id
-          ? { ...p, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
-          : p,
-      ),
-    );
-    setCurrentProduct((prev) =>
-      prev && prev.id === update.id
-        ? { ...prev, stock_quantity: update.stock_quantity, in_stock: update.in_stock }
-        : prev,
-    );
-    if (!update.in_stock || update.stock_quantity <= 0) {
-      const affected = cart.find((item) => item.product.id === update.id);
-      if (affected) {
-        toast.warning(
-          `${affected.product.name} was just bought by another customer. You can still order it as a special order — we'll confirm restocking with you at checkout.`,
-        );
-      }
-    }
-  });
-
   // Fetch school-specific products only when needed (not on mount)
   // Pricing chart and general products come from shared cache hooks
 
@@ -163,6 +127,7 @@ export default function UniformShop() {
       .from('products')
       .select('*, schools(id, name, logo_url)')
       .eq('school_id', schoolId)
+      .eq('in_stock', true)
       .order('type');
 
     if (error) {
@@ -216,15 +181,9 @@ export default function UniformShop() {
   };
 
   const handleSchoolSelect = (school: SchoolResult) => {
-    // DB school - fetch actual products
-    setSelectedSchool({
-      id: school.id,
-      name: school.name,
-      logo_url: school.logo_url,
-      isFromDB: true,
-    });
-    fetchProductsForSchool(school.id);
-    setStep('products');
+    // Navigate to dedicated school page — updates URL so Google can index it
+    // and customers can share/bookmark the direct link
+    navigate(`/uniform-shop/school/${slugify(school.name)}`);
   };
 
   const handleCustomSchoolContinue = () => {
@@ -271,16 +230,6 @@ export default function UniformShop() {
 
   const handleAddToCart = async () => {
     if (!currentProduct || !selectedSize) return;
-    const stockInfo = getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock);
-    if (!stockInfo.orderable) {
-      toast.warning(
-        'This item is out of stock — added as a special order. You can complete your order and we will confirm restocking with you.',
-      );
-    } else if (Number.isFinite(stockInfo.max) && quantity > stockInfo.max) {
-      toast.warning(
-        `Only ${stockInfo.max} in stock right now. The extra ${quantity - stockInfo.max} piece(s) will be treated as a special order.`,
-      );
-    }
 
     let sampleImageUrl: string | null = null;
     if (sampleImage) {
@@ -501,30 +450,6 @@ export default function UniformShop() {
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </button>
-                      <div className="flex items-center gap-2 px-4 pb-3 -mt-1">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 gap-2 border-whatsapp/40 text-whatsapp hover:bg-whatsapp hover:text-whatsapp-foreground"
-                        >
-                          <a
-                            href={`https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(schoolEnquiryMessage(school.name))}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Enquire on WhatsApp about ${school.name} uniforms`}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                            WhatsApp
-                          </a>
-                        </Button>
-                        <Button asChild size="sm" variant="outline" className="flex-1 gap-2">
-                          <a href={`tel:${STORE_PHONE}`} aria-label={`Call the store about ${school.name} uniforms`}>
-                            <Phone className="h-4 w-4" />
-                            Call
-                          </a>
-                        </Button>
-                      </div>
                       {/* Crawlable link for Google — hidden visually but discoverable by crawlers */}
                       <Link
                         to={`/uniform-shop/school/${slugify(school.name)}`}
@@ -1044,11 +969,7 @@ export default function UniformShop() {
                         </div>
                         <Button
                           onClick={handleAddToCart}
-                          disabled={
-                            !selectedSize ||
-                            uploadingSample ||
-                            !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable
-                          }
+                          disabled={!selectedSize || uploadingSample}
                           className="w-full h-14 text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg"
                           size="lg"
                         >
@@ -1057,8 +978,6 @@ export default function UniformShop() {
                               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                               Uploading...
                             </>
-                          ) : !getStockInfo(currentProduct.stock_quantity, currentProduct.in_stock).orderable ? (
-                            <>Sold Out — Restocking Soon</>
                           ) : (
                             <>
                               <ShoppingCart className="h-5 w-5 mr-2" />
@@ -1116,9 +1035,6 @@ export default function UniformShop() {
                         <p className="text-primary font-medium">
                           From Ksh {getMinPrice(product.sizes).toLocaleString()}
                         </p>
-                        <div className="mt-2">
-                          <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
-                        </div>
                       </CardContent>
                     </Card>
                   ))}
