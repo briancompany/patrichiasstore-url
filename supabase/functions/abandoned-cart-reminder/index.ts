@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendGmail } from "../_shared/gmail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,10 +15,8 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const FROM_EMAIL = Deno.env.get('RECEIPT_FROM_EMAIL') || 'Patrichia Store <onboarding@resend.dev>';
 
-    if (!RESEND_API_KEY) {
+    if (!Deno.env.get('GMAIL_USER') || !Deno.env.get('GMAIL_APP_PASSWORD')) {
       return new Response(JSON.stringify({ error: 'Email not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -61,17 +60,10 @@ serve(async (req) => {
         const WHATSAPP_NUMBER = '254726075180';
         const whatsappLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hi, I need help completing my order (${order.id.slice(0, 8)})`)}`;
 
-        const emailRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: [email],
-            subject: `${order.customer_name}, your order is waiting! 🛒`,
-            html: `
+        const emailRes = await sendGmail({
+          to: String(email),
+          subject: `${order.customer_name}, your order is waiting! 🛒`,
+          html: `
               <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #333;">Hi ${order.customer_name}! 👋</h2>
                 <p>You have an incomplete order worth <strong>Ksh ${order.total_amount.toLocaleString()}</strong> at Patrichia's Store.</p>
@@ -86,10 +78,10 @@ serve(async (req) => {
                 </p>
               </div>
             `,
-          }),
         });
 
-        if (emailRes.ok) sent++;
+        if (emailRes.success) sent++;
+        else console.error('Reminder send failed:', emailRes.error);
       } catch (e) {
         console.error('Failed to send reminder:', e);
       }
