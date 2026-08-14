@@ -107,8 +107,14 @@ export default function SchoolUniformPage() {
       const twDesc = document.querySelector('meta[name="twitter:description"]');
       if (twDesc) twDesc.setAttribute('content', description);
 
+      // Set or create canonical tag for this specific school page
       let canonical = document.querySelector('link[rel="canonical"]');
-      if (canonical) canonical.setAttribute('href', window.location.href);
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute('href', window.location.href);
     }
   }, [school]);
 
