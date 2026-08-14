@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendGmail } from '../_shared/gmail.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,12 +36,9 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const fromEmail =
-      Deno.env.get('RECEIPT_FROM_EMAIL') ?? 'Patrichia Store <onboarding@resend.dev>';
 
-    if (!resendApiKey) {
-      console.error('RESEND_API_KEY not configured');
+    if (!Deno.env.get('GMAIL_USER') || !Deno.env.get('GMAIL_APP_PASSWORD')) {
+      console.error('Gmail SMTP credentials not configured');
       return new Response(JSON.stringify({ success: false, error: 'Email service unavailable' }), {
         status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -254,27 +252,11 @@ Deno.serve(async (req) => {
 
     console.log(`Sending delivery update email to: ${customerEmail}`);
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [customerEmail],
-        subject,
-        html,
-        text,
-      }),
-    });
+    const sendResult = await sendGmail({ to: customerEmail, subject, html, text });
 
-    const resendBody = await resendResponse.text();
-    console.log(`Resend response: status=${resendResponse.status}, body=${resendBody}`);
-
-    if (!resendResponse.ok) {
-      console.error('Resend API error:', resendBody);
-      return new Response(JSON.stringify({ success: false, error: 'Failed to send email', details: resendBody }), {
+    if (!sendResult.success) {
+      console.error('Gmail SMTP error:', sendResult.error);
+      return new Response(JSON.stringify({ success: false, error: 'Failed to send email', details: sendResult.error }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
