@@ -84,7 +84,7 @@ export default function AdminSchools() {
   // Normalize school names — strips asterisks, bullets, numbers, extra spaces
   const normalizeName = (name: string): string => {
     return name
-      .replace(/^[\s*\-•·–—#@!%^&()[\]{}<>|\\/"'\`~+=]+/g, '')
+      .replace(/^[\s\*\-#@!%^&()[\]{}<>|/"'~+=]+/g, '')
       .replace(/^\d+[.):\-\s]+/g, '')
       .replace(/\s+/g, ' ')
       .trim()
