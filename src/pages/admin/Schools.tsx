@@ -80,6 +80,7 @@ export default function AdminSchools() {
   const [skippedSchools, setSkippedSchools] = useState<string[]>([]);
   const [duplicatesInSystem, setDuplicatesInSystem] = useState<{id: string; name: string}[]>([]);
   const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
+  const [selectedSchoolIds, setSelectedSchoolIds] = useState<string[]>([]);
 
   // Normalize school names — strips asterisks, bullets, numbers, extra spaces
   const normalizeName = (name: string): string => {
@@ -99,9 +100,27 @@ export default function AdminSchools() {
       const key = normalizeName(s.name).toLowerCase();
       nameCount[key] = (nameCount[key] || 0) + 1;
     });
+    // Find exact duplicates (after normalization)
     const dupes = schools.filter((s) => nameCount[normalizeName(s.name).toLowerCase()] > 1);
     setDuplicatesInSystem(dupes.map((s) => ({ id: s.id, name: s.name })));
     setShowDuplicatesDialog(true);
+  };
+
+  const toggleSelectSchool = (id: string) => {
+    setSelectedSchoolIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const deleteSelectedSchools = async () => {
+    if (selectedSchoolIds.length === 0) return;
+    for (const id of selectedSchoolIds) {
+      await supabase.from('schools').delete().eq('id', id);
+    }
+    toast.success(`Deleted ${selectedSchoolIds.length} schools`);
+    setSelectedSchoolIds([]);
+    setDuplicatesInSystem((prev) => prev.filter((s) => !selectedSchoolIds.includes(s.id)));
+    await fetchSchools();
   };
 
   const deleteDuplicateSchool = async (id: string) => {
@@ -537,6 +556,56 @@ export default function AdminSchools() {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button
+              variant="outline"
+              onClick={findDuplicatesInSystem}
+              className="border-red-300 text-red-600 hover:bg-red-50"
+            >
+              Find Duplicates
+            </Button>
+            <Dialog open={showDuplicatesDialog} onOpenChange={setShowDuplicatesDialog}>
+              <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Duplicate Schools Found</DialogTitle>
+                </DialogHeader>
+                {duplicatesInSystem.length === 0 ? (
+                  <p className="text-sm text-green-600 py-4 text-center">✅ No duplicate schools found!</p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {duplicatesInSystem.length} schools with duplicate names detected. Select the ones to delete:
+                    </p>
+                    <div className="divide-y border rounded-lg max-h-64 overflow-y-auto">
+                      {duplicatesInSystem.map((school) => (
+                        <div key={school.id} className="flex items-center gap-3 px-4 py-3">
+                          <Checkbox
+                            checked={selectedSchoolIds.includes(school.id)}
+                            onCheckedChange={() => toggleSelectSchool(school.id)}
+                          />
+                          <span className="text-sm flex-1">{school.name}</span>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteDuplicateSchool(school.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedSchoolIds.length > 0 && (
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={deleteSelectedSchools}
+                      >
+                        Delete {selectedSchoolIds.length} Selected Schools
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={() => resetForm()}>
@@ -750,11 +819,12 @@ export default function AdminSchools() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {schools.map((school) => (
+                {schools.map((school, index) => (
                   <Card key={school.id} className="group hover:shadow-lg transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                        <div className="relative w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          <span className="absolute top-0 left-0 bg-primary text-primary-foreground text-xs font-bold px-1 rounded-br-md z-10">{index + 1}</span>
                           {school.logo_url ? (
                             <img
                               src={school.logo_url}
@@ -766,7 +836,7 @@ export default function AdminSchools() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{school.name}</h3>
+                          <h3 className="font-semibold truncate">{school.name.replace(/^[*\-•·#\d.)+\s]+/, '').trim() || school.name}</h3>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="text-xs">
                               <Package className="h-3 w-3 mr-1" />
