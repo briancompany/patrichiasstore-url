@@ -44,8 +44,13 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB to handle larger images
-        navigateFallbackDenylist: [/^\/\.lovable\/oauth/, /^\/\.well-known\//],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallbackDenylist: [
+          /^\/\.lovable\/oauth/,
+          /^\/\.well-known\//,
+          /^\/sitemap\.xml$/,
+          /^\/robots\.txt$/,
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -76,6 +81,39 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Vendor chunks — cached separately, almost never change
+          if (id.includes("node_modules/react/") || 
+              id.includes("node_modules/react-dom/") || 
+              id.includes("node_modules/react-router-dom/") ||
+              id.includes("node_modules/scheduler/")) {
+            return "vendor-react";
+          }
+          if (id.includes("node_modules/@tanstack/")) {
+            return "vendor-query";
+          }
+          if (id.includes("node_modules/@supabase/")) {
+            return "vendor-supabase";
+          }
+          if (id.includes("node_modules/@radix-ui/")) {
+            return "vendor-ui";
+          }
+          // Admin pages chunk — only downloaded when admin visits
+          if (id.includes("/pages/admin/")) {
+            return "chunk-admin";
+          }
+          // Staff pages chunk — only downloaded when staff visits
+          if (id.includes("/pages/staff/")) {
+            return "chunk-staff";
+          }
+        },
+      },
     },
   },
 }));
