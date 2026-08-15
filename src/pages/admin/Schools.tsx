@@ -79,6 +79,7 @@ export default function AdminSchools() {
   const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [skippedSchools, setSkippedSchools] = useState<string[]>([]);
   const [duplicatesInSystem, setDuplicatesInSystem] = useState<{id: string; name: string}[]>([]);
+  const [duplicateGroups, setDuplicateGroups] = useState<{ label: string; items: { id: string; name: string }[] }[]>([]);
   const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
   const [selectedSchoolIds, setSelectedSchoolIds] = useState<string[]>([]);
 
@@ -94,15 +95,37 @@ export default function AdminSchools() {
       .join(' ');
   };
 
+  // Fuzzy key: strips punctuation and generic words so "Buruburu Pri. School" == "Buruburu Primary"
+  const fuzzyKey = (name: string): string => {
+    const STOP = new Set([
+      'school', 'schools', 'high', 'sec', 'secondary', 'primary', 'pri', 'academy',
+      'the', 'of', 'centre', 'center', 'college', 'junior', 'snr', 'senior', 'jnr', 'sch',
+    ]);
+    return normalizeName(name)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w && !STOP.has(w))
+      .sort()
+      .join(' ');
+  };
+
   const findDuplicatesInSystem = () => {
-    const nameCount: Record<string, number> = {};
+    const groupsMap: Record<string, { id: string; name: string }[]> = {};
     schools.forEach((s) => {
-      const key = normalizeName(s.name).toLowerCase();
-      nameCount[key] = (nameCount[key] || 0) + 1;
+      const key = fuzzyKey(s.name) || normalizeName(s.name).toLowerCase();
+      if (!groupsMap[key]) groupsMap[key] = [];
+      groupsMap[key].push({ id: s.id, name: s.name });
     });
-    // Find exact duplicates (after normalization)
-    const dupes = schools.filter((s) => nameCount[normalizeName(s.name).toLowerCase()] > 1);
-    setDuplicatesInSystem(dupes.map((s) => ({ id: s.id, name: s.name })));
+
+    const groups = Object.values(groupsMap)
+      .filter((items) => items.length > 1)
+      .map((items) => ({ label: normalizeName(items[0].name), items }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    setDuplicateGroups(groups);
+    setDuplicatesInSystem(groups.flatMap((g) => g.items));
+    setSelectedSchoolIds([]);
     setShowDuplicatesDialog(true);
   };
 
@@ -120,6 +143,11 @@ export default function AdminSchools() {
     toast.success(`Deleted ${selectedSchoolIds.length} schools`);
     setSelectedSchoolIds([]);
     setDuplicatesInSystem((prev) => prev.filter((s) => !selectedSchoolIds.includes(s.id)));
+    setDuplicateGroups((prev) =>
+      prev
+        .map((g) => ({ ...g, items: g.items.filter((s) => !selectedSchoolIds.includes(s.id)) }))
+        .filter((g) => g.items.length > 0),
+    );
     await fetchSchools();
   };
 
@@ -130,6 +158,11 @@ export default function AdminSchools() {
     } else {
       toast.success('School deleted');
       setDuplicatesInSystem((prev) => prev.filter((s) => s.id !== id));
+      setDuplicateGroups((prev) =>
+        prev
+          .map((g) => ({ ...g, items: g.items.filter((s) => s.id !== id) }))
+          .filter((g) => g.items.length > 0),
+      );
       await fetchSchools();
     }
   };
@@ -568,28 +601,38 @@ export default function AdminSchools() {
                 <DialogHeader>
                   <DialogTitle>Duplicate Schools Found</DialogTitle>
                 </DialogHeader>
-                {duplicatesInSystem.length === 0 ? (
+                {duplicateGroups.length === 0 ? (
                   <p className="text-sm text-green-600 py-4 text-center">✅ No duplicate schools found!</p>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      {duplicatesInSystem.length} schools with duplicate names detected. Select the ones to delete:
+                      {duplicatesInSystem.length} schools across {duplicateGroups.length} duplicate group
+                      {duplicateGroups.length !== 1 ? 's' : ''} detected (similar names included). Select the ones to delete:
                     </p>
-                    <div className="divide-y border rounded-lg max-h-64 overflow-y-auto">
-                      {duplicatesInSystem.map((school) => (
-                        <div key={school.id} className="flex items-center gap-3 px-4 py-3">
-                          <Checkbox
-                            checked={selectedSchoolIds.includes(school.id)}
-                            onCheckedChange={() => toggleSelectSchool(school.id)}
-                          />
-                          <span className="text-sm flex-1">{school.name}</span>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteDuplicateSchool(school.id)}
-                          >
-                            Delete
-                          </Button>
+                    <div className="space-y-3 max-h-72 overflow-y-auto">
+                      {duplicateGroups.map((group, gi) => (
+                        <div key={group.label + gi} className="border rounded-lg overflow-hidden">
+                          <div className="px-3 py-2 bg-muted text-xs font-semibold">
+                            {gi + 1}. {group.label} — {group.items.length} entries
+                          </div>
+                          <div className="divide-y">
+                            {group.items.map((school) => (
+                              <div key={school.id} className="flex items-center gap-3 px-4 py-3">
+                                <Checkbox
+                                  checked={selectedSchoolIds.includes(school.id)}
+                                  onCheckedChange={() => toggleSelectSchool(school.id)}
+                                />
+                                <span className="text-sm flex-1">{school.name}</span>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteDuplicateSchool(school.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
