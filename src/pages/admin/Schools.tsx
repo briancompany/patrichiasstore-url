@@ -79,6 +79,7 @@ export default function AdminSchools() {
   const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [skippedSchools, setSkippedSchools] = useState<string[]>([]);
   const [duplicatesInSystem, setDuplicatesInSystem] = useState<{id: string; name: string}[]>([]);
+  const [duplicateGroups, setDuplicateGroups] = useState<{ label: string; items: { id: string; name: string }[] }[]>([]);
   const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false);
   const [selectedSchoolIds, setSelectedSchoolIds] = useState<string[]>([]);
 
@@ -95,14 +96,37 @@ export default function AdminSchools() {
   };
 
   const findDuplicatesInSystem = () => {
-    const nameCount: Record<string, number> = {};
+  // Fuzzy key: strips punctuation and generic words so "Buruburu Pri. School" == "Buruburu Primary"
+  const fuzzyKey = (name: string): string => {
+    const STOP = new Set([
+      'school', 'schools', 'high', 'sec', 'secondary', 'primary', 'pri', 'academy',
+      'the', 'of', 'centre', 'center', 'college', 'junior', 'snr', 'senior', 'jnr', 'sch',
+    ]);
+    return normalizeName(name)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w && !STOP.has(w))
+      .sort()
+      .join(' ');
+  };
+
+  const findDuplicatesInSystem = () => {
+    const groupsMap: Record<string, { id: string; name: string }[]> = {};
     schools.forEach((s) => {
-      const key = normalizeName(s.name).toLowerCase();
-      nameCount[key] = (nameCount[key] || 0) + 1;
+      const key = fuzzyKey(s.name) || normalizeName(s.name).toLowerCase();
+      if (!groupsMap[key]) groupsMap[key] = [];
+      groupsMap[key].push({ id: s.id, name: s.name });
     });
-    // Find exact duplicates (after normalization)
-    const dupes = schools.filter((s) => nameCount[normalizeName(s.name).toLowerCase()] > 1);
-    setDuplicatesInSystem(dupes.map((s) => ({ id: s.id, name: s.name })));
+
+    const groups = Object.values(groupsMap)
+      .filter((items) => items.length > 1)
+      .map((items) => ({ label: normalizeName(items[0].name), items }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    setDuplicateGroups(groups);
+    setDuplicatesInSystem(groups.flatMap((g) => g.items));
+    setSelectedSchoolIds([]);
     setShowDuplicatesDialog(true);
   };
 
@@ -120,6 +144,11 @@ export default function AdminSchools() {
     toast.success(`Deleted ${selectedSchoolIds.length} schools`);
     setSelectedSchoolIds([]);
     setDuplicatesInSystem((prev) => prev.filter((s) => !selectedSchoolIds.includes(s.id)));
+    setDuplicateGroups((prev) =>
+      prev
+        .map((g) => ({ ...g, items: g.items.filter((s) => !selectedSchoolIds.includes(s.id)) }))
+        .filter((g) => g.items.length > 0),
+    );
     await fetchSchools();
   };
 
@@ -130,6 +159,11 @@ export default function AdminSchools() {
     } else {
       toast.success('School deleted');
       setDuplicatesInSystem((prev) => prev.filter((s) => s.id !== id));
+      setDuplicateGroups((prev) =>
+        prev
+          .map((g) => ({ ...g, items: g.items.filter((s) => s.id !== id) }))
+          .filter((g) => g.items.length > 0),
+      );
       await fetchSchools();
     }
   };
