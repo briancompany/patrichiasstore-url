@@ -47,8 +47,16 @@ const StaffPriceBook = lazy(() => import("./pages/staff/PriceBook"));
 const StaffReports = lazy(() => import("./pages/staff/Reports"));
 const StaffSettings = lazy(() => import("./pages/staff/Settings"));
 
-const queryClient = new QueryClient();
-
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
