@@ -601,28 +601,38 @@ export default function AdminSchools() {
                 <DialogHeader>
                   <DialogTitle>Duplicate Schools Found</DialogTitle>
                 </DialogHeader>
-                {duplicatesInSystem.length === 0 ? (
+                {duplicateGroups.length === 0 ? (
                   <p className="text-sm text-green-600 py-4 text-center">✅ No duplicate schools found!</p>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      {duplicatesInSystem.length} schools with duplicate names detected. Select the ones to delete:
+                      {duplicatesInSystem.length} schools across {duplicateGroups.length} duplicate group
+                      {duplicateGroups.length !== 1 ? 's' : ''} detected (similar names included). Select the ones to delete:
                     </p>
-                    <div className="divide-y border rounded-lg max-h-64 overflow-y-auto">
-                      {duplicatesInSystem.map((school) => (
-                        <div key={school.id} className="flex items-center gap-3 px-4 py-3">
-                          <Checkbox
-                            checked={selectedSchoolIds.includes(school.id)}
-                            onCheckedChange={() => toggleSelectSchool(school.id)}
-                          />
-                          <span className="text-sm flex-1">{school.name}</span>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteDuplicateSchool(school.id)}
-                          >
-                            Delete
-                          </Button>
+                    <div className="space-y-3 max-h-72 overflow-y-auto">
+                      {duplicateGroups.map((group, gi) => (
+                        <div key={group.label + gi} className="border rounded-lg overflow-hidden">
+                          <div className="px-3 py-2 bg-muted text-xs font-semibold">
+                            {gi + 1}. {group.label} — {group.items.length} entries
+                          </div>
+                          <div className="divide-y">
+                            {group.items.map((school) => (
+                              <div key={school.id} className="flex items-center gap-3 px-4 py-3">
+                                <Checkbox
+                                  checked={selectedSchoolIds.includes(school.id)}
+                                  onCheckedChange={() => toggleSelectSchool(school.id)}
+                                />
+                                <span className="text-sm flex-1">{school.name}</span>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteDuplicateSchool(school.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
