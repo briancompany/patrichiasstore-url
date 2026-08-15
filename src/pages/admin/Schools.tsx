@@ -95,7 +95,6 @@ export default function AdminSchools() {
       .join(' ');
   };
 
-  const findDuplicatesInSystem = () => {
   // Fuzzy key: strips punctuation and generic words so "Buruburu Pri. School" == "Buruburu Primary"
   const fuzzyKey = (name: string): string => {
     const STOP = new Set([
