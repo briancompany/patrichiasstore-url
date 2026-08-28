@@ -34,4 +34,5 @@ Disallow: /order-history
 Disallow: /track-order
 Allow: /
 
-Sitemap: https://jkdxlbkckpwzmhdaoaoo.supabase.co/functions/v1/generate-sitemap
+# Public sitemap containing the storefront, school landing pages and product pages.
+Sitemap: https://patrichiasstore-url.vercel.app/sitemap.xml
