@@ -8,7 +8,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { lazy, Suspense } from "react";
 
-// Customer pages — eagerly loaded (customers need these fast)
+// Keep the public shopping path fast: these are the pages customers most commonly
+// need on first visit. Everything operational/admin/staff is split into route chunks.
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import UniformShop from "./pages/UniformShop";
@@ -25,7 +26,7 @@ import Wishlist from "./pages/Wishlist";
 import OrderHistory from "./pages/OrderHistory";
 import OAuthConsent from "./pages/OAuthConsent";
 
-// Admin pages — lazy loaded (only you access these, no need to download on customer visit)
+// Admin chunks are downloaded only when an /admin route is actually opened.
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminProducts = lazy(() => import("./pages/admin/Products"));
@@ -43,7 +44,7 @@ const AdminReviews = lazy(() => import("./pages/admin/ReviewsManager"));
 const AdminStoreContent = lazy(() => import("./pages/admin/StoreContent"));
 const AdminStaff = lazy(() => import("./pages/admin/Staff"));
 
-// Staff pages — lazy loaded (same reason)
+// Staff chunks are also completely separate from the public customer bundle.
 const StaffLogin = lazy(() => import("./pages/staff/Login"));
 const StaffDashboard = lazy(() => import("./pages/staff/Dashboard"));
 const QuotationNew = lazy(() => import("./pages/staff/QuotationNew"));
@@ -64,7 +65,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Simple loading spinner for lazy pages
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -81,7 +81,6 @@ const App = () => (
         <CookieConsent />
         <BrowserRouter>
           <Routes>
-            {/* Customer routes — load instantly */}
             <Route path="/" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/uniform-shop" element={<UniformShop />} />
@@ -97,7 +96,6 @@ const App = () => (
             <Route path="/order-history" element={<OrderHistory />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
 
-            {/* Admin routes — only load when /admin/* is visited */}
             <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><AdminLogin /></Suspense>} />
             <Route path="/admin/dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
             <Route path="/admin/products" element={<Suspense fallback={<PageLoader />}><AdminProducts /></Suspense>} />
@@ -117,7 +115,6 @@ const App = () => (
             <Route path="/admin/store-content" element={<Suspense fallback={<PageLoader />}><AdminStoreContent /></Suspense>} />
             <Route path="/admin/staff" element={<Suspense fallback={<PageLoader />}><AdminStaff /></Suspense>} />
 
-            {/* Staff routes — only load when /staff/* is visited */}
             <Route path="/staff/login" element={<Suspense fallback={<PageLoader />}><StaffLogin /></Suspense>} />
             <Route path="/staff" element={<Suspense fallback={<PageLoader />}><StaffDashboard /></Suspense>} />
             <Route path="/staff/quotations" element={<Suspense fallback={<PageLoader />}><QuotationHistory /></Suspense>} />
