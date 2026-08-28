@@ -8,24 +8,27 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { lazy, Suspense } from "react";
 
-// Customer pages — eagerly loaded (customers need these fast)
+// Keep the homepage as the smallest public entry chunk.
 import Index from "./pages/Index";
-import Shop from "./pages/Shop";
-import UniformShop from "./pages/UniformShop";
-import SchoolUniformPage from "./pages/SchoolUniformPage";
-import ProductPage from "./pages/ProductPage";
-import Order from "./pages/Order";
-import Checkout from "./pages/Checkout";
-import Payment from "./pages/Payment";
-import TrackOrder from "./pages/TrackOrder";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import NotFound from "./pages/NotFound";
-import Wishlist from "./pages/Wishlist";
-import OrderHistory from "./pages/OrderHistory";
-import OAuthConsent from "./pages/OAuthConsent";
 
-// Admin pages — lazy loaded (only you access these, no need to download on customer visit)
+// Customer routes are loaded on demand. This keeps checkout, payment, history,
+// contact and other secondary pages out of the initial homepage download.
+const Shop = lazy(() => import("./pages/Shop"));
+const UniformShop = lazy(() => import("./pages/UniformShop"));
+const SchoolUniformPage = lazy(() => import("./pages/SchoolUniformPage"));
+const ProductPage = lazy(() => import("./pages/ProductPage"));
+const Order = lazy(() => import("./pages/Order"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Payment = lazy(() => import("./pages/Payment"));
+const TrackOrder = lazy(() => import("./pages/TrackOrder"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Wishlist = lazy(() => import("./pages/Wishlist"));
+const OrderHistory = lazy(() => import("./pages/OrderHistory"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+
+// Admin chunks are downloaded only when an /admin route is actually opened.
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminProducts = lazy(() => import("./pages/admin/Products"));
@@ -43,7 +46,7 @@ const AdminReviews = lazy(() => import("./pages/admin/ReviewsManager"));
 const AdminStoreContent = lazy(() => import("./pages/admin/StoreContent"));
 const AdminStaff = lazy(() => import("./pages/admin/Staff"));
 
-// Staff pages — lazy loaded (same reason)
+// Staff chunks are completely separate from the public customer bundle.
 const StaffLogin = lazy(() => import("./pages/staff/Login"));
 const StaffDashboard = lazy(() => import("./pages/staff/Dashboard"));
 const QuotationNew = lazy(() => import("./pages/staff/QuotationNew"));
@@ -64,11 +67,14 @@ const queryClient = new QueryClient({
   },
 });
 
-// Simple loading spinner for lazy pages
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen flex items-center justify-center" aria-label="Loading">
     <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
+);
+
+const LazyPage = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
 );
 
 const App = () => (
@@ -81,53 +87,50 @@ const App = () => (
         <CookieConsent />
         <BrowserRouter>
           <Routes>
-            {/* Customer routes — load instantly */}
             <Route path="/" element={<Index />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/uniform-shop" element={<UniformShop />} />
-            <Route path="/uniform-shop/school/:schoolSlug" element={<SchoolUniformPage />} />
-            <Route path="/shop/product/:productId" element={<ProductPage />} />
-            <Route path="/order" element={<Order />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/payment" element={<Payment />} />
-            <Route path="/track-order" element={<TrackOrder />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/order-history" element={<OrderHistory />} />
-            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+            <Route path="/shop" element={<LazyPage><Shop /></LazyPage>} />
+            <Route path="/uniform-shop" element={<LazyPage><UniformShop /></LazyPage>} />
+            <Route path="/uniform-shop/school/:schoolSlug" element={<LazyPage><SchoolUniformPage /></LazyPage>} />
+            <Route path="/shop/product/:productId" element={<LazyPage><ProductPage /></LazyPage>} />
+            <Route path="/order" element={<LazyPage><Order /></LazyPage>} />
+            <Route path="/checkout" element={<LazyPage><Checkout /></LazyPage>} />
+            <Route path="/payment" element={<LazyPage><Payment /></LazyPage>} />
+            <Route path="/track-order" element={<LazyPage><TrackOrder /></LazyPage>} />
+            <Route path="/about" element={<LazyPage><About /></LazyPage>} />
+            <Route path="/contact" element={<LazyPage><Contact /></LazyPage>} />
+            <Route path="/wishlist" element={<LazyPage><Wishlist /></LazyPage>} />
+            <Route path="/order-history" element={<LazyPage><OrderHistory /></LazyPage>} />
+            <Route path="/.lovable/oauth/consent" element={<LazyPage><OAuthConsent /></LazyPage>} />
 
-            {/* Admin routes — only load when /admin/* is visited */}
-            <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><AdminLogin /></Suspense>} />
-            <Route path="/admin/dashboard" element={<Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense>} />
-            <Route path="/admin/products" element={<Suspense fallback={<PageLoader />}><AdminProducts /></Suspense>} />
-            <Route path="/admin/products/new" element={<Suspense fallback={<PageLoader />}><ProductForm /></Suspense>} />
-            <Route path="/admin/products/:id" element={<Suspense fallback={<PageLoader />}><ProductForm /></Suspense>} />
-            <Route path="/admin/orders" element={<Suspense fallback={<PageLoader />}><AdminOrders /></Suspense>} />
-            <Route path="/admin/schools" element={<Suspense fallback={<PageLoader />}><AdminSchools /></Suspense>} />
-            <Route path="/admin/schools/new" element={<Suspense fallback={<PageLoader />}><AdminSchools /></Suspense>} />
-            <Route path="/admin/users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
-            <Route path="/admin/discounts" element={<Suspense fallback={<PageLoader />}><AdminDiscounts /></Suspense>} />
-            <Route path="/admin/analytics" element={<Suspense fallback={<PageLoader />}><AdminAnalytics /></Suspense>} />
-            <Route path="/admin/settings" element={<Suspense fallback={<PageLoader />}><AdminSettings /></Suspense>} />
-            <Route path="/admin/pricing" element={<Suspense fallback={<PageLoader />}><PricingChart /></Suspense>} />
-            <Route path="/admin/payments" element={<Suspense fallback={<PageLoader />}><AdminPayments /></Suspense>} />
-            <Route path="/admin/monitor" element={<Suspense fallback={<PageLoader />}><AdminSystemMonitor /></Suspense>} />
-            <Route path="/admin/reviews" element={<Suspense fallback={<PageLoader />}><AdminReviews /></Suspense>} />
-            <Route path="/admin/store-content" element={<Suspense fallback={<PageLoader />}><AdminStoreContent /></Suspense>} />
-            <Route path="/admin/staff" element={<Suspense fallback={<PageLoader />}><AdminStaff /></Suspense>} />
+            <Route path="/admin/login" element={<LazyPage><AdminLogin /></LazyPage>} />
+            <Route path="/admin/dashboard" element={<LazyPage><AdminDashboard /></LazyPage>} />
+            <Route path="/admin/products" element={<LazyPage><AdminProducts /></LazyPage>} />
+            <Route path="/admin/products/new" element={<LazyPage><ProductForm /></LazyPage>} />
+            <Route path="/admin/products/:id" element={<LazyPage><ProductForm /></LazyPage>} />
+            <Route path="/admin/orders" element={<LazyPage><AdminOrders /></LazyPage>} />
+            <Route path="/admin/schools" element={<LazyPage><AdminSchools /></LazyPage>} />
+            <Route path="/admin/schools/new" element={<LazyPage><AdminSchools /></LazyPage>} />
+            <Route path="/admin/users" element={<LazyPage><AdminUsers /></LazyPage>} />
+            <Route path="/admin/discounts" element={<LazyPage><AdminDiscounts /></LazyPage>} />
+            <Route path="/admin/analytics" element={<LazyPage><AdminAnalytics /></LazyPage>} />
+            <Route path="/admin/settings" element={<LazyPage><AdminSettings /></LazyPage>} />
+            <Route path="/admin/pricing" element={<LazyPage><PricingChart /></LazyPage>} />
+            <Route path="/admin/payments" element={<LazyPage><AdminPayments /></LazyPage>} />
+            <Route path="/admin/monitor" element={<LazyPage><AdminSystemMonitor /></LazyPage>} />
+            <Route path="/admin/reviews" element={<LazyPage><AdminReviews /></LazyPage>} />
+            <Route path="/admin/store-content" element={<LazyPage><AdminStoreContent /></LazyPage>} />
+            <Route path="/admin/staff" element={<LazyPage><AdminStaff /></LazyPage>} />
 
-            {/* Staff routes — only load when /staff/* is visited */}
-            <Route path="/staff/login" element={<Suspense fallback={<PageLoader />}><StaffLogin /></Suspense>} />
-            <Route path="/staff" element={<Suspense fallback={<PageLoader />}><StaffDashboard /></Suspense>} />
-            <Route path="/staff/quotations" element={<Suspense fallback={<PageLoader />}><QuotationHistory /></Suspense>} />
-            <Route path="/staff/quotations/new" element={<Suspense fallback={<PageLoader />}><QuotationNew /></Suspense>} />
-            <Route path="/staff/customers" element={<Suspense fallback={<PageLoader />}><StaffCustomers /></Suspense>} />
-            <Route path="/staff/price-book" element={<Suspense fallback={<PageLoader />}><StaffPriceBook /></Suspense>} />
-            <Route path="/staff/reports" element={<Suspense fallback={<PageLoader />}><StaffReports /></Suspense>} />
-            <Route path="/staff/settings" element={<Suspense fallback={<PageLoader />}><StaffSettings /></Suspense>} />
+            <Route path="/staff/login" element={<LazyPage><StaffLogin /></LazyPage>} />
+            <Route path="/staff" element={<LazyPage><StaffDashboard /></LazyPage>} />
+            <Route path="/staff/quotations" element={<LazyPage><QuotationHistory /></LazyPage>} />
+            <Route path="/staff/quotations/new" element={<LazyPage><QuotationNew /></LazyPage>} />
+            <Route path="/staff/customers" element={<LazyPage><StaffCustomers /></LazyPage>} />
+            <Route path="/staff/price-book" element={<LazyPage><StaffPriceBook /></LazyPage>} />
+            <Route path="/staff/reports" element={<LazyPage><StaffReports /></LazyPage>} />
+            <Route path="/staff/settings" element={<LazyPage><StaffSettings /></LazyPage>} />
 
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

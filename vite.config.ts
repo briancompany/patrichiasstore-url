@@ -14,6 +14,18 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  build: {
+    // Keep independently lazy-loaded routes as separate browser chunks.
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Large operational-only libraries stay out of the initial customer chunk.
+          "admin-vendor": ["recharts", "jspdf", "jspdf-autotable"],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
@@ -43,7 +55,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
+        // Do not precache every JS chunk. Customer browsers should download
+        // only the app shell and assets needed for the current public route.
+        globPatterns: ["**/*.{css,html,ico,png,svg,jpg,jpeg,webp}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [
           /^\/\.lovable\/oauth/,

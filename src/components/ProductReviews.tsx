@@ -32,7 +32,20 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchReviews();
+    // Reviews are secondary content. Delay their network request until the
+    // browser is idle so product data/cards can render first.
+    const load = () => fetchReviews();
+    const idleId = 'requestIdleCallback' in window
+      ? window.requestIdleCallback(load, { timeout: 3000 })
+      : window.setTimeout(load, 1200);
+
+    return () => {
+      if ('cancelIdleCallback' in window && typeof idleId === 'number') {
+        window.cancelIdleCallback(idleId);
+      } else {
+        window.clearTimeout(idleId as number);
+      }
+    };
   }, [productId]);
 
   const fetchReviews = async () => {
@@ -118,25 +131,9 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
       {showForm && (
         <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
           <StarRating value={rating} interactive />
-          <Input
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="h-8 text-sm"
-          />
-          <Input
-            placeholder="Your email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="h-8 text-sm"
-          />
-          <Textarea
-            placeholder="Write your review (optional)"
-            value={reviewText}
-            onChange={(e) => setReviewText(e.target.value)}
-            className="text-sm min-h-[60px]"
-          />
+          <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+          <Input placeholder="Your email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-8 text-sm" />
+          <Textarea placeholder="Write your review (optional)" value={reviewText} onChange={(e) => setReviewText(e.target.value)} className="text-sm min-h-[60px]" />
           <Button onClick={handleSubmit} disabled={submitting} size="sm" className="w-full gap-2">
             {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
             Submit Review
@@ -152,9 +149,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
                 <StarRating value={review.rating} />
                 <span className="font-medium">{review.reviewer_name}</span>
               </div>
-              {review.review_text && (
-                <p className="text-muted-foreground">{review.review_text}</p>
-              )}
+              {review.review_text && <p className="text-muted-foreground">{review.review_text}</p>}
             </div>
           ))}
         </div>
@@ -167,14 +162,7 @@ export function StarRatingDisplay({ rating, count }: { rating: number; count: nu
   return (
     <div className="flex items-center gap-1">
       {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          className={`h-3 w-3 ${
-            star <= Math.round(rating)
-              ? 'fill-amber-400 text-amber-400'
-              : 'text-muted-foreground/30'
-          }`}
-        />
+        <Star key={star} className={`h-3 w-3 ${star <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
       ))}
       {count > 0 && <span className="text-xs text-muted-foreground ml-1">({count})</span>}
     </div>
