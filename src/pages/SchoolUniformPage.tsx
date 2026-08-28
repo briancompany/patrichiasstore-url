@@ -13,7 +13,7 @@ interface ProductSize {
   size: string;
   price: number;
 }
-
+  
 interface Product {
   id: string;
   name: string;
