@@ -24,6 +24,7 @@ function xmlEscape(value: string): string {
 }
 
 const SITE_URL = "https://patrichiasstore-url.vercel.app";
+const PRODUCT_PAGE_SIZE = 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -37,14 +38,28 @@ Deno.serve(async (req) => {
     );
 
     // Public SEO URLs only. Operational/admin URLs intentionally never enter the sitemap.
-    const [{ data: schools, error: schoolsError }, { data: products, error: productsError }] =
-      await Promise.all([
-        supabase.from("schools").select("name, updated_at"),
-        supabase.from("products").select("id, updated_at, in_stock"),
-      ]);
+    const { data: schools, error: schoolsError } = await supabase
+      .from("schools")
+      .select("name, updated_at");
 
     if (schoolsError) throw schoolsError;
-    if (productsError) throw productsError;
+
+    // Read products in pages so every product is included even if the catalogue grows
+    // beyond Supabase's default row limit. No stock filter is applied: out-of-stock
+    // products remain useful landing pages and can show restocking information.
+    const products: Array<{ id: string; updated_at?: string | null }> = [];
+    for (let from = 0; ; from += PRODUCT_PAGE_SIZE) {
+      const { data: page, error: productsError } = await supabase
+        .from("products")
+        .select("id, updated_at")
+        .order("id", { ascending: true })
+        .range(from, from + PRODUCT_PAGE_SIZE - 1);
+
+      if (productsError) throw productsError;
+      products.push(...(page || []));
+
+      if (!page || page.length < PRODUCT_PAGE_SIZE) break;
+    }
 
     const staticUrls = [
       { loc: `${SITE_URL}/`, priority: "1.0", changefreq: "weekly" },
@@ -61,9 +76,7 @@ Deno.serve(async (req) => {
       lastmod: s.updated_at ? s.updated_at.split("T")[0] : undefined,
     }));
 
-    // Every product has its own public URL. Include out-of-stock products too because
-    // their pages remain useful landing pages and can show availability/restocking info.
-    const productUrls = (products || []).map((p: { id: string; updated_at?: string | null }) => ({
+    const productUrls = products.map((p) => ({
       loc: `${SITE_URL}/shop/product/${encodeURIComponent(p.id)}`,
       priority: "0.7",
       changefreq: "weekly",

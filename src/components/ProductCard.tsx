@@ -87,16 +87,15 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         </div>
         
         <div>
-          <h3 className="font-semibold text-lg text-foreground">{product.name}</h3>
+          <h3 className="font-semibold text-lg text-foreground">
+            <Link
+              to={`/shop/product/${product.id}`}
+              className="hover:underline focus-visible:underline"
+            >
+              {product.name}
+            </Link>
+          </h3>
           <p className="text-sm text-muted-foreground">{typeLabels[product.type]}</p>
-          <Link
-            to={`/shop/product/${product.id}`}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-          >
-            {product.name} school uniform
-          </Link>
         </div>
 
         {/* Live availability */}
