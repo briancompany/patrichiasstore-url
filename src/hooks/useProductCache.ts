@@ -38,8 +38,8 @@ const IDB_KEYS = {
 };
 
 /**
- * Generic SWR fetch: serve from memory → IDB → network.
- * Background refresh when stale.
+ * Generic SWR fetch: paint instantly from memory → IDB (even if stale),
+ * then revalidate from the network in the background without blocking the UI.
  */
 function useSWRCache<T>(
   key: string,
@@ -51,24 +51,31 @@ function useSWRCache<T>(
   const [loaded, setLoaded] = useState(memRef.current !== null);
 
   useEffect(() => {
-    // 1. Already in memory and fresh
+    let cancelled = false;
+    const apply = (v: T) => {
+      setMem(v);
+      memRef.current = v;
+      if (!cancelled) {
+        setData(v);
+        setLoaded(true);
+      }
+    };
+
+    // 1. Memory hit — instant, nothing to wait for
     if (memRef.current) {
       setData(memRef.current);
       setLoaded(true);
+    } else {
+      // 2. IDB hit — paint immediately even when stale (SWR)
+      idbGetWithTTL<T>(key).then((cached) => {
+        if (cached && !memRef.current) apply(cached.data);
+      });
     }
 
-    // 2. Deduplicated fetch: IDB → network (always refresh from network)
+    // 3. Background revalidation, deduplicated across components
     if (!_fetchPromises[key]) {
       _fetchPromises[key] = (async () => {
         try {
-          // Try IDB first for instant display
-          const cached = await idbGetWithTTL<T>(key);
-          if (cached && !cached.stale) {
-            setMem(cached.data);
-            memRef.current = cached.data;
-          }
-
-          // Always fetch from network to get latest data
           const fresh = await fetcher();
           if (fresh !== null) {
             setMem(fresh);
@@ -76,7 +83,7 @@ function useSWRCache<T>(
             await idbSetWithTTL(key, fresh);
           }
         } catch {
-          // Offline — use whatever we have
+          // Offline — keep cached data
         } finally {
           delete _fetchPromises[key];
         }
@@ -84,13 +91,17 @@ function useSWRCache<T>(
     }
 
     _fetchPromises[key]!.then(() => {
-      setData(memRef.current);
+      if (cancelled) return;
+      if (memRef.current) setData(memRef.current);
       setLoaded(true);
     });
+
+    return () => { cancelled = true; };
   }, []);
 
   return { data, loaded };
 }
+
 
 // Memory refs as stable objects
 const _productsRef = { get current() { return _generalProducts; }, set current(v) { _generalProducts = v; } };
@@ -156,4 +167,43 @@ export function usePricingChart() {
     (v) => { _pricingChart = v; },
   );
   return data ?? {};
+}
+
+/**
+ * Warm the product/school/pricing caches ahead of navigation so the Shop
+ * renders instantly on first visit. Safe to call multiple times.
+ */
+export function prefetchStoreData() {
+  const jobs: [string, () => Promise<unknown>][] = [
+    [IDB_KEYS.products, async () => {
+      if (_generalProducts) return;
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, description, image_url, type, sizes, in_stock, stock_quantity, school_id')
+        .is('school_id', null)
+        .order('name');
+      if (!data) return;
+      const mapped = data.map((p) => ({
+        ...p,
+        stock_quantity: Number(p.stock_quantity ?? 0),
+        sizes: Array.isArray(p.sizes) ? (p.sizes as unknown as PricingSize[]) : [],
+      })) as GeneralProduct[];
+      _generalProducts = mapped;
+      await idbSetWithTTL(IDB_KEYS.products, mapped);
+    }],
+    [IDB_KEYS.schools, async () => {
+      if (_schools) return;
+      const { data } = await supabase.from('schools').select('id, name, logo_url').order('name');
+      if (!data) return;
+      _schools = data;
+      await idbSetWithTTL(IDB_KEYS.schools, data);
+    }],
+  ];
+
+  jobs.forEach(([key, run]) => {
+    if (_fetchPromises[key]) return;
+    _fetchPromises[key] = (async () => {
+      try { await run(); } catch { /* offline */ } finally { delete _fetchPromises[key]; }
+    })();
+  });
 }

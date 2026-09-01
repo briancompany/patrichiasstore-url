@@ -572,6 +572,8 @@ export default function UniformShop() {
                           <img
                             src={product.image_url}
                             alt={product.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -1003,6 +1005,8 @@ export default function UniformShop() {
                           <img
                             src={product.image_url}
                             alt={product.name}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         ) : (
