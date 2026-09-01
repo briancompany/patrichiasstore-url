@@ -168,3 +168,42 @@ export function usePricingChart() {
   );
   return data ?? {};
 }
+
+/**
+ * Warm the product/school/pricing caches ahead of navigation so the Shop
+ * renders instantly on first visit. Safe to call multiple times.
+ */
+export function prefetchStoreData() {
+  const jobs: [string, () => Promise<unknown>][] = [
+    [IDB_KEYS.products, async () => {
+      if (_generalProducts) return;
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, description, image_url, type, sizes, in_stock, stock_quantity, school_id')
+        .is('school_id', null)
+        .order('name');
+      if (!data) return;
+      const mapped = data.map((p) => ({
+        ...p,
+        stock_quantity: Number(p.stock_quantity ?? 0),
+        sizes: Array.isArray(p.sizes) ? (p.sizes as PricingSize[]) : [],
+      })) as GeneralProduct[];
+      _generalProducts = mapped;
+      await idbSetWithTTL(IDB_KEYS.products, mapped);
+    }],
+    [IDB_KEYS.schools, async () => {
+      if (_schools) return;
+      const { data } = await supabase.from('schools').select('id, name, logo_url').order('name');
+      if (!data) return;
+      _schools = data;
+      await idbSetWithTTL(IDB_KEYS.schools, data);
+    }],
+  ];
+
+  jobs.forEach(([key, run]) => {
+    if (_fetchPromises[key]) return;
+    _fetchPromises[key] = (async () => {
+      try { await run(); } catch { /* offline */ } finally { delete _fetchPromises[key]; }
+    })();
+  });
+}
