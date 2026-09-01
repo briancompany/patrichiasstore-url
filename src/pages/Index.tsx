@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { CategoryCard } from '@/components/CategoryCard';
@@ -5,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } from 'lucide-react';
 import heroImage from '@/assets/hero-uniforms.jpg';
 import patrichiaImage from '@/assets/patrichia-optimized.jpg';
+import { prefetchStoreData } from '@/hooks/useProductCache';
 
 const categories = [
   {
