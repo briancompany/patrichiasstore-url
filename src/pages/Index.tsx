@@ -48,7 +48,16 @@ const features = [
 ];
 
 export default function Index() {
+  // Warm the product + school caches while the visitor reads the homepage,
+  // so opening the Shop is instant on a first visit.
+  useEffect(() => {
+    const idle = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (idle) idle(() => prefetchStoreData());
+    else setTimeout(() => prefetchStoreData(), 400);
+  }, []);
+
   return (
+
     <Layout>
       {/* Hero Section */}
       <section className="relative bg-primary overflow-hidden">
