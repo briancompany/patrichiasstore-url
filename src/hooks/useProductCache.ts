@@ -38,8 +38,8 @@ const IDB_KEYS = {
 };
 
 /**
- * Generic SWR fetch: serve from memory → IDB → network.
- * Background refresh when stale.
+ * Generic SWR fetch: paint instantly from memory → IDB (even if stale),
+ * then revalidate from the network in the background without blocking the UI.
  */
 function useSWRCache<T>(
   key: string,
@@ -51,24 +51,31 @@ function useSWRCache<T>(
   const [loaded, setLoaded] = useState(memRef.current !== null);
 
   useEffect(() => {
-    // 1. Already in memory and fresh
+    let cancelled = false;
+    const apply = (v: T) => {
+      setMem(v);
+      memRef.current = v;
+      if (!cancelled) {
+        setData(v);
+        setLoaded(true);
+      }
+    };
+
+    // 1. Memory hit — instant, nothing to wait for
     if (memRef.current) {
       setData(memRef.current);
       setLoaded(true);
+    } else {
+      // 2. IDB hit — paint immediately even when stale (SWR)
+      idbGetWithTTL<T>(key).then((cached) => {
+        if (cached && !memRef.current) apply(cached.data);
+      });
     }
 
-    // 2. Deduplicated fetch: IDB → network (always refresh from network)
+    // 3. Background revalidation, deduplicated across components
     if (!_fetchPromises[key]) {
       _fetchPromises[key] = (async () => {
         try {
-          // Try IDB first for instant display
-          const cached = await idbGetWithTTL<T>(key);
-          if (cached && !cached.stale) {
-            setMem(cached.data);
-            memRef.current = cached.data;
-          }
-
-          // Always fetch from network to get latest data
           const fresh = await fetcher();
           if (fresh !== null) {
             setMem(fresh);
@@ -76,7 +83,7 @@ function useSWRCache<T>(
             await idbSetWithTTL(key, fresh);
           }
         } catch {
-          // Offline — use whatever we have
+          // Offline — keep cached data
         } finally {
           delete _fetchPromises[key];
         }
@@ -84,13 +91,17 @@ function useSWRCache<T>(
     }
 
     _fetchPromises[key]!.then(() => {
-      setData(memRef.current);
+      if (cancelled) return;
+      if (memRef.current) setData(memRef.current);
       setLoaded(true);
     });
+
+    return () => { cancelled = true; };
   }, []);
 
   return { data, loaded };
 }
+
 
 // Memory refs as stable objects
 const _productsRef = { get current() { return _generalProducts; }, set current(v) { _generalProducts = v; } };
