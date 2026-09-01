@@ -27,15 +27,19 @@ export function ShopPriceChart() {
         });
     };
 
-    const idleId = 'requestIdleCallback' in window
-      ? window.requestIdleCallback(load, { timeout: 2500 })
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const idleId = w.requestIdleCallback
+      ? w.requestIdleCallback(load, { timeout: 2500 })
       : window.setTimeout(load, 1000);
 
     return () => {
-      if ('cancelIdleCallback' in window && typeof idleId === 'number') {
-        window.cancelIdleCallback(idleId);
+      if (w.cancelIdleCallback) {
+        w.cancelIdleCallback(idleId);
       } else {
-        window.clearTimeout(idleId as number);
+        window.clearTimeout(idleId);
       }
     };
   }, []);

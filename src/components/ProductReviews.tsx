@@ -35,15 +35,19 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
     // Reviews are secondary content. Delay their network request until the
     // browser is idle so product data/cards can render first.
     const load = () => fetchReviews();
-    const idleId = 'requestIdleCallback' in window
-      ? window.requestIdleCallback(load, { timeout: 3000 })
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const idleId = w.requestIdleCallback
+      ? w.requestIdleCallback(load, { timeout: 3000 })
       : window.setTimeout(load, 1200);
 
     return () => {
-      if ('cancelIdleCallback' in window && typeof idleId === 'number') {
-        window.cancelIdleCallback(idleId);
+      if (w.cancelIdleCallback) {
+        w.cancelIdleCallback(idleId);
       } else {
-        window.clearTimeout(idleId as number);
+        window.clearTimeout(idleId);
       }
     };
   }, [productId]);
