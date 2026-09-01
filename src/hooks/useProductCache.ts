@@ -186,7 +186,7 @@ export function prefetchStoreData() {
       const mapped = data.map((p) => ({
         ...p,
         stock_quantity: Number(p.stock_quantity ?? 0),
-        sizes: Array.isArray(p.sizes) ? (p.sizes as PricingSize[]) : [],
+        sizes: Array.isArray(p.sizes) ? (p.sizes as unknown as PricingSize[]) : [],
       })) as GeneralProduct[];
       _generalProducts = mapped;
       await idbSetWithTTL(IDB_KEYS.products, mapped);
