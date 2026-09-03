@@ -168,6 +168,9 @@ export type Database = {
           product_id: string
           sale_price: number
           starts_at: string
+          stock_allocated: number
+          stock_sold: number
+          title: string | null
         }
         Insert: {
           created_at?: string
@@ -178,6 +181,9 @@ export type Database = {
           product_id: string
           sale_price: number
           starts_at?: string
+          stock_allocated?: number
+          stock_sold?: number
+          title?: string | null
         }
         Update: {
           created_at?: string
@@ -188,6 +194,9 @@ export type Database = {
           product_id?: string
           sale_price?: number
           starts_at?: string
+          stock_allocated?: number
+          stock_sold?: number
+          title?: string | null
         }
         Relationships: [
           {
@@ -796,6 +805,60 @@ export type Database = {
         }
         Relationships: []
       }
+      server_logs: {
+        Row: {
+          created_at: string
+          endpoint: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          message: string
+          meta: Json
+          method: string | null
+          occurred_at: string
+          response_time_ms: number | null
+          severity: string
+          source: string
+          status_code: number | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          message: string
+          meta?: Json
+          method?: string | null
+          occurred_at?: string
+          response_time_ms?: number | null
+          severity?: string
+          source?: string
+          status_code?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          message?: string
+          meta?: Json
+          method?: string | null
+          occurred_at?: string
+          response_time_ms?: number | null
+          severity?: string
+          source?: string
+          status_code?: number | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       staff_users: {
         Row: {
           created_at: string
@@ -1031,6 +1094,21 @@ export type Database = {
       check_stock_availability: { Args: { _items: Json }; Returns: Json }
       claim_order_stock: { Args: { _order_id: string }; Returns: Json }
       deduct_order_stock: { Args: { _order_id: string }; Returns: boolean }
+      get_active_flash_sales: {
+        Args: never
+        Returns: {
+          ends_at: string
+          flash_sale_id: string
+          original_price: number
+          product_id: string
+          remaining: number
+          sale_price: number
+          starts_at: string
+          stock_allocated: number
+          stock_sold: number
+          title: string
+        }[]
+      }
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }
       get_order_history_by_phone: {
         Args: { _phone: string }
@@ -1062,6 +1140,19 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      log_server_event: {
+        Args: {
+          _endpoint?: string
+          _event_type: string
+          _message: string
+          _meta?: Json
+          _method?: string
+          _response_time_ms?: number
+          _severity?: string
+          _status_code?: number
+        }
+        Returns: string
+      }
       set_product_stock: {
         Args: { _product_id: string; _quantity: number }
         Returns: number
@@ -1117,12 +1208,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1146,11 +1237,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1171,11 +1262,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1196,11 +1287,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1213,11 +1304,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
