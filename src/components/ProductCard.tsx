@@ -167,7 +167,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
             <span className="font-semibold w-8 text-center">{quantity}</span>
             <button
               onClick={() => handleQuantityChange(1)}
-              disabled={soldOut || quantity >= stock.max}
+              disabled={soldOut || quantity >= maxQty}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -175,11 +175,38 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           </div>
         </div>
 
+        {/* Flash sale details */}
+        {saleActive && (
+          <div className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-destructive">
+                <Zap className="h-3 w-3" /> Sale ends in
+              </span>
+              <FlashCountdown endsAt={sale!.ends_at} className="text-destructive" showIcon={false} />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-extrabold text-destructive">
+                Ksh {sale!.sale_price.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground line-through">
+                Ksh {sale!.original_price.toLocaleString()}
+              </span>
+            </div>
+            {limitedSale && (
+              <>
+                <Progress value={flashSoldPercent(sale!)} className="h-1.5" />
+                <p className="text-[11px] font-bold text-primary">Only {sale!.remaining} left at this price</p>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Price */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <span className="text-sm text-muted-foreground">Total:</span>
           <span className="price-tag">Ksh {totalPrice.toLocaleString()}</span>
         </div>
+
 
         {/* Add to Cart */}
         <Button
