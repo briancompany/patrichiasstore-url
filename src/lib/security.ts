@@ -1,6 +1,8 @@
 /**
  * Security utilities: rate limiting, input sanitization, and audit logging.
  */
+import { logServerEvent } from './server-log';
+
 
 // ─── Rate Limiter ─────────────────────────────────────────────
 interface RateLimitEntry {
