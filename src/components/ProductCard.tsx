@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
 import { ProductReviews } from '@/components/ProductReviews';
 import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
@@ -11,25 +11,40 @@ import { BackInStockNotify } from '@/components/BackInStockNotify';
 import { StockBadge } from '@/components/StockBadge';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
 import { getStockInfo } from '@/lib/stock';
+import { Progress } from '@/components/ui/progress';
+import { FlashCountdown } from '@/components/FlashCountdown';
+import {
+  flashDiscount,
+  flashSoldPercent,
+  isLimitedFlashStock,
+  type FlashSale,
+} from '@/lib/flash-sales';
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product, size: string, quantity: number, price: number) => void;
+  /** Live flash sale for this product, when one is running. */
+  sale?: FlashSale;
 }
 
-export function ProductCard({ product, onAddToCart }: ProductCardProps) {
+export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const [quantity, setQuantity] = useState(1);
   const { toggle, isWishlisted } = useWishlist();
 
   const stock = getStockInfo(product.stockQuantity, product.inStock);
+  const limitedSale = sale ? isLimitedFlashStock(sale) : false;
+  const saleRemaining = sale && limitedSale ? sale.remaining : Number.POSITIVE_INFINITY;
+  const saleActive = !!sale && saleRemaining > 0;
+  const maxQty = Math.min(stock.max, saleActive ? saleRemaining : Number.POSITIVE_INFINITY);
   const soldOut = !stock.orderable;
-  const totalPrice = selectedSize.price * quantity;
+  const unitPrice = saleActive ? sale!.sale_price : selectedSize.price;
+  const totalPrice = unitPrice * quantity;
 
   const handleQuantityChange = (delta: number) => {
-    const max = stock.max > 0 ? stock.max : 1;
+    const max = Number.isFinite(maxQty) && maxQty > 0 ? maxQty : 1;
     const next = Math.min(max, Math.max(1, quantity + delta));
-    if (delta > 0 && next === quantity && stock.max > 0) {
+    if (delta > 0 && next === quantity && Number.isFinite(maxQty)) {
       return;
     }
     setQuantity(next);
