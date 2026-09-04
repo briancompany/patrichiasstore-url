@@ -120,6 +120,15 @@ export function logAuditEvent(
   } catch {
     // sessionStorage may be unavailable
   }
+
+  // Mirror every audit event into the admin server monitor so simulated
+  // attacks, lockouts and denials also show up in the server log feed.
+  void logServerEvent({
+    eventType: action.toLowerCase().slice(0, 60),
+    message: detail,
+    severity,
+    meta: { channel: 'audit' },
+  });
 }
 
 export function getAuditLog(): AuditEntry[] {
