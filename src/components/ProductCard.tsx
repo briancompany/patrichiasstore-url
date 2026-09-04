@@ -84,6 +84,18 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           loading="lazy"
           decoding="async"
         />
+        {saleActive && (
+          <>
+            <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-destructive px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-destructive-foreground shadow">
+              <Zap className="h-3 w-3" /> Flash Sale
+            </span>
+            {flashDiscount(sale!) > 0 && (
+              <span className="absolute right-2 bottom-2 rounded-md bg-secondary px-2 py-0.5 text-[11px] font-extrabold text-secondary-foreground shadow">
+                -{flashDiscount(sale!)}%
+              </span>
+            )}
+          </>
+        )}
         {!product.inStock && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <span className="bg-destructive text-destructive-foreground px-3 py-1 rounded-full font-medium">
