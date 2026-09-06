@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Phone, ArrowLeft, ShoppingCart } from 'lucide-react';
+import { Loader2, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { slugify } from '@/lib/slug';
 import { FlashCountdown } from '@/components/FlashCountdown';
 import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
 import { Progress } from '@/components/ui/progress';
+import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
 
 interface ProductSize {
   size: string;
@@ -258,9 +259,15 @@ export default function ProductPage() {
               <CardContent className="py-4 space-y-3">
                 <p className="text-sm font-medium">Available in-store & online — Uhuru Market, Store F47, Jogoo Road</p>
                 <div className="flex flex-col gap-2">
-                  <Button asChild size="lg" className="w-full"><a href="tel:+254726075180"><Phone className="h-4 w-4 mr-2" />Call / WhatsApp to Order</a></Button>
                   <Button variant="outline" size="lg" className="w-full" onClick={handleOrder}><ShoppingCart className="h-4 w-4 mr-2" />Order Online</Button>
                 </div>
+                <ProductEnquiryButtons
+                  productName={product.name}
+                  school={product.schools?.name || null}
+                  imageUrl={product.image_url}
+                  soldOut={!product.in_stock}
+                  className="flex-col sm:flex-row"
+                />
                 <p className="text-xs text-muted-foreground text-center">Open Mon–Sat, 8am–6pm · Countrywide delivery available</p>
               </CardContent>
             </Card>
