@@ -7,6 +7,7 @@ import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } fr
 import heroImage from '@/assets/hero-uniforms.jpg';
 import patrichiaImage from '@/assets/patrichia-optimized.jpg';
 import { prefetchStoreData } from '@/hooks/useProductCache';
+import { FlashSaleBanner } from '@/components/FlashSaleBanner';
 
 const categories = [
   {
@@ -88,6 +89,12 @@ export default function Index() {
               </Button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="py-8 bg-background" aria-label="Live flash sales">
+        <div className="container-shop">
+          <FlashSaleBanner />
         </div>
       </section>
 

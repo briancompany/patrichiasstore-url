@@ -18,6 +18,7 @@ import { useGeneralProducts } from '@/hooks/useProductCache';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import { ShoppingCart, X, Search, ChevronRight, Package, Clock } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
+import { useFlashSales } from '@/lib/flash-sales';
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -27,6 +28,7 @@ export default function Shop() {
   const [showCart, setShowCart] = useState(false);
   // Shared cached hooks — no duplicate API calls
   const { products: rawGeneralProducts, loaded: generalLoaded } = useGeneralProducts();
+  const { byProduct: flashByProduct } = useFlashSales();
 
   // Map DB products to the Product type used by ProductCard
   const generalProducts: Product[] = useMemo(() => {
