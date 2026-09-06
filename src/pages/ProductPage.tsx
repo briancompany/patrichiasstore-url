@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Phone, ArrowLeft, ShoppingCart } from 'lucide-react';
+import { Loader2, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { slugify } from '@/lib/slug';
 import { FlashCountdown } from '@/components/FlashCountdown';
 import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
 import { Progress } from '@/components/ui/progress';
+import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
 
 interface ProductSize {
   size: string;
