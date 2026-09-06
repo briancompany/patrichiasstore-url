@@ -8,6 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Phone, ArrowLeft, ShoppingCart } from 'lucide-react';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { slugify } from '@/lib/slug';
+import { FlashCountdown } from '@/components/FlashCountdown';
+import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
+import { Progress } from '@/components/ui/progress';
 
 interface ProductSize {
   size: string;
@@ -32,6 +35,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const { byProduct: flashByProduct, refresh: refreshFlashSales } = useFlashSales();
 
   useEffect(() => {
     const load = async () => {
@@ -181,6 +185,7 @@ export default function ProductPage() {
   const lowestPrice = product.sizes.length > 0
     ? Math.min(...product.sizes.map((s) => s.price))
     : null;
+  const sale = flashByProduct.get(product.id);
 
   return (
     <Layout>
@@ -212,7 +217,28 @@ export default function ProductPage() {
 
             {product.description && <p className="text-muted-foreground">{product.description}</p>}
 
-            {lowestPrice && <p className="text-xl font-bold text-primary">From KES {lowestPrice.toLocaleString()}</p>}
+            {sale ? (
+              <div className="space-y-3 border-y border-border py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-destructive text-destructive-foreground">FLASH SALE</Badge>
+                  <Badge variant="secondary">-{flashDiscount(sale)}%</Badge>
+                  {sale.title && <span className="font-semibold text-foreground">{sale.title}</span>}
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-2xl font-bold text-primary">KES {sale.sale_price.toLocaleString()}</span>
+                  <span className="text-muted-foreground line-through">KES {sale.original_price.toLocaleString()}</span>
+                </div>
+                <p className="text-sm font-semibold text-foreground">Ends in <FlashCountdown endsAt={sale.ends_at} onEnd={refreshFlashSales} /></p>
+                {sale.stock_allocated > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-primary">Only {sale.remaining} left at this price</p>
+                    <Progress value={flashSoldPercent(sale)} className="h-2" />
+                  </div>
+                )}
+              </div>
+            ) : lowestPrice ? (
+              <p className="text-xl font-bold text-primary">From KES {lowestPrice.toLocaleString()}</p>
+            ) : null}
 
             {product.sizes.length > 0 && (
               <div>

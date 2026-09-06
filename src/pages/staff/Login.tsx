@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { normalizePhone, isValidKePhone } from '@/lib/phone';
 import storeLogo from '@/assets/logo-with-patrichia.png';
+import { logAuditEvent } from '@/lib/security';
 
 const SUPABASE_URL = 'https://jkdxlbkckpwzmhdaoaoo.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -69,6 +70,7 @@ export default function StaffLogin() {
             ? 'Too many attempts. Please wait a minute and try again.'
             : 'Login failed. Please try again.');
         toast.error(msg);
+        logAuditEvent('STAFF_LOGIN_FAILED', `Staff login failed for ${cleanEmail}`, res.status === 429 ? 'critical' : 'warning');
         return;
       }
       const { error: otpErr } = await supabase.auth.verifyOtp({
@@ -77,8 +79,10 @@ export default function StaffLogin() {
       });
       if (otpErr) {
         toast.error(otpErr.message || 'Could not complete login');
+        logAuditEvent('STAFF_LOGIN_FAILED', `Staff session verification failed for ${cleanEmail}`, 'warning');
         return;
       }
+      logAuditEvent('STAFF_LOGIN_SUCCESS', `Staff login successful for ${cleanEmail}`, 'info');
       toast.success('Welcome back');
       navigate('/staff', { replace: true });
     } catch (err) {

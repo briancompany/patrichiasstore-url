@@ -94,6 +94,7 @@ export default function AdminLogin() {
 
     if (error) {
       setFailedAttempts(prev => prev + 1);
+      logAuditEvent('LOGIN_FAILED', `Admin login failed for ${sanitizedEmail}`, failedAttempts >= 2 ? 'critical' : 'warning');
       
       // Lock after 3 failed attempts
       if (failedAttempts >= 2) {
