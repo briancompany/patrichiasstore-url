@@ -28,6 +28,7 @@ import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { StockControl } from '@/components/admin/StockControl';
 import { StockBadge } from '@/components/StockBadge';
+import { FlashSaleManager } from '@/components/admin/FlashSaleManager';
 
 interface ProductSize {
   size: string;
@@ -152,6 +153,8 @@ export default function AdminProducts() {
             </Link>
           </Button>
         </div>
+
+        <FlashSaleManager products={products} />
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

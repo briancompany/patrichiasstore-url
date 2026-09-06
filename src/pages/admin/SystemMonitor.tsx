@@ -40,6 +40,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ServerLogsPanel } from '@/components/admin/ServerLogsPanel';
 
 interface HealthCheck {
   name: string;
@@ -574,7 +575,7 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -582,6 +583,10 @@ export default function AdminSystemMonitor() {
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Security</span>
+            </TabsTrigger>
+            <TabsTrigger value="server-logs" className="gap-2">
+              <Server className="h-4 w-4" />
+              <span className="hidden sm:inline">Logs</span>
             </TabsTrigger>
             <TabsTrigger value="sec-testing" className="gap-2">
               <Bug className="h-4 w-4" />
@@ -740,6 +745,10 @@ export default function AdminSystemMonitor() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="server-logs" className="space-y-4">
+            <ServerLogsPanel />
           </TabsContent>
 
           {/* Security Testing Tab */}

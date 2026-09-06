@@ -154,6 +154,13 @@ export function SecurityMonitorPanel() {
 
     setSimResults(results);
     setIsSimulating(false);
+    results.forEach((result) => {
+      logAuditEvent(
+        'SECURITY_SIMULATION_RESULT',
+        `${result.name}: ${result.status}`,
+        result.status === 'fail' ? 'critical' : result.status === 'blocked' ? 'warning' : 'info',
+      );
+    });
     logAuditEvent(
       'SECURITY_TEST',
       `${mode} simulation completed: ${results.filter(r => r.status !== 'fail').length}/${results.length} passed`,
