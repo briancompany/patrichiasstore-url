@@ -12,6 +12,10 @@ import { FlashCountdown } from '@/components/FlashCountdown';
 import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
 import { Progress } from '@/components/ui/progress';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
+import { toast } from 'sonner';
+import { CartItem } from '@/types/product';
+import { STORAGE_KEYS, storageSet } from '@/lib/persist';
+
 
 interface ProductSize {
   size: string;
@@ -37,6 +41,9 @@ export default function ProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const { byProduct: flashByProduct, refresh: refreshFlashSales } = useFlashSales();
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [quantity, setQuantity] = useState(1);
+
 
   useEffect(() => {
     const load = async () => {
@@ -154,12 +161,42 @@ export default function ProductPage() {
   }, [product, productId]);
 
   const handleOrder = () => {
-    if (product?.school_id) {
-      navigate(`/uniform-shop?school=${product.school_id}`);
-    } else {
-      navigate('/shop');
+    if (!product) return;
+    if (product.sizes.length > 0 && !selectedSize) {
+      toast.error('Please choose a size first');
+      return;
     }
+
+    const sizeEntry = product.sizes.find((s) => s.size === selectedSize);
+    const activeSale = flashByProduct.get(product.id);
+    const unitPrice = activeSale ? activeSale.sale_price : sizeEntry?.price ?? 0;
+
+    if (!unitPrice) {
+      toast.error('Price unavailable for this item. Please call or WhatsApp us.');
+      return;
+    }
+
+    const cartItem: CartItem = {
+      product: {
+        id: product.id,
+        name: product.name,
+        school: product.schools?.name || 'General',
+        type: product.type as CartItem['product']['type'],
+        image: product.image_url || '',
+        sizes: product.sizes,
+        inStock: product.in_stock,
+        description: product.description || undefined,
+      },
+      selectedSize: sizeEntry?.size || 'Standard',
+      quantity,
+      price: unitPrice * quantity,
+    };
+
+    const cart = [cartItem];
+    storageSet(STORAGE_KEYS.shopCart, cart);
+    navigate('/order', { state: { cart } });
   };
+
 
   if (isLoading) {
     return (
