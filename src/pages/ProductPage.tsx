@@ -12,6 +12,10 @@ import { FlashCountdown } from '@/components/FlashCountdown';
 import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
 import { Progress } from '@/components/ui/progress';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
+import { toast } from 'sonner';
+import { CartItem } from '@/types/product';
+import { STORAGE_KEYS, storageSet } from '@/lib/persist';
+
 
 interface ProductSize {
   size: string;
@@ -37,6 +41,9 @@ export default function ProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const { byProduct: flashByProduct, refresh: refreshFlashSales } = useFlashSales();
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [quantity, setQuantity] = useState(1);
+
 
   useEffect(() => {
     const load = async () => {
@@ -154,12 +161,42 @@ export default function ProductPage() {
   }, [product, productId]);
 
   const handleOrder = () => {
-    if (product?.school_id) {
-      navigate(`/uniform-shop?school=${product.school_id}`);
-    } else {
-      navigate('/shop');
+    if (!product) return;
+    if (product.sizes.length > 0 && !selectedSize) {
+      toast.error('Please choose a size first');
+      return;
     }
+
+    const sizeEntry = product.sizes.find((s) => s.size === selectedSize);
+    const activeSale = flashByProduct.get(product.id);
+    const unitPrice = activeSale ? activeSale.sale_price : sizeEntry?.price ?? 0;
+
+    if (!unitPrice) {
+      toast.error('Price unavailable for this item. Please call or WhatsApp us.');
+      return;
+    }
+
+    const cartItem: CartItem = {
+      product: {
+        id: product.id,
+        name: product.name,
+        school: product.schools?.name || 'General',
+        type: product.type as CartItem['product']['type'],
+        image: product.image_url || '',
+        sizes: product.sizes,
+        inStock: product.in_stock,
+        description: product.description || undefined,
+      },
+      selectedSize: sizeEntry?.size || 'Standard',
+      quantity,
+      price: unitPrice * quantity,
+    };
+
+    const cart = [cartItem];
+    storageSet(STORAGE_KEYS.shopCart, cart);
+    navigate('/order', { state: { cart } });
   };
+
 
   if (isLoading) {
     return (
@@ -243,24 +280,61 @@ export default function ProductPage() {
 
             {product.sizes.length > 0 && (
               <div>
-                <p className="text-sm font-medium mb-2">Available sizes & prices:</p>
+                <p className="text-sm font-medium mb-2">Choose your size:</p>
                 <div className="flex flex-wrap gap-2">
                   {product.sizes.map((s) => (
-                    <div key={s.size} className="border rounded-lg px-3 py-1 text-sm">
+                    <button
+                      key={s.size}
+                      type="button"
+                      onClick={() => setSelectedSize(s.size)}
+                      className={`border rounded-lg px-3 py-1 text-sm transition-colors ${
+                        selectedSize === s.size
+                          ? 'border-primary bg-primary/10 text-primary font-semibold'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
                       <span className="font-medium">{s.size}</span>
-                      <span className="text-muted-foreground ml-1">KES {s.price.toLocaleString()}</span>
-                    </div>
+                      <span className="text-muted-foreground ml-1">
+                        KES {(sale ? sale.sale_price : s.price).toLocaleString()}
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>
             )}
 
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-medium">Quantity:</p>
+              <div className="flex items-center border rounded-lg">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>-</Button>
+                <span className="px-3 text-sm font-semibold">{quantity}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setQuantity((q) => {
+                      const cap = sale && sale.stock_allocated > 0 ? sale.remaining : 50;
+                      if (q + 1 > cap) {
+                        toast.error(`Only ${cap} available at this price`);
+                        return q;
+                      }
+                      return q + 1;
+                    })
+                  }
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+
             <Card className="border-primary/20 mt-4">
               <CardContent className="py-4 space-y-3">
                 <p className="text-sm font-medium">Available in-store & online — Uhuru Market, Store F47, Jogoo Road</p>
                 <div className="flex flex-col gap-2">
-                  <Button variant="outline" size="lg" className="w-full" onClick={handleOrder}><ShoppingCart className="h-4 w-4 mr-2" />Order Online</Button>
+                  <Button size="lg" className="w-full" onClick={handleOrder}><ShoppingCart className="h-4 w-4 mr-2" />Order Online</Button>
                 </div>
+
                 <ProductEnquiryButtons
                   productName={product.name}
                   school={product.schools?.name || null}
