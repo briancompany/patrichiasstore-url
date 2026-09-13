@@ -32,7 +32,11 @@ export default defineConfig(({ mode }) => ({
     mcpPlugin(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: null,
       includeAssets: ["favicon.ico", "icon-192.png", "icon-512.png"],
+      devOptions: {
+        enabled: false,
+      },
       manifest: {
         name: "Patrichia's Store",
         short_name: "Patrichia's",
@@ -57,7 +61,9 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // Do not precache every JS chunk. Customer browsers should download
         // only the app shell and assets needed for the current public route.
-        globPatterns: ["**/*.{css,html,ico,png,svg,jpg,jpeg,webp}"],
+        // The app bootstraps through JavaScript chunks, so those chunks must
+        // be available with the cached homepage when the device is offline.
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [
           /^\/\.lovable\/oauth/,
@@ -66,6 +72,19 @@ export default defineConfig(({ mode }) => ({
           /^\/robots\.txt$/,
         ],
         runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.mode === "navigate" && url.pathname === "/",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "homepage-cache",
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
