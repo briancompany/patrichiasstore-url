@@ -1,7 +1,14 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import { registerServiceWorker } from "./lib/register-service-worker";
 
-const root = createRoot(document.getElementById("root")!);
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Application root is unavailable");
+}
+
+const root = createRoot(rootElement);
 
 import("./App.tsx").then(({ default: App }) => {
   root.render(<App />);
@@ -10,3 +17,5 @@ import("./App.tsx").then(({ default: App }) => {
   // Those functions are only useful for checkout/staff workflows and can be
   // warmed when those flows are actually opened.
 });
+
+void registerServiceWorker();
