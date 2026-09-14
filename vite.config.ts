@@ -59,12 +59,13 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        // Do not precache every JS chunk. Customer browsers should download
-        // only the app shell and assets needed for the current public route.
-        // The app bootstraps through JavaScript chunks, so those chunks must
-        // be available with the cached homepage when the device is offline.
+        // Precache the complete generated app shell so HTML and its exact
+        // versioned startup files are updated together and work offline.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         navigateFallbackDenylist: [
           /^\/\.lovable\/oauth/,
           /^\/\.well-known\//,
@@ -72,19 +73,6 @@ export default defineConfig(({ mode }) => ({
           /^\/robots\.txt$/,
         ],
         runtimeCaching: [
-          {
-            urlPattern: ({ request, url }) =>
-              request.mode === "navigate" && url.pathname === "/",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "homepage-cache",
-              networkTimeoutSeconds: 3,
-              expiration: {
-                maxEntries: 2,
-                maxAgeSeconds: 60 * 60 * 24 * 7,
-              },
-            },
-          },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
