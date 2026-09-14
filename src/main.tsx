@@ -1,5 +1,7 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import App from "./App";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { registerServiceWorker } from "./lib/register-service-worker";
 
 const rootElement = document.getElementById("root");
@@ -10,12 +12,14 @@ if (!rootElement) {
 
 const root = createRoot(rootElement);
 
-import("./App.tsx").then(({ default: App }) => {
-  root.render(<App />);
+root.render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>,
+);
 
-  // Do not warm payment/staff edge functions during a customer's first paint.
-  // Those functions are only useful for checkout/staff workflows and can be
-  // warmed when those flows are actually opened.
+window.addEventListener("load", () => {
+  void registerServiceWorker().catch((error) => {
+    console.error("Service worker setup failed", error);
+  });
 });
-
-void registerServiceWorker();
