@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_memory: {
+        Row: {
+          device_hash: string
+          facts: Json
+          id: string
+          phone_hash: string
+          updated_at: string
+        }
+        Insert: {
+          device_hash: string
+          facts?: Json
+          id?: string
+          phone_hash: string
+          updated_at?: string
+        }
+        Update: {
+          device_hash?: string
+          facts?: Json
+          id?: string
+          phone_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bundle_items: {
         Row: {
           bundle_id: string
@@ -52,6 +76,162 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      chat_leads: {
+        Row: {
+          created_at: string
+          id: string
+          interest: string | null
+          name: string | null
+          phone: string | null
+          school: string | null
+          session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interest?: string | null
+          name?: string | null
+          phone?: string | null
+          school?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interest?: string | null
+          name?: string | null
+          phone?: string | null
+          school?: string | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_leads_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          failed: boolean
+          id: string
+          phone_hash: string | null
+          query_preview: string | null
+          response_ms: number | null
+          schools_queried: string[]
+          session_id: string | null
+          tools_used: string[]
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          failed?: boolean
+          id?: string
+          phone_hash?: string | null
+          query_preview?: string | null
+          response_ms?: number | null
+          schools_queried?: string[]
+          session_id?: string | null
+          tools_used?: string[]
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          failed?: boolean
+          id?: string
+          phone_hash?: string | null
+          query_preview?: string | null
+          response_ms?: number | null
+          schools_queried?: string[]
+          session_id?: string | null
+          tools_used?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          meta: Json
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          created_at: string
+          device_hash: string
+          id: string
+          language: string | null
+          lead_captured: boolean
+          message_count: number
+          phone_hash: string | null
+          resolved: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash: string
+          id?: string
+          language?: string | null
+          lead_captured?: boolean
+          message_count?: number
+          phone_hash?: string | null
+          resolved?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string
+          id?: string
+          language?: string | null
+          lead_captured?: boolean
+          message_count?: number
+          phone_hash?: string | null
+          resolved?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       customers: {
         Row: {
