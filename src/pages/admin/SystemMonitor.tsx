@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { SecurityMonitorPanel } from '@/components/admin/SecurityMonitorPanel';
+import { ChatbotAnalytics } from '@/components/admin/ChatbotAnalytics';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -575,10 +576,14 @@ export default function AdminSystemMonitor() {
 
         {/* Tabs */}
         <Tabs defaultValue="status" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-9 h-auto">
             <TabsTrigger value="status" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
+            </TabsTrigger>
+            <TabsTrigger value="chatbot" className="gap-2">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Chatbot</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
@@ -609,6 +614,10 @@ export default function AdminSystemMonitor() {
               <span className="hidden sm:inline">Docs</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="chatbot" className="space-y-4">
+            <ChatbotAnalytics />
+          </TabsContent>
 
           {/* Status Tab */}
           <TabsContent value="status" className="space-y-4">
