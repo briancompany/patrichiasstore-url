@@ -484,6 +484,7 @@ Deno.serve(async (req) => {
         const fmap = new Map((flash ?? []).map((f: { product_id: string; sale_price: number; remaining: number }) => [f.product_id, f]));
         const lines = [];
         const problems: string[] = [];
+        const specialOrder: string[] = [];
         for (const i of clean) {
           const p = data?.find((d) => d.id === i.product_id);
           if (!p) { problems.push(`Unknown product ${i.product_id}`); continue; }
