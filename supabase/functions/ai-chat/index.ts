@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { streamText, tool, stepCountIs, Output } from "npm:ai@5";
+import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
 import { createOpenAI } from "npm:@ai-sdk/openai@2";
 import { z } from "npm:zod@3.25.76";
 
@@ -484,6 +484,7 @@ Deno.serve(async (req) => {
         const fmap = new Map((flash ?? []).map((f: { product_id: string; sale_price: number; remaining: number }) => [f.product_id, f]));
         const lines = [];
         const problems: string[] = [];
+        const specialOrder: string[] = [];
         for (const i of clean) {
           const p = data?.find((d) => d.id === i.product_id);
           if (!p) { problems.push(`Unknown product ${i.product_id}`); continue; }
@@ -634,7 +635,7 @@ Deno.serve(async (req) => {
   let errMsg: string | null = null;
   let status = 200;
   try {
-    const result = streamText({
+    const result = await generateText({
       model: gateway().responses(MODEL),
       system: systemPrompt(memory),
       messages,
@@ -642,11 +643,12 @@ Deno.serve(async (req) => {
       stopWhen: stepCountIs(50),
       providerOptions,
     });
-    reply = (await result.text).trim();
+    reply = (result.text ?? "").trim();
     if (!reply) reply = "Sorry, I didn't catch that. Could you say it another way? / Samahani, tafadhali rudia.";
   } catch (e) {
     failed = true;
-    const err = e as { statusCode?: number; message?: string };
+    const err = e as { statusCode?: number; message?: string; responseBody?: string };
+    console.error("ai-chat body", String(err.responseBody ?? "").slice(0, 500));
     status = err.statusCode === 429 ? 429 : err.statusCode === 402 ? 402 : 502;
     errMsg = (err.message ?? "error").slice(0, 300);
     console.error("ai-chat error", status, errMsg);
