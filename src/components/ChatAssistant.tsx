@@ -10,7 +10,9 @@ import type { CartItem } from '@/types/product';
 
 type Card =
   | { type: 'order'; items: CartItem[]; total: number }
-  | { type: 'whatsapp'; url: string };
+  | { type: 'whatsapp'; url: string }
+  | { type: 'products'; items: { id: string; name: string; image: string; inStock: boolean; price: number | null }[] };
+const QUICK = ['Track my order', 'Prices', 'Help with sizes', 'Flash sales', 'Complete uniform set'];
 interface Msg { role: 'user' | 'assistant'; content: string; cards?: Card[] }
 
 const DEVICE_KEY = 'ps_chat_device_v1';
@@ -90,8 +92,8 @@ export function ChatAssistant() {
     setStage('chat');
   }
 
-  async function send() {
-    const text = input.trim();
+  async function send(preset?: string) {
+    const text = (preset ?? input).trim();
     if (!text || busy || !sessionId) return;
     setInput('');
     setErr(null);
@@ -162,6 +164,11 @@ export function ChatAssistant() {
               <div className="rounded-xl bg-muted p-3 text-sm">
                 Hello! 👋 I'm Patrichia. Ask me about uniforms, prices, sizes, your school, or track an order. <br />
                 <span className="text-muted-foreground">Habari! Uliza kuhusu sare, bei au oda yako.</span>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {QUICK.map((q) => (
+                    <button key={q} onClick={() => send(q)} className="rounded-full border border-primary bg-background px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary hover:text-primary-foreground">{q}</button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -173,7 +180,21 @@ export function ChatAssistant() {
                   <div className="max-w-[95%] space-y-2">
                     <div className="prose prose-sm max-w-none text-foreground prose-p:my-1 prose-ul:my-1"><ReactMarkdown>{m.content}</ReactMarkdown></div>
                     {m.cards?.map((c, j) =>
-                      c.type === 'order' ? (
+                      c.type === 'products' ? (
+                        <div key={j} className="flex gap-2 overflow-x-auto pb-1">
+                          {c.items.map((p) => (
+                            <button key={p.id} onClick={() => { setOpen(false); navigate(`/shop/product/${p.id}`); }}
+                              className="w-28 shrink-0 overflow-hidden rounded-lg border bg-card text-left text-xs">
+                              <img src={p.image} alt={p.name} loading="lazy" className="h-20 w-full object-cover" />
+                              <div className="p-1.5">
+                                <p className="line-clamp-2 font-medium">{p.name}</p>
+                                {p.price != null && <p className="font-bold text-primary">Ksh {p.price.toLocaleString()}</p>}
+                                {!p.inStock && <p className="font-semibold text-destructive">Out of stock</p>}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : c.type === 'order' ? (
                         <div key={j} className="rounded-xl border-2 border-accent bg-card p-3 text-sm">
                           <p className="mb-1 font-semibold">Your order</p>
                           {c.items.map((it, k) => (
@@ -205,11 +226,11 @@ export function ChatAssistant() {
           </div>
 
           {stage === 'chat' && (
-            <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-end gap-2 border-t p-2">
+            <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-end gap-2 border-t p-2">
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value.slice(0, 1000))}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
                 placeholder="Type your message…"
                 rows={1}
                 className="max-h-28 min-h-[42px] resize-none"
