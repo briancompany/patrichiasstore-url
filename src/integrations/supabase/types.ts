@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_daily_stats: {
+        Row: {
+          ad_id: string
+          clicks: number
+          day: string
+          views: number
+        }
+        Insert: {
+          ad_id: string
+          clicks?: number
+          day?: string
+          views?: number
+        }
+        Update: {
+          ad_id?: string
+          clicks?: number
+          day?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_daily_stats_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ads: {
+        Row: {
+          advertiser_name: string
+          advertiser_phone: string | null
+          clicks: number
+          created_at: string
+          ends_at: string
+          id: string
+          image_url: string
+          is_active: boolean
+          link_url: string | null
+          placements: string[]
+          price_ksh: number
+          starts_at: string
+          title: string | null
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          advertiser_name: string
+          advertiser_phone?: string | null
+          clicks?: number
+          created_at?: string
+          ends_at?: string
+          id?: string
+          image_url: string
+          is_active?: boolean
+          link_url?: string | null
+          placements?: string[]
+          price_ksh?: number
+          starts_at?: string
+          title?: string | null
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          advertiser_name?: string
+          advertiser_phone?: string | null
+          clicks?: number
+          created_at?: string
+          ends_at?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          link_url?: string | null
+          placements?: string[]
+          price_ksh?: number
+          starts_at?: string
+          title?: string | null
+          updated_at?: string
+          views?: number
+        }
+        Relationships: []
+      }
       ai_memory: {
         Row: {
           device_hash: string
@@ -1289,6 +1372,16 @@ export type Database = {
           title: string
         }[]
       }
+      get_live_ads: {
+        Args: { _placement: string }
+        Returns: {
+          advertiser_name: string
+          id: string
+          image_url: string
+          link_url: string
+          title: string
+        }[]
+      }
       get_order_contact_email: { Args: { _order_id: string }; Returns: string }
       get_order_history_by_phone: {
         Args: { _phone: string }
@@ -1332,6 +1425,10 @@ export type Database = {
           _status_code?: number
         }
         Returns: string
+      }
+      record_ad_event: {
+        Args: { _ad_id: string; _kind: string }
+        Returns: undefined
       }
       set_product_stock: {
         Args: { _product_id: string; _quantity: number }

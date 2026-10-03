@@ -8,6 +8,13 @@
       "when": 1790266175072,
       "tag": "0000_ai_chatbot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791057681391,
+      "tag": "0001_ad_manager",
+      "breakpoints": true
     }
   ]
 }
