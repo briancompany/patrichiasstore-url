@@ -45,6 +45,7 @@ const AdminSystemMonitor = lazy(() => import("./pages/admin/SystemMonitor"));
 const AdminReviews = lazy(() => import("./pages/admin/ReviewsManager"));
 const AdminStoreContent = lazy(() => import("./pages/admin/StoreContent"));
 const AdminStaff = lazy(() => import("./pages/admin/Staff"));
+const AdminAds = lazy(() => import("./pages/admin/Ads"));
 
 // Staff chunks are completely separate from the public customer bundle.
 const StaffLogin = lazy(() => import("./pages/staff/Login"));
@@ -120,6 +121,7 @@ const App = () => (
             <Route path="/admin/reviews" element={<LazyPage><AdminReviews /></LazyPage>} />
             <Route path="/admin/store-content" element={<LazyPage><AdminStoreContent /></LazyPage>} />
             <Route path="/admin/staff" element={<LazyPage><AdminStaff /></LazyPage>} />
+            <Route path="/admin/ads" element={<LazyPage><AdminAds /></LazyPage>} />
 
             <Route path="/staff/login" element={<LazyPage><StaffLogin /></LazyPage>} />
             <Route path="/staff" element={<LazyPage><StaffDashboard /></LazyPage>} />

@@ -8,6 +8,7 @@ import heroImage from '@/assets/hero-uniforms.jpg';
 import patrichiaImage from '@/assets/patrichia-optimized.jpg';
 import { prefetchStoreData } from '@/hooks/useProductCache';
 import { FlashSaleBanner } from '@/components/FlashSaleBanner';
+import { AdBanner } from '@/components/AdBanner';
 
 const categories = [
   {
@@ -95,6 +96,7 @@ export default function Index() {
       <section className="py-8 bg-background" aria-label="Live flash sales">
         <div className="container-shop">
           <FlashSaleBanner />
+          <AdBanner placement="home" className="mt-6" />
         </div>
       </section>
 
