@@ -229,6 +229,7 @@ export default function ProductPage() {
   return (
     <Layout>
       <div className="max-w-3xl mx-auto py-10 px-4">
+        <AdBanner placement="product" className="mb-4" />
         <Button variant="ghost" size="sm" asChild className="mb-4">
           <Link to={product.schools ? `/uniform-shop/school/${slugify(product.schools.name)}` : '/shop'}>
             <ArrowLeft className="h-4 w-4 mr-1" />
