@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { FlashSaleBanner } from '@/components/FlashSaleBanner';
+import { AdBanner } from '@/components/AdBanner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { ProductCard } from '@/components/ProductCard';
@@ -117,6 +118,7 @@ export default function Shop() {
         {/* Flash Sales */}
         <div className="mb-6">
           <FlashSaleBanner />
+          <AdBanner placement="shop" className="mt-4" />
         </div>
 
         {/* Single school search entry point → Advanced School Search */}
