@@ -298,38 +298,55 @@ export default function Payment() {
     setIsPesapalLoading(true);
 
     try {
-      // Build callback URL - current page URL so user returns here
+      // Payment is prepared in the background by the payment worker (outbox).
+      // Here we only make sure a task exists, nudge the worker and wait for the link.
       const currentUrl = window.location.origin + '/payment';
+      const kick = () => supabase.functions.invoke('process-payment-tasks', { body: {} }).catch(() => undefined);
 
-      const { data, error } = await supabase.functions.invoke('pesapal-pay', {
-        body: {
-          orderId: orderDetails.orderId,
-          amount: orderDetails.total,
-          customerName: orderDetails.customerName,
-          customerPhone: orderDetails.customerPhone || '',
-          callbackUrl: currentUrl,
-        },
+      type TaskStatus = { status?: string; redirect_url?: string | null; tracking_id?: string | null } | null;
+      const { data: enq, error: enqError } = await supabase.rpc('enqueue_payment_task', {
+        _order_id: orderDetails.orderId,
+        _callback_url: currentUrl,
       });
+      if (enqError) throw enqError;
 
-      if (error) throw error;
+      let task = enq as TaskStatus;
+      if (!task?.redirect_url) kick();
+      setPollingStatus('Preparing secure payment...');
 
-      if (!data?.redirect_url) {
-        toast.error('Failed to initiate Pesapal payment. Try M-Pesa Paybill instead.');
-        setIsPesapalLoading(false);
+      const started = Date.now();
+      let n = 0;
+      while (!task?.redirect_url && task?.status !== 'dead' && Date.now() - started < 180_000) {
+        await new Promise((r) => setTimeout(r, 2000));
+        n++;
+        if (n % 5 === 0) kick(); // picks up scheduled retries while the customer waits
+        const { data } = await supabase.rpc('get_payment_task_status', { _order_id: orderDetails.orderId });
+        task = data as TaskStatus;
+      }
+      setPollingStatus(null);
+
+      if (task?.status === 'dead') {
+        toast.error(
+          'We could not start your Pesapal payment. You have not been charged — tap Pay again to retry, or use M-Pesa Paybill.',
+          { duration: 12000 },
+        );
+        return;
+      }
+      if (!task?.redirect_url) {
+        toast.error('Pesapal is slow right now. Tap Pay again in a moment, or use M-Pesa Paybill.', { duration: 10000 });
         return;
       }
 
-      // Store tracking ID for when user returns
-      if (data.order_tracking_id) {
-        storageSet(STORAGE_KEYS.pesapalTrackingId, data.order_tracking_id);
-        setPesapalTrackingId(data.order_tracking_id);
+      if (task.tracking_id) {
+        storageSet(STORAGE_KEYS.pesapalTrackingId, task.tracking_id);
+        setPesapalTrackingId(task.tracking_id);
       }
-
-      // Redirect user to Pesapal payment page
-      window.location.href = data.redirect_url;
+      window.location.href = task.redirect_url;
     } catch (error) {
       console.error('Error initiating Pesapal payment:', error);
-      toast.error('Failed to initiate payment. Please try M-Pesa Paybill instead.');
+      setPollingStatus(null);
+      const msg = (error as { message?: string })?.message;
+      toast.error(msg === 'Order is already paid' ? 'This order is already paid.' : 'Could not start payment. Please try M-Pesa Paybill instead.');
     } finally {
       setIsPesapalLoading(false);
       pesapalSubmittingRef.current = false;
@@ -561,7 +578,7 @@ export default function Payment() {
                       disabled={isPesapalLoading}
                     >
                       {isPesapalLoading ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Connecting to Pesapal...</>
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Preparing secure payment...</>
                       ) : (
                         <><ExternalLink className="h-4 w-4 mr-2" /> Pay Now with Pesapal</>
                       )}
