@@ -15,6 +15,13 @@
       "when": 1791057681391,
       "tag": "0001_ad_manager",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791197052687,
+      "tag": "0002_order_status_payment_states",
+      "breakpoints": true
     }
   ]
 }

@@ -1456,6 +1456,9 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "new_school_setup"
+        | "pending_payment"
+        | "payment_initiated"
+        | "declined"
       uniform_type:
         | "tshirt"
         | "tracksuit"
@@ -1608,6 +1611,9 @@ export const Constants = {
         "out_for_delivery",
         "delivered",
         "new_school_setup",
+        "pending_payment",
+        "payment_initiated",
+        "declined",
       ],
       uniform_type: [
         "tshirt",
