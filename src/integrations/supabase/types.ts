@@ -675,6 +675,62 @@ export type Database = {
           },
         ]
       }
+      payment_tasks: {
+        Row: {
+          callback_url: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_attempted_at: string | null
+          max_retries: number
+          next_attempt_at: string
+          order_id: string
+          pesapal_tracking_id: string | null
+          redirect_url: string | null
+          retry_count: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          callback_url: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          max_retries?: number
+          next_attempt_at?: string
+          order_id: string
+          pesapal_tracking_id?: string | null
+          redirect_url?: string | null
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          callback_url?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempted_at?: string | null
+          max_retries?: number
+          next_attempt_at?: string
+          order_id?: string
+          pesapal_tracking_id?: string | null
+          redirect_url?: string | null
+          retry_count?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_tasks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1356,7 +1412,44 @@ export type Database = {
       }
       check_stock_availability: { Args: { _items: Json }; Returns: Json }
       claim_order_stock: { Args: { _order_id: string }; Returns: Json }
+      claim_payment_tasks: {
+        Args: { _limit?: number }
+        Returns: {
+          callback_url: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_attempted_at: string | null
+          max_retries: number
+          next_attempt_at: string
+          order_id: string
+          pesapal_tracking_id: string | null
+          redirect_url: string | null
+          retry_count: number
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "payment_tasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      create_order_with_payment_task: {
+        Args: {
+          _callback_url: string
+          _email: string
+          _items: Json
+          _order: Json
+        }
+        Returns: Json
+      }
       deduct_order_stock: { Args: { _order_id: string }; Returns: boolean }
+      enqueue_payment_task: {
+        Args: { _callback_url: string; _order_id: string }
+        Returns: Json
+      }
       get_active_flash_sales: {
         Args: never
         Returns: {
@@ -1407,6 +1500,7 @@ export type Database = {
           tracking_code: string
         }[]
       }
+      get_payment_task_status: { Args: { _order_id: string }; Returns: Json }
       get_quotation_public: { Args: { _share_token: string }; Returns: Json }
       has_staff_role: {
         Args: { _role: string; _uid: string }
