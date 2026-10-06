@@ -183,7 +183,11 @@ export default function AdminOrders() {
       case 'new_school_setup':
         return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'awaiting_payment':
+      case 'pending_payment':
+      case 'payment_initiated':
         return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'declined':
+        return 'bg-red-100 text-red-800 border-red-300';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'ready':
@@ -209,6 +213,12 @@ export default function AdminOrders() {
         return 'New School – Setup Required';
       case 'awaiting_payment':
         return 'Awaiting Payment';
+      case 'pending_payment':
+        return 'Waiting for Payment';
+      case 'payment_initiated':
+        return 'Payment Started';
+      case 'declined':
+        return 'Declined';
       case 'pending':
         return 'Pending';
       case 'ready':
@@ -320,6 +330,9 @@ export default function AdminOrders() {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="new_school_setup">New School Setup</SelectItem>
               <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
+              <SelectItem value="pending_payment">Waiting for Payment</SelectItem>
+              <SelectItem value="payment_initiated">Payment Started</SelectItem>
+              <SelectItem value="declined">Declined</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
