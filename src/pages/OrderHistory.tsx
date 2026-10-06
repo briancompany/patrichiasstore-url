@@ -27,6 +27,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   delivered: { label: 'Delivered', color: 'bg-emerald-100 text-emerald-800' },
   completed: { label: 'Completed', color: 'bg-green-100 text-green-800' },
   awaiting_payment: { label: 'Awaiting Payment', color: 'bg-orange-100 text-orange-800' },
+  pending_payment: { label: 'Waiting for Payment', color: 'bg-orange-100 text-orange-800' },
+  payment_initiated: { label: 'Payment Started', color: 'bg-orange-100 text-orange-800' },
+  declined: { label: 'Payment Declined', color: 'bg-red-100 text-red-800' },
   new_school_setup: { label: 'Setting Up', color: 'bg-amber-100 text-amber-800' },
 };
 
