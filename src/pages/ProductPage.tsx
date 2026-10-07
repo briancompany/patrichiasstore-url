@@ -212,7 +212,7 @@ export default function ProductPage() {
   if (notFound || !product) {
     return (
       <Layout>
-        <div className="max-w-2xl mx-auto py-16 text-center px-4">
+        <div className="w-full min-w-0 max-w-2xl mx-auto py-16 text-center px-4">
           <h1 className="text-2xl font-bold mb-3">Product not found</h1>
           <p className="text-muted-foreground mb-6">This product may no longer be available. Browse our full shop instead.</p>
           <Button asChild><Link to="/shop">Back to Shop</Link></Button>
@@ -228,7 +228,7 @@ export default function ProductPage() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto py-10 px-4">
+      <div className="w-full min-w-0 max-w-3xl mx-auto py-10 px-4">
         <AdBanner placement="product" className="mb-4" />
         <Button variant="ghost" size="sm" asChild className="mb-4">
           <Link to={product.schools ? `/uniform-shop/school/${slugify(product.schools.name)}` : '/shop'}>
@@ -264,7 +264,7 @@ export default function ProductPage() {
                   <Badge variant="secondary">-{flashDiscount(sale)}%</Badge>
                   {sale.title && <span className="font-semibold text-foreground">{sale.title}</span>}
                 </div>
-                <div className="flex items-baseline gap-3">
+                <div className="flex flex-wrap items-baseline gap-3">
                   <span className="text-2xl font-bold text-primary">KES {sale.sale_price.toLocaleString()}</span>
                   <span className="text-muted-foreground line-through">KES {sale.original_price.toLocaleString()}</span>
                 </div>
@@ -305,7 +305,7 @@ export default function ProductPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm font-medium">Quantity:</p>
               <div className="flex items-center border rounded-lg">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>-</Button>

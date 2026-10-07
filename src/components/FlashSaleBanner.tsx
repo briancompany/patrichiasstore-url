@@ -55,7 +55,7 @@ export function FlashSaleBanner({ compact = false }: { compact?: boolean }) {
   );
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-secondary/40 bg-primary shadow-lg">
+    <section className="w-full min-w-0 rounded-2xl border border-secondary/40 bg-primary shadow-lg">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-primary px-4 py-3 sm:px-5">
         <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function FlashSaleBanner({ compact = false }: { compact?: boolean }) {
 
       {/* Rail */}
       <div className="bg-background p-3 sm:p-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {sales.slice(0, compact ? 4 : 8).map((sale) => {
             const product = products[sale.product_id];
             const discount = flashDiscount(sale);

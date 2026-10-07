@@ -389,7 +389,7 @@ export default function UniformShop() {
 
         {/* Step 1: School Search */}
         {step === 'search' && (
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="w-full min-w-0 max-w-2xl mx-auto space-y-6">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-foreground mb-2">Find Your School Uniform</h1>
               <p className="text-muted-foreground">
@@ -524,7 +524,7 @@ export default function UniformShop() {
 
             {cart.length > 0 && (
               <Card className="bg-accent/10 border-accent border-2 shadow-lg">
-                <CardContent className="p-4 flex items-center justify-between gap-4">
+                <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
                       <ShoppingCart className="h-5 w-5 text-accent-foreground" />
@@ -561,7 +561,7 @@ export default function UniformShop() {
                   {generalProducts.map((product) => (
                     <Card
                       key={product.id}
-                      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                      className="w-full min-w-0 cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => {
                         setCurrentProduct(product);
                         setSelectedSchool(null);
@@ -997,7 +997,7 @@ export default function UniformShop() {
                   {products.map((product) => (
                     <Card
                       key={product.id}
-                      className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                      className="w-full min-w-0 cursor-pointer hover:border-primary/50 transition-colors"
                       onClick={() => setCurrentProduct(product)}
                     >
                       <div className="aspect-square bg-muted relative overflow-hidden">

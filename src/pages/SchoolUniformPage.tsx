@@ -165,7 +165,7 @@ export default function SchoolUniformPage() {
   if (notFound || !school) {
     return (
       <Layout>
-        <div className="max-w-2xl mx-auto py-16 text-center px-4">
+        <div className="w-full min-w-0 max-w-2xl mx-auto py-16 text-center px-4">
           <h1 className="text-2xl font-bold mb-3">School not found</h1>
           <p className="text-muted-foreground mb-6">
             We couldn't find that school in our system yet. Search for your school below or contact us directly.
@@ -180,7 +180,7 @@ export default function SchoolUniformPage() {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto py-10 px-4">
+      <div className="w-full min-w-0 max-w-3xl mx-auto py-10 px-4">
         <Button variant="ghost" size="sm" asChild className="mb-4">
           <Link to="/uniform-shop">
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -227,7 +227,7 @@ export default function SchoolUniformPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {products.map((product) => (
               <Link key={product.id} to={`/shop/product/${product.id}`} className="block">
                 <Card className="h-full hover:shadow-md transition-shadow">

@@ -76,15 +76,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
       <div className="container-shop">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex min-w-0 items-center justify-between gap-2 min-h-16 py-2">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 object-contain" />
-            <span className="font-bold text-xl text-foreground">Patrichia's Store</span>
+          <Link to="/" className="flex min-w-0 items-center gap-2">
+            <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 shrink-0 object-contain" />
+            <span className="min-w-0 font-bold text-base sm:text-xl text-foreground">Patrichia's Store</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden xl:flex items-center gap-5">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
@@ -99,7 +99,7 @@ export function Header() {
           </nav>
 
           {/* Right Icons */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {/* Download App Button */}
             {isInstallable && (
               <Button
@@ -155,7 +155,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="xl:hidden"
               onClick={() => setIsOpen(!isOpen)}
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -165,7 +165,7 @@ export function Header() {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <nav className="md:hidden py-4 border-t border-border animate-fade-in">
+          <nav className="xl:hidden py-4 border-t border-border animate-fade-in">
             <div className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <Link

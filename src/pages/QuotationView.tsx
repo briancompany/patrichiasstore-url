@@ -68,7 +68,7 @@ export default function QuotationView() {
             <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Opening quotation…
           </div>
         ) : !quotation ? (
-          <div className="mx-auto max-w-xl border border-border bg-card p-8 text-center shadow-sm">
+          <div className="w-full min-w-0 mx-auto max-w-xl border border-border bg-card p-4 sm:p-8 text-center shadow-sm">
             <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
             <h2 className="mt-4 text-2xl">Quotation unavailable</h2>
             <p className="mt-2 text-muted-foreground">This link is invalid. Please ask Patrichia's Store to resend your quotation.</p>
@@ -77,7 +77,7 @@ export default function QuotationView() {
             </Button>
           </div>
         ) : (
-          <div className="mx-auto max-w-2xl border border-border bg-card shadow-lg">
+          <div className="w-full min-w-0 mx-auto max-w-2xl border border-border bg-card shadow-lg">
             <div className="border-b border-border p-6 sm:p-8">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -97,7 +97,7 @@ export default function QuotationView() {
             <div className="p-6 sm:p-8">
               <div className="space-y-3">
                 {quotation.items.map((item, index) => (
-                  <div key={`${item.product_name}-${index}`} className="flex items-start justify-between gap-4 border-b border-border pb-3 text-sm last:border-0">
+                  <div key={`${item.product_name}-${index}`} className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-3 text-sm last:border-0">
                     <div>
                       <p className="font-semibold">{item.product_name}</p>
                       <p className="text-muted-foreground">
