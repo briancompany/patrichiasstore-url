@@ -11,7 +11,7 @@ interface CartConfirmationOptions {
 export function showCartConfirmation({ productName, quantity, totalPrice, cartCount }: CartConfirmationOptions) {
   toast.custom(
     (t) => (
-      <div className="bg-card border border-border rounded-lg shadow-lg p-4 flex items-center gap-3 min-w-[300px]">
+      <div className="w-full min-w-0 max-w-full bg-card border border-border rounded-lg shadow-lg p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center shrink-0">
           <CheckCircle className="h-5 w-5 text-success" />
         </div>

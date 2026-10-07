@@ -130,8 +130,8 @@ export function ChatAssistant() {
       )}
 
       {open && (
-        <div className="fixed inset-x-2 bottom-2 z-50 flex h-[78vh] max-h-[640px] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl animate-in slide-in-from-bottom-8 sm:inset-x-auto sm:right-4 sm:w-[380px]">
-          <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
+        <div className="fixed inset-x-2 bottom-2 z-50 flex min-w-0 h-[78dvh] max-h-[40rem] flex-col rounded-2xl border bg-background shadow-2xl animate-in slide-in-from-bottom-8 sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
+          <div className="flex shrink-0 items-center justify-between gap-2 rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent font-bold text-accent-foreground">P</div>
               <div>
@@ -151,7 +151,7 @@ export function ChatAssistant() {
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
+          <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto p-3">
             {stage === 'choose' && (
               <div className="space-y-3 pt-6 text-center">
                 <p className="text-sm text-muted-foreground">Welcome back! What would you like to do?</p>
