@@ -255,15 +255,15 @@ export default function QuotationNew() {
                     <Label className="text-xs">Item</Label>
                     <Input value={it.product_name} onChange={(e) => updateLine(i, { product_name: e.target.value })} />
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="min-w-0 col-span-6 sm:col-span-2">
                     <Label className="text-xs">Size</Label>
                     <Input value={it.size} onChange={(e) => updateLine(i, { size: e.target.value })} />
                   </div>
-                  <div className="col-span-4 sm:col-span-2">
+                  <div className="min-w-0 col-span-6 sm:col-span-2">
                     <Label className="text-xs">Color</Label>
                     <Input value={it.color} onChange={(e) => updateLine(i, { color: e.target.value })} />
                   </div>
-                  <div className="col-span-4 sm:col-span-1">
+                  <div className="min-w-0 col-span-6 sm:col-span-1">
                     <Label className="text-xs">Qty</Label>
                     <Input
                       type="number"
@@ -272,7 +272,7 @@ export default function QuotationNew() {
                       onChange={(e) => updateLine(i, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
                     />
                   </div>
-                  <div className="col-span-8 sm:col-span-2">
+                  <div className="min-w-0 col-span-6 sm:col-span-2">
                     <Label className="text-xs">Unit price (Ksh)</Label>
                     <Input
                       type="number"
