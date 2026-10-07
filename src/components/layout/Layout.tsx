@@ -11,10 +11,10 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="w-full min-w-0 max-w-full mx-auto min-h-screen flex flex-col">
       <FlashSaleAlert />
       <Header />
-      <main className="flex-1">{children}</main>
+      <main className="w-full min-w-0 flex-1">{children}</main>
       <Footer />
       <WhatsAppButton />
       <ChatAssistant />

@@ -211,7 +211,7 @@ export default function QuotationNew() {
 
   return (
     <StaffLayout title="New Quotation">
-      <div className="pb-28 space-y-6">
+      <div className="w-full min-w-0 pb-52 sm:pb-32 space-y-6">
         <Card>
           <CardContent className="p-4 space-y-3">
             <h2 className="font-semibold">Customer</h2>
@@ -238,7 +238,7 @@ export default function QuotationNew() {
 
         <Card>
           <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold">Items</h2>
               <Button variant="outline" size="sm" onClick={addBlankLine}>
                 <Plus className="h-4 w-4 mr-1" /> Add New Product
@@ -304,7 +304,7 @@ export default function QuotationNew() {
                       <button
                         key={p.id}
                         onClick={() => addProduct(p)}
-                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex items-center justify-between gap-2"
+                         className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex flex-wrap items-center justify-between gap-2"
                       >
                         <span className="min-w-0">
                           + {p.name}{' '}
@@ -376,7 +376,7 @@ export default function QuotationNew() {
       </div>
 
       <div className="fixed bottom-0 inset-x-0 bg-card border-t p-3 z-30">
-        <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-end">
+        <div className="w-full min-w-0 max-w-6xl mx-auto grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:justify-end">
           <Button variant="outline" disabled={saving} onClick={() => handleSave()}>
             <Save className="h-4 w-4 mr-1" /> Save
           </Button>

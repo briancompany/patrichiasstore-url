@@ -60,7 +60,7 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
   }
 
   return (
-    <div className="min-h-screen bg-muted md:flex">
+    <div className="w-full min-w-0 max-w-full mx-auto min-h-screen bg-muted md:flex">
       {/* Mobile drawer backdrop */}
       {open && (
         <div
@@ -72,7 +72,7 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
 
       {/* Sidebar */}
       <aside
-        className={`fixed z-50 inset-y-0 left-0 w-[262px] bg-primary text-primary-foreground border-r border-gold/30 flex flex-col transition-transform duration-200 md:translate-x-0 md:sticky md:top-0 md:h-screen md:shrink-0 ${
+        className={`fixed z-50 inset-y-0 left-0 w-full max-w-64 bg-primary text-primary-foreground border-r border-gold/30 flex flex-col transition-transform duration-200 md:translate-x-0 md:sticky md:top-0 md:h-screen md:shrink-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -149,14 +149,14 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="flex-1 min-w-0 px-4 py-6 max-w-7xl w-full mx-auto">{children}</main>
       </div>
 
       <a
         href={`https://wa.me/${STORE_WHATSAPP}`}
         target="_blank"
         rel="noopener"
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg hover:shadow-xl flex items-center justify-center"
+        className={`fixed right-4 z-40 w-14 h-14 rounded-full bg-whatsapp text-whatsapp-foreground shadow-lg hover:shadow-xl flex items-center justify-center ${location.pathname === '/staff/quotations/new' ? 'bottom-52 sm:bottom-28' : 'bottom-6'}`}
         aria-label="Contact store on WhatsApp"
       >
         <MessageCircle className="h-7 w-7" />

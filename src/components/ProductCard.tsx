@@ -106,7 +106,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
       </div>
 
       <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-medium text-secondary bg-secondary/10 px-2 py-1 rounded-full">
             {product.school}
           </span>
@@ -154,7 +154,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         </div>
 
         {/* Quantity */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-medium text-foreground">Quantity:</p>
           <div className="flex items-center gap-3">
             <button
@@ -178,7 +178,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         {/* Flash sale details */}
         {saleActive && (
           <div className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-destructive">
                 <Zap className="h-3 w-3" /> Sale ends in
               </span>
