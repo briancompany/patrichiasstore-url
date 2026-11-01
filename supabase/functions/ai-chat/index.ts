@@ -1,7 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
-import { createGroq } from "npm:@ai-sdk/groq@1";
+import { createGroq } from "npm:@ai-sdk/groq@2";
 import { z } from "npm:zod@3.25.76";
 
 const MODEL = "llama-3.3-70b-versatile";
