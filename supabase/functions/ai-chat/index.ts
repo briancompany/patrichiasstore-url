@@ -1,10 +1,10 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
-import { createOpenAI } from "npm:@ai-sdk/openai@2";
+import { createGroq } from "npm:@ai-sdk/groq@1";
 import { z } from "npm:zod@3.25.76";
 
-const MODEL = "openai/gpt-6-astra";
+const MODEL = "llama-3.3-70b-versatile";
 const STORE_PHONE = "254726075180";
 const SESSION_LIMIT_PER_HOUR = 20;
 const DEVICE_LIMIT_PER_HOUR = 60;
@@ -106,24 +106,11 @@ ${memory && Object.keys(memory).length ? `\nWHAT YOU REMEMBER ABOUT THIS CUSTOME
 }
 
 // ---------- gateway ----------
-function gateway() {
-  const key = Deno.env.get("LOVABLE_API_KEY");
+function groqModel() {
+  const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("AI is not configured");
-  return createOpenAI({
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey: key,
-    headers: { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-  });
+  return createGroq({ apiKey: key })(MODEL);
 }
-const providerOptions = {
-  openai: {
-    forceReasoning: true,
-    reasoningEffort: "low",
-    reasoningSummary: "auto",
-    store: false,
-    include: ["reasoning.encrypted_content"],
-  },
-};
 
 // ---------- session helpers ----------
 async function getOwnedSession(sessionId: string, deviceHash: string) {
