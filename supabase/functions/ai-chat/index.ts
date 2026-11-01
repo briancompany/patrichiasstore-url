@@ -326,7 +326,7 @@ Deno.serve(async (req) => {
             id: p.id,
             name: p.name,
             type: p.type,
-            colours_and_details: (p.description ?? "").slice(0, 200),
+            colours_and_details: (p.description ?? "").slice(0, 120),
             school: (p.schools as { name?: string } | null)?.name ?? "General",
             in_stock: p.in_stock && p.stock_quantity > 0,
             stock: p.stock_quantity,
@@ -612,7 +612,7 @@ Deno.serve(async (req) => {
   };
 
   const messages = [
-    ...history.slice(-30).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...history.slice(-10).map((m) => ({ role: m.role as "user" | "assistant", content: m.content.slice(0, 600) })),
     { role: "user" as const, content: text },
   ];
 
