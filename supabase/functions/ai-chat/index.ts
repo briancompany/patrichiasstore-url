@@ -125,7 +125,7 @@ async function loadMessages(sessionId: string) {
     .select("role, content, meta, created_at")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
-    .limit(200);
+    .limit(120);
   return data ?? [];
 }
 
@@ -151,7 +151,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("phone_hash", session.phone_hash)
     .eq("device_hash", session.device_hash)
     .maybeSingle();
-  const transcript = msgs.slice(-40).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 12000);
+    transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
   const result = streamText({
     model: groqModel(),
     output: Output.object({
