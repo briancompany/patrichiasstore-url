@@ -652,14 +652,13 @@ Deno.serve(async (req) => {
   });
 
   if (failed) {
-    const msg =
+    const fallback =
       status === 429
-        ? "The assistant is busy right now. Please try again in a minute."
-        : status === 402
-          ? "The assistant is temporarily unavailable. Please call or WhatsApp 0726 075 180."
-          : "Sorry, something went wrong. Please try again, or call 0726 075 180.";
-    await admin.from("chat_sessions").update({ updated_at: new Date().toISOString(), message_count: session.message_count + 1 }).eq("id", session.id);
-    return json({ error: msg }, status);
+        ? "I'm a little busy right now — please try again in a minute. In the meantime, you can call or WhatsApp us on 0726 075 180 and we'll be happy to help!"
+        : "I'm having a small technical hiccup and couldn't finish my reply. Please try again in a moment — or call / WhatsApp us on 0726 075 180 and we'll sort you out right away.";
+    await admin.from("chat_messages").insert({ session_id: session.id, role: "assistant", content: fallback, meta: { cards, fallback: true } });
+    await admin.from("chat_sessions").update({ updated_at: new Date().toISOString(), message_count: session.message_count + 2 }).eq("id", session.id);
+    return json({ reply: fallback, cards, fallback: true }, 200);
   }
 
   await admin.from("chat_messages").insert({ session_id: session.id, role: "assistant", content: reply, meta: { cards } });
