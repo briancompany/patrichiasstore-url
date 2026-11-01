@@ -153,7 +153,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .maybeSingle();
   const transcript = msgs.slice(-40).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 12000);
   const result = streamText({
-    model: gateway().responses(MODEL),
+    model: groqModel(),
     output: Output.object({
       schema: z.object({
         customer_first_name: z.string().nullable(),
@@ -166,7 +166,6 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
       }),
     }),
     prompt: `Update the customer profile from this chat. Keep existing facts unless the chat changes them. Keep each field under 150 characters. Never include phone numbers, emails, payment codes or addresses. Use null when unknown.\n\nEXISTING PROFILE (json): ${JSON.stringify(existing?.facts ?? {})}\n\nCHAT:\n${transcript}`,
-    providerOptions,
   });
   const out = await result.output;
   const facts: Record<string, string> = {};
@@ -623,12 +622,11 @@ Deno.serve(async (req) => {
   let status = 200;
   try {
     const result = await generateText({
-      model: gateway().responses(MODEL),
+      model: groqModel(),
       system: systemPrompt(memory),
       messages,
       tools,
       stopWhen: stepCountIs(50),
-      providerOptions,
     });
     reply = (result.text ?? "").trim();
     if (!reply) reply = "Sorry, I didn't catch that. Could you say it another way? / Samahani, tafadhali rudia.";
