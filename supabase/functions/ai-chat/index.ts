@@ -1,10 +1,10 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
-import { createOpenAI } from "npm:@ai-sdk/openai@2";
+import { createGroq } from "npm:@ai-sdk/groq@2";
 import { z } from "npm:zod@3.25.76";
 
-const MODEL = "openai/gpt-6-astra";
+const MODEL = "openai/gpt-oss-120b"; // strongest model on this Groq account; llama-3.3-70b-versatile is no longer offered
 const STORE_PHONE = "254726075180";
 const SESSION_LIMIT_PER_HOUR = 20;
 const DEVICE_LIMIT_PER_HOUR = 60;
@@ -106,24 +106,11 @@ ${memory && Object.keys(memory).length ? `\nWHAT YOU REMEMBER ABOUT THIS CUSTOME
 }
 
 // ---------- gateway ----------
-function gateway() {
-  const key = Deno.env.get("LOVABLE_API_KEY");
+function groqModel() {
+  const key = Deno.env.get("GROQ_API_KEY");
   if (!key) throw new Error("AI is not configured");
-  return createOpenAI({
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey: key,
-    headers: { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-  });
+  return createGroq({ apiKey: key })(MODEL);
 }
-const providerOptions = {
-  openai: {
-    forceReasoning: true,
-    reasoningEffort: "low",
-    reasoningSummary: "auto",
-    store: false,
-    include: ["reasoning.encrypted_content"],
-  },
-};
 
 // ---------- session helpers ----------
 async function getOwnedSession(sessionId: string, deviceHash: string) {
@@ -138,7 +125,7 @@ async function loadMessages(sessionId: string) {
     .select("role, content, meta, created_at")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
-    .limit(200);
+    .limit(120);
   return data ?? [];
 }
 
@@ -164,9 +151,9 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("phone_hash", session.phone_hash)
     .eq("device_hash", session.device_hash)
     .maybeSingle();
-  const transcript = msgs.slice(-40).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 12000);
+    const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
   const result = streamText({
-    model: gateway().responses(MODEL),
+    model: groqModel(),
     output: Output.object({
       schema: z.object({
         customer_first_name: z.string().nullable(),
@@ -179,7 +166,6 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
       }),
     }),
     prompt: `Update the customer profile from this chat. Keep existing facts unless the chat changes them. Keep each field under 150 characters. Never include phone numbers, emails, payment codes or addresses. Use null when unknown.\n\nEXISTING PROFILE (json): ${JSON.stringify(existing?.facts ?? {})}\n\nCHAT:\n${transcript}`,
-    providerOptions,
   });
   const out = await result.output;
   const facts: Record<string, string> = {};
@@ -312,7 +298,7 @@ Deno.serve(async (req) => {
       }),
       execute: async ({ text: t, school, type, color, size }) => {
         toolsUsed.add("search_products");
-        let q = admin.from("products").select("id, name, type, description, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(20);
+        let q = admin.from("products").select("id, name, type, description, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(8);
         if (t) {
           const w = sanitize(t, 60).replace(/[%_,()]/g, "");
           q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
@@ -340,7 +326,7 @@ Deno.serve(async (req) => {
             id: p.id,
             name: p.name,
             type: p.type,
-            colours_and_details: (p.description ?? "").slice(0, 200),
+            colours_and_details: (p.description ?? "").slice(0, 120),
             school: (p.schools as { name?: string } | null)?.name ?? "General",
             in_stock: p.in_stock && p.stock_quantity > 0,
             stock: p.stock_quantity,
@@ -626,7 +612,7 @@ Deno.serve(async (req) => {
   };
 
   const messages = [
-    ...history.slice(-30).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...history.slice(-10).map((m) => ({ role: m.role as "user" | "assistant", content: m.content.slice(0, 600) })),
     { role: "user" as const, content: text },
   ];
 
@@ -636,12 +622,11 @@ Deno.serve(async (req) => {
   let status = 200;
   try {
     const result = await generateText({
-      model: gateway().responses(MODEL),
+      model: groqModel(),
       system: systemPrompt(memory),
       messages,
       tools,
-      stopWhen: stepCountIs(50),
-      providerOptions,
+      stopWhen: stepCountIs(10),
     });
     reply = (result.text ?? "").trim();
     if (!reply) reply = "Sorry, I didn't catch that. Could you say it another way? / Samahani, tafadhali rudia.";
@@ -667,14 +652,13 @@ Deno.serve(async (req) => {
   });
 
   if (failed) {
-    const msg =
+    const fallback =
       status === 429
-        ? "The assistant is busy right now. Please try again in a minute."
-        : status === 402
-          ? "The assistant is temporarily unavailable. Please call or WhatsApp 0726 075 180."
-          : "Sorry, something went wrong. Please try again, or call 0726 075 180.";
-    await admin.from("chat_sessions").update({ updated_at: new Date().toISOString(), message_count: session.message_count + 1 }).eq("id", session.id);
-    return json({ error: msg }, status);
+        ? "I'm a little busy right now — please try again in a minute. In the meantime, you can call or WhatsApp us on 0726 075 180 and we'll be happy to help!"
+        : "I'm having a small technical hiccup and couldn't finish my reply. Please try again in a moment — or call / WhatsApp us on 0726 075 180 and we'll sort you out right away.";
+    await admin.from("chat_messages").insert({ session_id: session.id, role: "assistant", content: fallback, meta: { cards, fallback: true } });
+    await admin.from("chat_sessions").update({ updated_at: new Date().toISOString(), message_count: session.message_count + 2 }).eq("id", session.id);
+    return json({ reply: fallback, cards, fallback: true }, 200);
   }
 
   await admin.from("chat_messages").insert({ session_id: session.id, role: "assistant", content: reply, meta: { cards } });
