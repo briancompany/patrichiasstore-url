@@ -151,7 +151,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("phone_hash", session.phone_hash)
     .eq("device_hash", session.device_hash)
     .maybeSingle();
-    transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
+    const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
   const result = streamText({
     model: groqModel(),
     output: Output.object({
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
       }),
       execute: async ({ text: t, school, type, color, size }) => {
         toolsUsed.add("search_products");
-        let q = admin.from("products").select("id, name, type, description, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(20);
+        let q = admin.from("products").select("id, name, type, description, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(8);
         if (t) {
           const w = sanitize(t, 60).replace(/[%_,()]/g, "");
           q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
@@ -626,7 +626,7 @@ Deno.serve(async (req) => {
       system: systemPrompt(memory),
       messages,
       tools,
-      stopWhen: stepCountIs(50),
+      stopWhen: stepCountIs(10),
     });
     reply = (result.text ?? "").trim();
     if (!reply) reply = "Sorry, I didn't catch that. Could you say it another way? / Samahani, tafadhali rudia.";
