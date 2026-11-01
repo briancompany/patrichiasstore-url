@@ -1,6 +1,8 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
+// A ~9k-token prompt forces the 429 that reveals each model's true TPM cap.
+const BIG = "word ".repeat(45000) + "\nSay OK.";
 
 Deno.serve(async () => {
   const key = Deno.env.get("GROQ_API_KEY");
@@ -10,15 +12,10 @@ Deno.serve(async () => {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages: [{ role: "user", content: "hi" }], max_tokens: 5 }),
+      body: JSON.stringify({ model, messages: [{ role: "user", content: BIG }], max_tokens: 2000 }),
     });
-    out.push({
-      model,
-      status: res.status,
-      tpm: res.headers.get("x-ratelimit-limit-tpm"),
-      rpd: res.headers.get("x-ratelimit-limit-rpd") ?? res.headers.get("x-ratelimit-limit-requests"),
-      body: res.ok ? undefined : (await res.text()).slice(0, 120),
-    });
+    const text = await res.text();
+    out.push({ model, status: res.status, detail: text.slice(0, 400) });
   }
   return new Response(JSON.stringify(out), { headers: corsHeaders });
 });
