@@ -1312,6 +1312,54 @@ export type Database = {
         }
         Relationships: []
       }
+      visitor_events: {
+        Row: {
+          created_at: string
+          device_type: string | null
+          event_type: string
+          id: number
+          metadata: Json
+          page: string | null
+          product_id: string | null
+          referrer: string | null
+          school: string | null
+          session_id: string
+          visitor_id: string
+          x_pct: number | null
+          y_pct: number | null
+        }
+        Insert: {
+          created_at?: string
+          device_type?: string | null
+          event_type: string
+          id?: never
+          metadata?: Json
+          page?: string | null
+          product_id?: string | null
+          referrer?: string | null
+          school?: string | null
+          session_id: string
+          visitor_id: string
+          x_pct?: number | null
+          y_pct?: number | null
+        }
+        Update: {
+          created_at?: string
+          device_type?: string | null
+          event_type?: string
+          id?: never
+          metadata?: Json
+          page?: string | null
+          product_id?: string | null
+          referrer?: string | null
+          school?: string | null
+          session_id?: string
+          visitor_id?: string
+          x_pct?: number | null
+          y_pct?: number | null
+        }
+        Relationships: []
+      }
       warmup_logs: {
         Row: {
           completed_at: string | null
@@ -1536,6 +1584,58 @@ export type Database = {
           _order_id: string
         }
         Returns: boolean
+      }
+      visitor_clickmap: {
+        Args: { _from: string; _page: string; _to: string }
+        Returns: {
+          clicks: number
+          x_bucket: number
+          y_bucket: number
+        }[]
+      }
+      visitor_feed: {
+        Args: { _limit: number; _since: string }
+        Returns: {
+          created_at: string
+          device_type: string
+          event_type: string
+          metadata: Json
+          page: string
+          school: string
+          visitor_id: string
+        }[]
+      }
+      visitor_list: {
+        Args: { _from: string; _limit: number; _to: string }
+        Returns: {
+          device_type: string
+          events: number
+          first_seen: string
+          last_seen: string
+          sessions: number
+          visitor_id: string
+        }[]
+      }
+      visitor_pages: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          clicks: number
+          page: string
+        }[]
+      }
+      visitor_summary: { Args: { _from: string; _to: string }; Returns: Json }
+      visitor_timeline: {
+        Args: { _from: string; _to: string; _visitor_id: string }
+        Returns: {
+          created_at: string
+          event_type: string
+          metadata: Json
+          page: string
+          product_id: string
+          school: string
+          x_pct: number
+          y_pct: number
+        }[]
       }
     }
     Enums: {

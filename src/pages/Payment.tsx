@@ -134,6 +134,7 @@ export default function Payment() {
 
         if (data?.status === 'confirmed') {
           if (pollingRef.current) clearInterval(pollingRef.current);
+          trackVisitorEvent('order_completed', { meta: { order: String(orderId) } });
           setPaymentVerified(true);
           setIsVerifying(false);
           setPollingStatus(null);

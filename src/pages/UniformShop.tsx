@@ -97,6 +97,7 @@ export default function UniformShop() {
     setIsSearching(true);
     try {
       const results = await searchSchools(query);
+      trackVisitorEvent('search', { meta: { query: query.slice(0, 80), results: results.length } });
       setSearchResults(results);
       // Show custom order flow if no results found
       setShowCustomOrderFlow(results.length === 0);

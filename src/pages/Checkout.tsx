@@ -235,6 +235,7 @@ export default function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    trackVisitorEvent('checkout_started');
     setIsSubmitting(true);
 
     // Last-second availability check — someone else may have just paid for
