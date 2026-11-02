@@ -1,3 +1,4 @@
+import { trackVisitorEvent } from '@/lib/visitor-track';
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
