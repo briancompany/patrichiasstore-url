@@ -84,6 +84,7 @@ export default function SchoolUniformPage() {
 
   useEffect(() => {
     if (!school || !schoolSlug) return;
+    trackVisitorEvent('school_viewed', { school: school.name, meta: { name: school.name } });
 
     const title = `${school.name} Uniform | Patrichia Kavingo Store`;
     const description = `Shop ${school.name} school uniform in Nairobi. Affordable tracksuits, T-shirts, shorts and accessories at Uhuru Market, Jogoo Road. Call +254 726 075 180.`;

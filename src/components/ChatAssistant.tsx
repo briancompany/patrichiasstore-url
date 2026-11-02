@@ -57,6 +57,7 @@ export function ChatAssistant() {
 
   async function openPanel() {
     setOpen(true);
+    trackVisitorEvent('chatbot_opened');
     if (stage !== 'idle') return;
     setBusy(true);
     try {
@@ -93,6 +94,7 @@ export function ChatAssistant() {
   }
 
   async function send(preset?: string) {
+    trackVisitorEvent('chatbot_message_sent');
     const text = (preset ?? input).trim();
     if (!text || busy || !sessionId) return;
     setInput('');

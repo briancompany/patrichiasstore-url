@@ -77,6 +77,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!product || !productId) return;
+    trackVisitorEvent('product_viewed', { productId, school: product.schools?.name, meta: { name: product.name } });
 
     const schoolName = product.schools?.name;
     const title = schoolName
@@ -195,6 +196,7 @@ export default function ProductPage() {
 
     const cart = [cartItem];
     storageSet(STORAGE_KEYS.shopCart, cart);
+    trackVisitorEvent('add_to_cart', { productId: product.id, school: product.schools?.name, meta: { name: product.name, size: cartItem.selectedSize, quantity } });
     navigate('/order', { state: { cart } });
   };
 
