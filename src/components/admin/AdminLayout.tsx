@@ -36,6 +36,7 @@ const navItems = [
   { name: 'Users', path: '/admin/users', icon: Users },
   { name: 'Staff', path: '/admin/staff', icon: UserCog },
   { name: 'Ads', path: '/admin/ads', icon: Megaphone },
+  { name: 'Visitors', path: '/admin/visitors', icon: Activity },
   { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
   { name: 'Store Content', path: '/admin/store-content', icon: FileImage },
   { name: 'Monitor', path: '/admin/monitor', icon: AlertTriangle },
