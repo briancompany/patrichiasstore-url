@@ -568,6 +568,3 @@ function TopList({ icon, title, data }: { icon: React.ReactNode; title: string; 
   );
 }
 
-function pctOf(value: number, total: number): string {
-  return pctBar(value, total);
-}
