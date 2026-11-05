@@ -20,7 +20,7 @@ import {
   UserCog,
   Megaphone,
 } from 'lucide-react';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 
 interface AdminLayoutProps {
   children: ReactNode;

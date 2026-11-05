@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 import { rateLimit, rateLimitTimeRemaining, logAuditEvent, sanitizeText, detectSuspiciousActivity } from '@/lib/security';
 
 const ADMIN_EMAIL = 'brianmuia777@gmail.com';

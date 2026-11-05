@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 
 export interface ReceiptItem {
   product_name: string;
