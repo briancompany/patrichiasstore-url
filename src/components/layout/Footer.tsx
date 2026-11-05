@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Mail, Code, Star } from 'lucide-react';
 import { DeveloperProfileDialog } from '../DeveloperProfileDialog';
-import storeLogo from '@/assets/logo-with-patrichia.png';
-import developerImage from '@/assets/developer-brian.jpg';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
+import developerImage from '@/assets/developer-brian.webp';
 
 export function Footer() {
   return (
@@ -12,7 +12,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 object-contain" />
+              <img src={storeLogo} alt="Patrichia's Store" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain" />
               <span className="font-bold text-xl">Patrichia's Store</span>
             </div>
             <p className="text-primary-foreground/80">
@@ -82,8 +82,12 @@ export function Footer() {
             <div className="bg-primary-foreground/10 rounded-lg p-4 max-w-md">
               <div className="flex items-center gap-4 mb-3">
                 <img 
-                  src={developerImage} 
-                  alt="Brian Mutie - Web Developer" 
+                  src={developerImage}
+                  alt="Brian Mutie - Web Developer"
+                  width={64}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary-foreground/30"
                 />
                 <div className="text-left">

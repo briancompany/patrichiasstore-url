@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 
 const navLinks = [
   { name: 'Home', path: '/' },
@@ -79,7 +79,7 @@ export function Header() {
         <div className="flex min-w-0 items-center justify-between gap-2 min-h-16 py-2">
           {/* Logo */}
           <Link to="/" className="flex min-w-0 items-center gap-2">
-            <img src={storeLogo} alt="Patrichia's Store" className="h-10 w-10 shrink-0 object-contain" />
+            <img src={storeLogo} alt="Patrichia's Store" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
             <span className="min-w-0 font-bold text-base sm:text-xl text-foreground">Patrichia's Store</span>
           </Link>
 
