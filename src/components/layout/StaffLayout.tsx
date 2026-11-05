@@ -17,7 +17,7 @@ import {
   Package,
   ClipboardList,
 } from 'lucide-react';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 import { Button } from '@/components/ui/button';
 
 const STORE_WHATSAPP = '254726075180';

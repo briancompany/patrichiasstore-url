@@ -61,7 +61,9 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // Precache the complete generated app shell so HTML and its exact
         // versioned startup files are updated together and work offline.
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}"],
+        // Precache only the offline app shell — NOT the hundreds of SEO
+        // prerendered school/product HTML pages (they fall back to the SPA shell).
+        globPatterns: ["index.html", "assets/**/*.{js,css,woff2}", "favicon.ico", "icon-192.png", "icon-512.png", "manifest.json", "hero-uniforms.webp", "patrichia-store-logo.png"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,

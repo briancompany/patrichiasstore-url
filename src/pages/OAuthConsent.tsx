@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
-import storeLogo from "@/assets/logo-with-patrichia.png";
+import storeLogo from "@/assets/logo-with-patrichia-256.png";
 
 // Beta namespace — narrow the client for TS.
 type OAuthApi = {

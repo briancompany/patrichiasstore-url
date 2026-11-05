@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/layout/Layout';
 import { downloadQuotation, type QuotationPDFData } from '@/lib/quotation-pdf';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 
 function isQuotation(value: unknown): value is QuotationPDFData {
   if (!value || typeof value !== 'object') return false;

@@ -12,7 +12,7 @@ import { Copy, Check, Clock, Phone, CreditCard, ShoppingBag, ClipboardPaste, Dow
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 import { downloadReceiptPDF } from '@/lib/receipt-pdf';
 
 interface OrderItem {

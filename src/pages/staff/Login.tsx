@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { normalizePhone, isValidKePhone } from '@/lib/phone';
-import storeLogo from '@/assets/logo-with-patrichia.png';
+import storeLogo from '@/assets/logo-with-patrichia-256.png';
 import { logAuditEvent } from '@/lib/security';
 
 const SUPABASE_URL = 'https://jkdxlbkckpwzmhdaoaoo.supabase.co';

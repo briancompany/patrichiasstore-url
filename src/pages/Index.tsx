@@ -4,8 +4,7 @@ import { Layout } from '@/components/layout/Layout';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Button } from '@/components/ui/button';
 import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } from 'lucide-react';
-import heroImage from '@/assets/hero-uniforms.jpg';
-import patrichiaImage from '@/assets/patrichia-optimized.jpg';
+import patrichiaImage from '@/assets/patrichia-optimized.webp';
 import { prefetchStoreData } from '@/hooks/useProductCache';
 import { FlashSaleBanner } from '@/components/FlashSaleBanner';
 import { AdBanner } from '@/components/AdBanner';
@@ -64,9 +63,13 @@ export default function Index() {
       {/* Hero Section */}
       <section className="relative bg-primary overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={heroImage} 
-            alt="School uniforms" 
+          <img
+            src="/hero-uniforms.webp"
+            alt=""
+            width={1600}
+            height={900}
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-full object-cover opacity-20"
           />
         </div>
@@ -145,9 +148,13 @@ export default function Index() {
               {/* Image */}
               <div className="relative">
                 <div className="aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border-4 border-background">
-                  <img 
-                    src={patrichiaImage} 
-                    alt="Patrichia - Store Owner" 
+                  <img
+                    src={patrichiaImage}
+                    alt="Patrichia - Store Owner"
+                    width={864}
+                    height={1184}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </div>
