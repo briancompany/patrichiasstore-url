@@ -2,9 +2,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const SITE = "https://patrichiasstore-url.vercel.app";
-const DB = process.env.VITE_SUPABASE_URL || "https://jkdxlbkckpwzmhdaoaoo.supabase.co";
 const clientConfig = await readFile(path.resolve("src/integrations/supabase/client.ts"), "utf8");
+const urlFromClient = clientConfig.match(/const FALLBACK_SUPABASE_URL\s*=\s*"([^"]+)"/);
 const keyFromClient = clientConfig.match(/const FALLBACK_SUPABASE_PUBLISHABLE_KEY\s*=\s*"([^"]+)"/);
+const DB = urlFromClient?.[1] || process.env.VITE_SUPABASE_URL;
 const KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || keyFromClient?.[1];
 if (!KEY) throw new Error("SEO prerender could not locate the public Supabase key.");
 const DIST = path.resolve("dist");
