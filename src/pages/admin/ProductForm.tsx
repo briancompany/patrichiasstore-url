@@ -62,6 +62,7 @@ export default function ProductForm() {
     school_id: '',
     type: 'tshirt',
     description: '',
+    colors: [] as string[],
     image_url: '',
     in_stock: true,
     stock_quantity: 0,
@@ -97,6 +98,7 @@ export default function ProductForm() {
       school_id: data.school_id || '',
       type: data.type,
       description: data.description || '',
+      colors: Array.isArray(data.colors) ? data.colors : [],
       image_url: data.image_url || '',
       in_stock: data.in_stock,
       stock_quantity: Number(data.stock_quantity ?? 0),
@@ -161,6 +163,7 @@ export default function ProductForm() {
         school_id: formData.school_id || null,
         type: formData.type as 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'tie' | 'dress' | 'fleece_jacket' | 'other',
         description: formData.description || null,
+        colors: [...new Set(formData.colors.map((color) => color.trim().toLowerCase()).filter(Boolean))],
         image_url: imageUrl || null,
         in_stock: formData.in_stock,
         stock_quantity: Math.max(0, Number(formData.stock_quantity) || 0),
@@ -292,6 +295,12 @@ export default function ProductForm() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="colors">Colours (separate multiple colours with commas)</Label>
+                <Input id="colors" value={formData.colors.join(', ')} onChange={(e) => setFormData({ ...formData, colors: e.target.value.split(',').map((color) => color.trim()).filter(Boolean) })} placeholder="e.g. grey, white" />
+                <p className="text-xs text-muted-foreground mt-1">Add every colour present. For patterns such as white stripes, keep the details in the description too.</p>
               </div>
 
               <div>

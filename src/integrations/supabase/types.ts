@@ -872,6 +872,7 @@ export type Database = {
       }
       products: {
         Row: {
+          colors: string[]
           created_at: string
           description: string | null
           id: string
@@ -885,6 +886,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          colors?: string[]
           created_at?: string
           description?: string | null
           id?: string
@@ -898,6 +900,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          colors?: string[]
           created_at?: string
           description?: string | null
           id?: string

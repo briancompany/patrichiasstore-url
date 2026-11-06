@@ -35,16 +35,18 @@ async function hash(value: string): Promise<string> {
 }
 
 const SHADES: Record<string, string[]> = {
-  grey: ["grey", "gray", "charcoal", "ash", "silver", "slate"],
-  blue: ["blue", "navy", "royal", "sky", "azure"],
+  grey: ["grey", "gray", "charcoal", "ash", "slate"],
+  blue: ["blue", "royal blue", "sky blue", "azure"],
   navy: ["navy", "dark blue", "midnight"],
-  red: ["red", "maroon", "wine", "burgundy", "crimson", "cherry"],
+  red: ["red", "crimson", "cherry"],
   maroon: ["maroon", "wine", "burgundy"],
-  green: ["green", "emerald", "olive", "bottle", "lime"],
+  green: ["green", "emerald", "olive", "bottle green", "lime"],
   black: ["black", "jet"],
   white: ["white", "cream", "off-white", "ivory"],
-  brown: ["brown", "khaki", "beige", "tan", "chocolate"],
-  yellow: ["yellow", "gold", "mustard"],
+  brown: ["brown", "tan", "chocolate"],
+  khaki: ["khaki", "beige"],
+  yellow: ["yellow", "mustard"],
+  gold: ["gold"],
   purple: ["purple", "violet", "lilac", "mauve"],
   orange: ["orange", "rust"],
   pink: ["pink", "rose"],
@@ -54,6 +56,10 @@ function colorShades(c: string): string[] {
   const k = c.toLowerCase().replace(/[^a-z -]/g, "").trim().slice(0, 30);
   const base = SW[k] ?? (k === "gray" ? "grey" : k);
   return (SHADES[base] ?? [base]).filter(Boolean).slice(0, 8);
+}
+function containsColor(value: string, terms: string[]): boolean {
+  const normalized = " " + value.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+  return terms.some((term) => normalized.includes(" " + term.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " "));
 }
 
 function sanitize(input: string, max = MAX_INPUT): string {
@@ -286,7 +292,7 @@ Deno.serve(async (req) => {
     }),
     search_products: tool({
       description:
-        "Look up uniform products with colours, sizes, prices (Ksh), stock and photos. Filter by school, uniform type, colour or text. Colour search also matches close shades (grey→charcoal/ash/silver).",
+        "Look up uniform products with colours, sizes, prices (Ksh), stock and photos. Filter by school, uniform type, structured product colours, legacy descriptions or text. Match requested colours and recognised shade aliases.",
       inputSchema: z.object({
         text: z.string().nullable().describe("Words in the product name/description, e.g. sweater, stripe"),
         school: z.string().nullable().describe("School name, or null for general uniforms"),
@@ -298,16 +304,12 @@ Deno.serve(async (req) => {
       }),
       execute: async ({ text: t, school, type, color, size }) => {
         toolsUsed.add("search_products");
-        let q = admin.from("products").select("id, name, type, description, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(8);
+        let q = admin.from("products").select("id, name, type, description, colors, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(100);
         if (t) {
           const w = sanitize(t, 60).replace(/[%_,()]/g, "");
           q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
         }
         if (type) q = q.eq("type", type);
-        if (color) {
-          const shades = colorShades(color);
-          q = q.or(shades.flatMap((c) => [`name.ilike.%${c}%`, `description.ilike.%${c}%`]).join(","));
-        }
         if (school) {
           const s = sanitize(school, 80);
           schoolsQueried.add(s.toLowerCase());
@@ -316,8 +318,14 @@ Deno.serve(async (req) => {
           if (!sIds.length) return { products: [], note: "School not found; general products are available." };
           q = q.in("school_id", sIds);
         }
-        const { data, error } = await q;
+        const { data: rawProducts, error } = await q;
         if (error) throw new Error("product lookup failed");
+        const shades = color ? colorShades(color) : [];
+        const data = (rawProducts ?? []).filter((p) => {
+          if (!color) return true;
+          const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
+          return containsColor(colourText, shades);
+        }).slice(0, 8);
         const { data: flash } = await admin.rpc("get_active_flash_sales");
         const fmap = new Map((flash ?? []).map((f: { product_id: string; sale_price: number }) => [f.product_id, f.sale_price]));
         const products = (data ?? []).map((p) => {
@@ -326,7 +334,8 @@ Deno.serve(async (req) => {
             id: p.id,
             name: p.name,
             type: p.type,
-            colours_and_details: (p.description ?? "").slice(0, 120),
+            colours: (p.colors as string[] | null) ?? [],
+            colours_and_details: (p.description ?? "").slice(0, 160),
             school: (p.schools as { name?: string } | null)?.name ?? "General",
             in_stock: p.in_stock && p.stock_quantity > 0,
             stock: p.stock_quantity,
@@ -348,7 +357,7 @@ Deno.serve(async (req) => {
         }
         return {
           products: products.map(({ image: _i, ...rest }) => rest),
-          note: products.length ? "Photos of the top matches are shown to the customer." : "No match. Try a wider search (drop colour or type) before saying it's unavailable.",
+          note: products.length ? "Photos of the top matches are shown to the customer." : "No exact catalogue match. Do not claim the requested colour is available; offer to check other colours or a special order.",
         };
       },
     }),
