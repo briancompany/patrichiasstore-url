@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
           problems,
           special_order: specialOrder,
           next_step: specialOrder.length
-            ? "Some pieces are short in stock. Explain how many are available now, that the rest is a SPECIAL ORDER, and that the admin is informed automatically when they pay and will update them by email. Then tell them to tap 'Continue to payment'."
+            ? "Some pieces are short in stock. Explain how many are available now, that the rest is a SPECIAL ORDER, and that the the admin has been notified immediately and will contact them using the details they shared. Then tell them to tap 'Continue to payment'."
             : "Tell the customer to tap 'Continue to payment' below to enter delivery details and pay via Pesapal/M-Pesa.",
         };
       },
