@@ -38,3 +38,18 @@ CREATE POLICY "Admins update leads"
   ON public.chat_leads FOR UPDATE TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
+
+-- Make chatbot special-order requests available to the admin's live notification channel.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_publication_tables
+       WHERE pubname = 'supabase_realtime'
+         AND schemaname = 'public'
+         AND tablename = 'chat_leads'
+     ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_leads;
+  END IF;
+END;
+$$;
