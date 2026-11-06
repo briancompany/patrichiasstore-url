@@ -900,6 +900,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          colors?: string[]
           created_at?: string
           description?: string | null
           id?: string
