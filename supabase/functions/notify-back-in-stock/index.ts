@@ -33,9 +33,15 @@ serve(async (req) => {
     const caller = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authorization } },
     });
-    const { data: isAdmin, error: authError } = await caller.rpc('is_admin');
-    if (authError || isAdmin !== true) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+    const { data: userResult, error: userError } = await caller.auth.getUser();
+    const userId = userResult.user?.id;
+    const [{ data: isAdmin }, { data: isStaff }, { data: isManager }] = await Promise.all([
+      caller.rpc('is_admin'),
+      userId ? caller.rpc('has_staff_role', { _uid: userId, _role: 'staff' }) : Promise.resolve({ data: false }),
+      userId ? caller.rpc('has_staff_role', { _uid: userId, _role: 'manager' }) : Promise.resolve({ data: false }),
+    ]);
+    if (userError || !userId || !(isAdmin || isStaff || isManager)) {
+      return new Response(JSON.stringify({ error: 'Admin or authorised stock staff access required' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
