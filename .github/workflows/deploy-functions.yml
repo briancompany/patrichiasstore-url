@@ -23,5 +23,6 @@ jobs:
         run: |
           supabase functions deploy generate-sitemap --project-ref jkdxlbkckpwzmhdaoaoo
           supabase functions deploy ai-chat --project-ref jkdxlbkckpwzmhdaoaoo
+          supabase functions deploy notify-back-in-stock --project-ref jkdxlbkckpwzmhdaoaoo
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
