@@ -98,18 +98,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-card border-r border-border z-50 transform transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-card border-r border-border z-50 flex flex-col overflow-hidden transform transition-transform duration-200 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 border-b border-border">
+        <div className="shrink-0 p-4 border-b border-border">
           <Link to="/admin/dashboard" className="flex items-center gap-2">
             <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
             <span className="font-bold text-xl">Patrichia's</span>
           </Link>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1 pb-6">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -127,7 +127,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+        <div className="mt-auto shrink-0 p-4 border-t border-border bg-card">
           <div className="mb-3 px-3">
             <p className="text-sm font-medium text-foreground">{profile?.full_name || profile?.email}</p>
             <p className="text-xs text-muted-foreground">Administrator</p>
