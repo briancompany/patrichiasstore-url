@@ -211,9 +211,10 @@ export function initVisitorTracking(): void {
       if (waLink) track("whatsapp_click");
       if (!el) return;
       const doc = document.documentElement;
-      const pageH = Math.max(1, doc.scrollHeight - window.innerHeight + window.innerHeight);
-      const x = Math.round((e.clientX / Math.max(1, window.innerWidth)) * 100);
-      const y = Math.min(100, Math.round((e.clientY / pageH) * 100));
+      const pageW = Math.max(1, doc.clientWidth);
+      const pageH = Math.max(1, doc.scrollHeight);
+      const x = Math.max(0, Math.min(100, Math.round((e.clientX / pageW) * 100)));
+      const y = Math.max(0, Math.min(100, Math.round(((window.scrollY + e.clientY) / pageH) * 100)));
       track("click", {
         xPct: x,
         yPct: y,
