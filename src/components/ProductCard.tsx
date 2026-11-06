@@ -81,7 +81,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         <ProductImageViewer
           src={product.image}
           alt={product.name}
-          containerClassName="absolute inset-0 block h-full w-full"
+          containerClassName="absolute inset-0 z-0 block h-full w-full"
           imageClassName="h-full w-full object-cover"
           loading="lazy"
         />
