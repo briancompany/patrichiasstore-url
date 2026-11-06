@@ -543,14 +543,21 @@ Deno.serve(async (req) => {
           };
           const { data: existingLead } = await admin
             .from("chat_leads")
-            .select("id")
+            .select("id, interest, email")
             .eq("session_id", session.id)
             .eq("lead_type", "special_order")
             .eq("is_handled", false)
             .limit(1)
             .maybeSingle();
+          const combinedInterest = existingLead?.interest?.includes(leadPayload.interest)
+            ? existingLead.interest
+            : [existingLead?.interest, leadPayload.interest].filter(Boolean).join(" | ");
           const leadWrite = existingLead?.id
-            ? await admin.from("chat_leads").update(leadPayload).eq("id", existingLead.id)
+            ? await admin.from("chat_leads").update({
+                ...leadPayload,
+                email: contactEmail ?? existingLead.email,
+                interest: sanitize(combinedInterest, 2000),
+              }).eq("id", existingLead.id)
             : await admin.from("chat_leads").insert({ ...leadPayload, session_id: session.id });
           if (leadWrite.error) throw new Error("special-order notification could not be saved");
           phoneHash = await hash("phone:" + contactPhone);
@@ -568,7 +575,7 @@ Deno.serve(async (req) => {
           problems,
           special_order: specialOrder,
           next_step: specialOrder.length
-            ? "Some pieces are short in stock. Explain how many are available now, that the rest is a SPECIAL ORDER, and that the the admin has been notified immediately and will contact them using the details they shared. Then tell them to tap 'Continue to payment'."
+            ? "Some pieces are short in stock. Explain how many are available now, that the rest is a SPECIAL ORDER, and that the admin has been notified immediately and will contact them using the details they shared. Then tell them to tap 'Continue to payment'."
             : "Tell the customer to tap 'Continue to payment' below to enter delivery details and pay via Pesapal/M-Pesa.",
         };
       },
