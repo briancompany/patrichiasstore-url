@@ -309,10 +309,10 @@ Deno.serve(async (req) => {
           let textSearch = sanitize(t, 60);
           // Colour matching is handled against structured colours and descriptions below.
           if (color) {
-            const colourWords = new Set(colorShades(color).flatMap((shade) => shade.split(/\\s+/)));
-            textSearch = textSearch.split(/\\s+/).filter((word) => !colourWords.has(word.toLowerCase())).join(" ");
+            const colourWords = new Set(colorShades(color).flatMap((shade) => shade.split(/\s+/)));
+            textSearch = textSearch.split(/\s+/).filter((word) => !colourWords.has(word.toLowerCase())).join(" ");
           }
-          const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\\s+/g, " ");
+          const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
           if (w) q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
         }
         if (type) q = q.eq("type", type);
