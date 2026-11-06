@@ -4,10 +4,9 @@
 DO $$
 DECLARE
   target_user_id UUID;
-  target_email TEXT;
 BEGIN
-  SELECT id, email
-    INTO target_user_id, target_email
+  SELECT id
+    INTO target_user_id
   FROM auth.users
   WHERE lower(email) = lower('brianmuia777@gmail.com')
   LIMIT 1;
