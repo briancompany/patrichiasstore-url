@@ -14,6 +14,12 @@ serve(async (req) => {
 
   try {
     const { productId } = await req.json();
+    const authorization = req.headers.get('Authorization');
+    if (!authorization) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -24,16 +30,26 @@ serve(async (req) => {
       });
     }
 
+    const caller = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authorization } },
+    });
+    const { data: isAdmin, error: authError } = await caller.rpc('is_admin');
+    if (authError || isAdmin !== true) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get product info
     const { data: product } = await supabase
       .from('products')
-      .select('name, in_stock')
+      .select('name, in_stock, stock_quantity')
       .eq('id', productId)
       .single();
 
-    if (!product || !product.in_stock) {
+    if (!product || !product.in_stock || Number(product.stock_quantity ?? 0) <= 0) {
       return new Response(JSON.stringify({ message: 'Product not in stock' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -64,7 +80,7 @@ serve(async (req) => {
                 <h2 style="color: #333;">Good news! 🎉</h2>
                 <p><strong>${product.name}</strong> is now back in stock at Patrichia's Store.</p>
                 <p>Don't miss out — grab yours before it sells out again!</p>
-                <a href="https://patrichiasstore-url.lovable.app/shop" 
+                <a href="https://patrichiasstore-url.vercel.app/shop" 
                    style="display: inline-block; background: #333; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
                   Shop Now
                 </a>
