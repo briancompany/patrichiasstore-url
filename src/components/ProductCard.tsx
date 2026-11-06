@@ -10,6 +10,7 @@ import { SizeGuide } from '@/components/SizeGuide';
 import { BackInStockNotify } from '@/components/BackInStockNotify';
 import { StockBadge } from '@/components/StockBadge';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
+import { ProductImageZoom } from '@/components/ProductImageZoom';
 import { getStockInfo } from '@/lib/stock';
 import { Progress } from '@/components/ui/progress';
 import { FlashCountdown } from '@/components/FlashCountdown';
@@ -77,13 +78,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           isWishlisted={isWishlisted(product.id)}
           onToggle={() => toggle(product.id)}
         />
-        <img
-          src={product.image}
-          alt={product.name}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
+        <ProductImageZoom src={product.image} alt={product.name} className="h-full aspect-square" />
         {saleActive && (
           <>
             <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-destructive px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-destructive-foreground shadow">

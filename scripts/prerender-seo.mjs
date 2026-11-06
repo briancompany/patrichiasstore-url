@@ -62,8 +62,12 @@ async function writePage(route, html) {
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, html, "utf8");
 }
-function storeInfo() {
-  return '<section><h2>Visit Patrichia Kavingo Uniform Store</h2><p>Uhuru Market, Store F47, Jogoo Road, Nairobi. Open Monday to Saturday, 8am–6pm.</p><p>Call or WhatsApp <a href="tel:+254726075180">+254 726 075 180</a> for sizing, availability, pickup and countrywide delivery.</p></section>';
+function storeInfo(productName = "") {
+  const message = productName
+    ? "Hi Patrichia Kavingo Store, I am interested in " + productName + ". Please confirm the available sizes, prices and stock."
+    : "Hi Patrichia Kavingo Store, I would like help with school uniforms, sizes and availability.";
+  const whatsapp = "https://wa.me/254726075180?text=" + encodeURIComponent(message);
+  return '<section><h2>Visit Patrichia Kavingo Uniform Store</h2><p>Uhuru Market, Store F47, Jogoo Road, Nairobi. Open Monday to Saturday, 8am–6pm.</p><p>For sizing, availability, pickup and countrywide delivery:</p><p><a href="tel:+254726075180">Call +254 726 075 180</a> · <a href="' + esc(whatsapp) + '" rel="noopener noreferrer">Chat with us on WhatsApp</a></p></section>';
 }
 function card(p, schoolName) {
   const prices = sizes(p.sizes).map((x) => Number(x.price)).filter(Number.isFinite);
@@ -141,7 +145,7 @@ for (const p of products) {
     "<p>Category: " + esc(p.type || "Uniform") + "</p>" +
     (lowest !== null ? "<p>From KES " + cash(lowest) + "</p>" : "<p>Contact the store for current pricing.</p>") +
     sizeMarkup + "<p>" + (p.in_stock ? "Listed as in stock." : "Currently listed as out of stock. Contact us to confirm availability.") +
-    "</p>" + storeInfo() + '<p><a href="/shop">Browse more uniforms</a></p></main>';
+    "</p>" + storeInfo(p.name) + '<p><a href="/shop">Browse more uniforms</a></p></main>';
   const schema = { "@context": "https://schema.org", "@type": "Product", name: (schoolName ? schoolName + " " : "") + p.name,
     description: p.description || description, sku: p.id, ...(p.image_url ? { image: [p.image_url] } : {}),
     ...(schoolName ? { brand: { "@type": "Brand", name: schoolName } } : {}),
