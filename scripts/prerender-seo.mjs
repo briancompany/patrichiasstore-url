@@ -164,9 +164,9 @@ await writePage("shop", render(template, { title: "Shop School Uniforms and Trac
   description: "Browse school uniforms, tracksuits, shirts, trousers, skirts and accessories at Patrichia Kavingo Store, Uhuru Market, Nairobi.",
   url: SITE + "/shop", body: productBody, schema: { "@context": "https://schema.org", "@type": "CollectionPage", name: "School Uniform Shop", url: SITE + "/shop" } }));
 
-const xml = '<?xml version="1.0" encoding="UTF-8"?>\\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n' +
+const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
   [...urls].map(([url, updated]) => "  <url><loc>" + esc(url) + "</loc>" +
-    (updated ? "<lastmod>" + esc(String(updated).slice(0, 10)) + "</lastmod>" : "") + "</url>").join("\\n") +
-  "\\n</urlset>\\n";
+    (updated ? "<lastmod>" + esc(String(updated).slice(0, 10)) + "</lastmod>" : "") + "</url>").join("\n") +
+  "\n</urlset>\n";
 await writeFile(path.join(DIST, "sitemap.xml"), xml, "utf8");
 console.log("SEO prerender complete: " + schools.length + " schools, " + products.length + " products, " + urls.size + " sitemap URLs.");
