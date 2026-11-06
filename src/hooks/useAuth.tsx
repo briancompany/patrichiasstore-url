@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const profileRequestId = useRef(0);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -42,11 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
     return data as Profile | null;
-  };
+  }, []);
 
   // Ignore stale profile requests when auth state changes quickly (for example,
   // during sign-in/sign-out or when the initial session is being restored).
-  const loadProfile = async (userId: string) => {
+  const loadProfile = useCallback(async (userId: string) => {
     const requestId = ++profileRequestId.current;
     setIsLoading(true);
     const profileData = await fetchProfile(userId);
@@ -55,13 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(profileData);
       setIsLoading(false);
     }
-  };
+  }, [fetchProfile]);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (user) {
       await loadProfile(user.id);
     }
-  };
+  }, [user, loadProfile]);
 
   useEffect(() => {
     let authEventReceived = false;
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileRequestId.current += 1;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfile]);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
