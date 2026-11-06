@@ -89,6 +89,15 @@ export default function AdminOrders() {
   useEffect(() => {
     fetchOrders();
     fetchChatSpecialOrders();
+    const channel = supabase
+      .channel('admin-chat-special-order-leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_leads' }, () => {
+        void fetchChatSpecialOrders();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [filterPeriod]);
 
   const fetchOrders = async () => {
