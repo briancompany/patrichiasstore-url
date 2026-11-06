@@ -14,6 +14,7 @@ import { FlashCountdown } from '@/components/FlashCountdown';
 import { flashDiscount, flashSoldPercent, useFlashSales } from '@/lib/flash-sales';
 import { Progress } from '@/components/ui/progress';
 import { ProductEnquiryButtons } from '@/components/ProductEnquiryButtons';
+import { ProductImageViewer } from '@/components/ProductImageViewer';
 import { toast } from 'sonner';
 import { CartItem } from '@/types/product';
 import { STORAGE_KEYS, storageSet } from '@/lib/persist';
@@ -243,7 +244,13 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             {product.image_url ? (
-              <img src={product.image_url} alt={product.name} className="w-full rounded-xl object-cover aspect-square" />
+              <ProductImageViewer
+                src={product.image_url}
+                alt={product.name}
+                containerClassName="block w-full aspect-square overflow-hidden rounded-xl"
+                imageClassName="h-full w-full object-cover"
+                loading="eager"
+              />
             ) : (
               <div className="w-full rounded-xl bg-muted aspect-square flex items-center justify-center">
                 <p className="text-muted-foreground text-sm">No photo yet</p>
