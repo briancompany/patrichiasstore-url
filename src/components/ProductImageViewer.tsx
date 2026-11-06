@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Minus, Plus, RotateCcw, ZoomIn } from 'lucide-react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
