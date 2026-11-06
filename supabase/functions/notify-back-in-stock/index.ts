@@ -45,7 +45,7 @@ serve(async (req) => {
     // Get product info
     const { data: product } = await supabase
       .from('products')
-      .select('name, in_stock, stock_quantity')
+      .select('id, name, in_stock, stock_quantity')
       .eq('id', productId)
       .single();
 
@@ -72,6 +72,16 @@ serve(async (req) => {
     let notified = 0;
     for (const sub of subscribers) {
       try {
+        // Atomically claim this subscription so overlapping restock requests cannot send duplicates.
+        const { data: claimed } = await supabase
+          .from('stock_subscribers')
+          .update({ notified: true })
+          .eq('id', sub.id)
+          .eq('notified', false)
+          .select('id')
+          .maybeSingle();
+        if (!claimed) continue;
+
         const emailRes = await sendGmail({
           to: sub.email,
           subject: `🎉 ${product.name} is back in stock!`,
@@ -80,7 +90,7 @@ serve(async (req) => {
                 <h2 style="color: #333;">Good news! 🎉</h2>
                 <p><strong>${product.name}</strong> is now back in stock at Patrichia's Store.</p>
                 <p>Don't miss out — grab yours before it sells out again!</p>
-                <a href="https://patrichiasstore-url.vercel.app/shop" 
+                <a href="https://patrichiasstore-url.vercel.app/shop/product/${productId}" 
                    style="display: inline-block; background: #333; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
                   Shop Now
                 </a>
@@ -92,15 +102,13 @@ serve(async (req) => {
         });
 
         if (emailRes.success) {
-          await supabase
-            .from('stock_subscribers')
-            .update({ notified: true })
-            .eq('id', sub.id);
           notified++;
         } else {
+          await supabase.from('stock_subscribers').update({ notified: false }).eq('id', sub.id);
           console.error(`Failed to notify ${sub.email}:`, emailRes.error);
         }
       } catch (e) {
+        await supabase.from('stock_subscribers').update({ notified: false }).eq('id', sub.id);
         console.error(`Failed to notify ${sub.email}:`, e);
       }
     }
