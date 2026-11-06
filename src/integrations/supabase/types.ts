@@ -163,8 +163,11 @@ export type Database = {
       chat_leads: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           interest: string | null
+          is_handled: boolean
+          lead_type: string
           name: string | null
           phone: string | null
           school: string | null
@@ -172,8 +175,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           interest?: string | null
+          is_handled?: boolean
+          lead_type?: string
           name?: string | null
           phone?: string | null
           school?: string | null
@@ -181,8 +187,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           interest?: string | null
+          is_handled?: boolean
+          lead_type?: string
           name?: string | null
           phone?: string | null
           school?: string | null
