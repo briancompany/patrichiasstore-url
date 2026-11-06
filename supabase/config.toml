@@ -27,5 +27,8 @@ verify_jwt = false
 [functions.ai-chat]
 verify_jwt = false
 
+[functions.notify-back-in-stock]
+verify_jwt = true
+
 [functions.process-payment-tasks]
 verify_jwt = false
