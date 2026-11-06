@@ -306,8 +306,20 @@ Deno.serve(async (req) => {
         toolsUsed.add("search_products");
         let q = admin.from("products").select("id, name, type, description, colors, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(100);
         if (t) {
+          let textSearch = sanitize(t, 60);
+          // The colour is filtered separately below, so don't require a structured
+          // colour to also appear in the legacy name/description text.
+          if (color) {
+            for (const shade of colorShades(color)) {
+              const escaped = shade.replace(/[.*+?^${}()|[\]\\]/g, "\\        if (t) {
           const w = sanitize(t, 60).replace(/[%_,()]/g, "");
           q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
+        }").replace(/\\s+/g, "\\\\s+");
+              textSearch = textSearch.replace(new RegExp("\\\\b" + escaped + "\\\\b", "gi"), " ");
+            }
+          }
+          const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\\s+/g, " ");
+          if (w) q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
         }
         if (type) q = q.eq("type", type);
         if (school) {
