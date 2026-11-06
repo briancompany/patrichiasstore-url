@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -20,8 +20,10 @@ import {
   FileImage,
   UserCog,
   Megaphone,
+  BellRing,
 } from 'lucide-react';
 import storeLogo from '@/assets/logo-with-patrichia-256.png';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -49,6 +51,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { signOut, profile, isAdmin, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [specialOrderCount, setSpecialOrderCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const refreshSpecialOrderCount = async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_special_order', true)
+        .not('status', 'in', '("awaiting_payment","pending_payment","payment_initiated","declined","completed","delivered")');
+      if (active && !error) setSpecialOrderCount(count ?? 0);
+    };
+    void refreshSpecialOrderCount();
+    const channel = supabase
+      .channel('admin-special-order-alerts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => void refreshSpecialOrderCount())
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -92,7 +116,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <span className="font-bold text-lg">Admin</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {sidebarOpen ? <X className="h-6 w-6" /> : <span className="relative"><Menu className="h-6 w-6" />{specialOrderCount > 0 && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-destructive" />}</span>}
         </Button>
       </div>
 
@@ -122,7 +146,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               }`}
             >
               <item.icon className="h-5 w-5" />
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {item.path === '/admin/orders' && specialOrderCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-xs font-semibold text-destructive-foreground" aria-label={`${specialOrderCount} active special orders`}>
+                  <BellRing className="h-3.5 w-3.5" />{specialOrderCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
