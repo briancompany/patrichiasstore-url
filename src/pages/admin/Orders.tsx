@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink, Truck, CalendarDays } from 'lucide-react';
+import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink, Truck, CalendarDays, MessageCircle, Mail, CheckCircle2, BellRing } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { toast } from 'sonner';
@@ -38,6 +38,24 @@ interface OrderItem {
   color: string | null;
   sample_image_url: string | null;
 }
+
+interface ChatSpecialOrderLead {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  school: string | null;
+  interest: string | null;
+  created_at: string;
+  is_handled: boolean;
+}
+
+const toWhatsAppNumber = (phone: string) => {
+  const digits = phone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('0')) return `254${digits.slice(1)}`;
+  if (digits.startsWith('254')) return digits;
+  return digits;
+};
 
 interface Order {
   id: string;
@@ -61,6 +79,7 @@ interface Order {
 export default function AdminOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [chatSpecialOrders, setChatSpecialOrders] = useState<ChatSpecialOrderLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -69,6 +88,16 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders();
+    fetchChatSpecialOrders();
+    const channel = supabase
+      .channel('admin-chat-special-order-leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_leads' }, () => {
+        void fetchChatSpecialOrders();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [filterPeriod]);
 
   const fetchOrders = async () => {
@@ -93,6 +122,34 @@ export default function AdminOrders() {
       setOrders(data || []);
     }
     setIsLoading(false);
+  };
+
+  const fetchChatSpecialOrders = async () => {
+    const { data, error } = await supabase
+      .from('chat_leads')
+      .select('id, name, phone, email, school, interest, created_at, is_handled')
+      .eq('lead_type', 'special_order')
+      .eq('is_handled', false)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) {
+      console.error('Could not load chatbot special orders:', error);
+      return;
+    }
+    setChatSpecialOrders(data || []);
+  };
+
+  const markChatSpecialOrderAttended = async (leadId: string) => {
+    const { error } = await supabase
+      .from('chat_leads')
+      .update({ is_handled: true })
+      .eq('id', leadId);
+    if (error) {
+      toast.error('Could not update special-order request');
+      return;
+    }
+    setChatSpecialOrders((current) => current.filter((lead) => lead.id !== leadId));
+    toast.success('Chatbot special-order request marked as attended');
   };
 
   const sendDeliveryEmail = async (orderId: string, payload: { scheduledDate?: string; statusUpdate?: string }) => {
@@ -307,6 +364,59 @@ export default function AdminOrders() {
               >
                 View All
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Chatbot special-order requests */}
+        {chatSpecialOrders.length > 0 && (
+          <Card className="border-2 border-destructive/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <BellRing className="h-5 w-5" />
+                Chatbot Special Orders
+                <Badge variant="destructive">{chatSpecialOrders.length} needs attention</Badge>
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                These customers requested items that are short or out of stock. Contact them to confirm availability and arrangements.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {chatSpecialOrders.map((lead) => (
+                <div key={lead.id} className="rounded-lg border bg-card p-3 space-y-3">
+                  <div>
+                    <p className="font-semibold">{lead.name || 'Customer name not provided'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {lead.school ? `${lead.school} · ` : ''}{new Date(lead.created_at).toLocaleString()}
+                    </p>
+                    <p className="mt-2 text-sm whitespace-pre-wrap">{lead.interest}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {lead.phone && (
+                      <>
+                        <Button size="sm" asChild>
+                          <a href={`tel:${lead.phone}`}><Phone className="h-4 w-4 mr-1" />Call</a>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={`https://wa.me/${toWhatsAppNumber(lead.phone)}?text=${encodeURIComponent('Hello, this is Patrichia Store following up on your special-order request.')}`} target="_blank" rel="noreferrer">
+                            <MessageCircle className="h-4 w-4 mr-1" />WhatsApp
+                          </a>
+                        </Button>
+                      </>
+                    )}
+                    {lead.email && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`mailto:${lead.email}?subject=${encodeURIComponent("Patrichia's Store special-order request")}`}>
+                          <Mail className="h-4 w-4 mr-1" />Email
+                        </a>
+                      </Button>
+                    )}
+                    <Button size="sm" variant="secondary" onClick={() => markChatSpecialOrderAttended(lead.id)}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" />Mark attended
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

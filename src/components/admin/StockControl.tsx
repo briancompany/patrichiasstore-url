@@ -30,6 +30,16 @@ export function StockControl({ productId, quantity, onChange }: StockControlProp
     const next = Number(data);
     setValue(String(next));
     onChange(next);
+    if (next > 0) {
+      const { error: notifyError } = await supabase.functions.invoke('notify-back-in-stock', {
+        body: { productId },
+      });
+      if (notifyError) {
+        console.error('Back-in-stock notification failed:', notifyError);
+        toast.error('Stock was updated, but restock emails could not be sent. Please retry or contact support.');
+        return;
+      }
+    }
     toast.success(`Stock updated to ${next}`);
   };
 
@@ -52,6 +62,16 @@ export function StockControl({ productId, quantity, onChange }: StockControlProp
     const next = Number(data);
     setValue(String(next));
     onChange(next);
+    if (next > 0) {
+      const { error: notifyError } = await supabase.functions.invoke('notify-back-in-stock', {
+        body: { productId },
+      });
+      if (notifyError) {
+        console.error('Back-in-stock notification failed:', notifyError);
+        toast.error('Stock was updated, but restock emails could not be sent. Please retry or contact support.');
+        return;
+      }
+    }
     toast.success(`Stock set to ${next}`);
   };
 

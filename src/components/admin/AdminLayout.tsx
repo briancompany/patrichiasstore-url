@@ -56,17 +56,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     let active = true;
     const refreshSpecialOrderCount = async () => {
-      const { count, error } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_special_order', true)
-        .not('status', 'in', '("awaiting_payment","pending_payment","payment_initiated","declined","completed","delivered")');
-      if (active && !error) setSpecialOrderCount(count ?? 0);
+      const [ordersResult, leadsResult] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_special_order', true)
+          .not('status', 'in', '("awaiting_payment","pending_payment","payment_initiated","declined","completed","delivered")'),
+        supabase
+          .from('chat_leads')
+          .select('id', { count: 'exact', head: true })
+          .eq('lead_type', 'special_order')
+          .eq('is_handled', false),
+      ]);
+      if (active && !ordersResult.error && !leadsResult.error) {
+        setSpecialOrderCount((ordersResult.count ?? 0) + (leadsResult.count ?? 0));
+      }
     };
     void refreshSpecialOrderCount();
     const channel = supabase
       .channel('admin-special-order-alerts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => void refreshSpecialOrderCount())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_leads' }, () => void refreshSpecialOrderCount())
       .subscribe();
     return () => {
       active = false;

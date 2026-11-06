@@ -174,7 +174,20 @@ export default function ProductForm() {
         const { error } = await supabase.from('products').update(productData).eq('id', id);
 
         if (error) throw error;
+        let restockEmailError = false;
+        if (productData.in_stock && productData.stock_quantity > 0) {
+          const { error: notifyError } = await supabase.functions.invoke('notify-back-in-stock', {
+            body: { productId: id },
+          });
+          if (notifyError) {
+            restockEmailError = true;
+            console.error('Back-in-stock notification failed:', notifyError);
+          }
+        }
         toast.success('Product updated successfully');
+        if (restockEmailError) {
+          toast.error('Product saved, but restock emails could not be sent. Please retry from the stock controls.');
+        }
       } else {
         const { error } = await supabase.from('products').insert(productData);
 
