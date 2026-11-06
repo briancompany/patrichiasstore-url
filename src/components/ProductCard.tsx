@@ -4,6 +4,7 @@ import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
 import { ProductReviews } from '@/components/ProductReviews';
+import { ProductImageViewer } from '@/components/ProductImageViewer';
 import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
 import { SizeGuide } from '@/components/SizeGuide';
@@ -77,12 +78,12 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           isWishlisted={isWishlisted(product.id)}
           onToggle={() => toggle(product.id)}
         />
-        <img
+        <ProductImageViewer
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover"
+          containerClassName="absolute inset-0 z-0 block h-full w-full"
+          imageClassName="h-full w-full object-cover"
           loading="lazy"
-          decoding="async"
         />
         {saleActive && (
           <>
