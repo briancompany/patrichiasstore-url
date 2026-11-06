@@ -102,7 +102,7 @@ RULES:
 - When a customer shares their phone number, call remember_customer.
 - When the customer's question is fully answered, call mark_resolved.
 - COLOURS: when a colour is mentioned ("grey fleece", "maroon sweater"), pass it as color to search_products. Describe each item's colours/stripes from colours_and_details (e.g. "red tie with white stripes"), and list sizes and price per size. If they mention a size, say whether it's available; if not, offer the nearest sizes.
-- SHORT STOCK: if the customer wants more pieces than are in stock (or it's sold out), say how many are available, ask how many they need in total, and still call prepare_order with the full quantity. Tell them the extra pieces are a special order and the admin will be informed and update them by email. Offer back_in_stock_alert if they'd rather wait.
+- SHORT STOCK: if the customer wants more pieces than are in stock (or it's sold out), say how many are available and ask how many they need in total. Before calling prepare_order for a short-stock order, collect the customer's full name and phone number; ask for an email too if they want email follow-up. Then call prepare_order with the full quantity and those contact details. The special-order request is sent to Admin immediately, even before checkout/payment. Offer back_in_stock_alert if they'd rather wait.
 - MATCHING: after a customer picks an item, call suggest_matching_items once and briefly offer 1-3 matching pieces (tie, socks, shirt…). For "complete uniform", list one of each type with a total.
 - SIZING: if unsure of size, ask the child's age, class or height and call size_guide.
 - AFTER ORDER: offer tracking (phone + order code), quick re-order of a past order, and mention live flash sales (current_flash_sales) when relevant.
@@ -469,11 +469,14 @@ Deno.serve(async (req) => {
       },
     }),
     prepare_order: tool({
-      description: "Prepare the customer's order (validated against real prices and stock) so they can continue to secure payment on the website.",
+      description: "Prepare the customer's order (validated against real prices and stock) so they can continue to secure payment on the website. If any item is short in stock, first collect the customer's full name and phone number; email is optional. Pass those details so Admin receives an actionable special-order request immediately.",
       inputSchema: z.object({
         items: z.array(z.object({ product_id: z.string(), size: z.string(), quantity: z.number().int() })),
+        customer_name: z.string().nullable(),
+        customer_phone: z.string().nullable(),
+        customer_email: z.string().nullable(),
       }),
-      execute: async ({ items }) => {
+      execute: async ({ items, customer_name, customer_phone, customer_email }) => {
         toolsUsed.add("prepare_order");
         const clean = items.slice(0, 20).filter((i) => /^[0-9a-f-]{36}$/i.test(i.product_id));
         if (!clean.length) return { ok: false, error: "No valid items" };
@@ -514,6 +517,44 @@ Deno.serve(async (req) => {
             quantity: qty,
             price: unit * qty,
           });
+        }
+        if (specialOrder.length > 0) {
+          const contactName = customer_name ? sanitize(customer_name, 80) : "";
+          const contactPhone = customer_phone ? normalizePhone(customer_phone) : null;
+          const contactEmail = customer_email ? sanitize(customer_email, 254).toLowerCase() : null;
+          if (!contactName || !contactPhone) {
+            return {
+              ok: false,
+              requires_customer_contact: true,
+              message: "Before I can submit this special-order request to the store team, I need the customer's full name and phone number. Email is optional.",
+              special_order: specialOrder,
+            };
+          }
+          if (contactEmail && !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(contactEmail)) {
+            return { ok: false, error: "Please ask for a valid email address or leave it blank." };
+          }
+          const requestedItems = lines.map((l) => `${l.product.name} (${l.selectedSize}) x${l.quantity}`).join("; ");
+          const leadPayload = {
+            name: contactName,
+            phone: contactPhone,
+            email: contactEmail,
+            interest: sanitize(`CHATBOT SPECIAL ORDER: ${specialOrder.join("; ")} | Requested items: ${requestedItems}`, 2000),
+            lead_type: "special_order",
+          };
+          const { data: existingLead } = await admin
+            .from("chat_leads")
+            .select("id")
+            .eq("session_id", session.id)
+            .eq("lead_type", "special_order")
+            .eq("is_handled", false)
+            .limit(1)
+            .maybeSingle();
+          const leadWrite = existingLead?.id
+            ? await admin.from("chat_leads").update(leadPayload).eq("id", existingLead.id)
+            : await admin.from("chat_leads").insert({ ...leadPayload, session_id: session.id });
+          if (leadWrite.error) throw new Error("special-order notification could not be saved");
+          phoneHash = await hash("phone:" + contactPhone);
+          leadCaptured = true;
         }
         if (lines.length) {
           const total = lines.reduce((a, l) => a + l.price, 0);
