@@ -35,11 +35,15 @@ serve(async (req) => {
     });
     const { data: userResult, error: userError } = await caller.auth.getUser();
     const userId = userResult.user?.id;
-    const [{ data: isAdmin }, { data: isStaff }, { data: isManager }] = await Promise.all([
-      caller.rpc('is_admin'),
-      userId ? caller.rpc('has_staff_role', { _uid: userId, _role: 'staff' }) : Promise.resolve({ data: false }),
-      userId ? caller.rpc('has_staff_role', { _uid: userId, _role: 'manager' }) : Promise.resolve({ data: false }),
-    ]);
+    const { data: isAdmin } = await caller.rpc('is_admin');
+    let isStaff = false;
+    let isManager = false;
+    if (userId) {
+      const staffCheck = await caller.rpc('has_staff_role', { _uid: userId, _role: 'staff' });
+      const managerCheck = await caller.rpc('has_staff_role', { _uid: userId, _role: 'manager' });
+      isStaff = staffCheck.data === true;
+      isManager = managerCheck.data === true;
+    }
     if (userError || !userId || !(isAdmin || isStaff || isManager)) {
       return new Response(JSON.stringify({ error: 'Admin or authorised stock staff access required' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
