@@ -3,7 +3,10 @@ import path from "node:path";
 
 const SITE = "https://patrichiasstore-url.vercel.app";
 const DB = process.env.VITE_SUPABASE_URL || "https://jkdxlbkckpwzmhdaoaoo.supabase.co";
-const KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWIiLCJyZWYiOiJqa2R4bGJrY2twd3ptaGRhb2FvbyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY4NDc2MDcsImV4cCI6MjA4NDA0ODYwMH0.invalid";
+const clientConfig = await readFile(path.resolve("src/integrations/supabase/client.ts"), "utf8");
+const keyFromClient = clientConfig.match(/const FALLBACK_SUPABASE_PUBLISHABLE_KEY\s*=\s*"([^"]+)"/);
+const KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || keyFromClient?.[1];
+if (!KEY) throw new Error("SEO prerender could not locate the public Supabase key.");
 const DIST = path.resolve("dist");
 
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -28,12 +31,12 @@ async function rows(table, select, order) {
 }
 function meta(html, key, value, property = false) {
   const attr = property ? "property" : "name";
-  const pattern = new RegExp("<meta(?=[^>]*\\\\b" + attr + "=[\\"']" + key + "[\\"'])[^>]*>", "i");
+  const pattern = new RegExp('<meta[^>]*' + attr + '="' + key + '"[^>]*>', "i");
   const tag = '<meta ' + attr + '="' + key + '" content="' + esc(value) + '" />';
-  return pattern.test(html) ? html.replace(pattern, tag) : html.replace("</head>", tag + "\\n</head>");
+  return pattern.test(html) ? html.replace(pattern, tag) : html.replace("</head>", tag + "\n</head>");
 }
 function render(template, data) {
-  let html = template.replace(/<title>[^<]*<\\/title>/i, "<title>" + esc(data.title) + "</title>");
+  let html = template.replace(/<title>[^<]*<\/title>/i, "<title>" + esc(data.title) + "</title>");
   html = meta(html, "description", data.description);
   html = meta(html, "robots", "index, follow, max-image-preview:large");
   html = meta(html, "og:title", data.title, true);
@@ -43,8 +46,13 @@ function render(template, data) {
   html = meta(html, "og:image", data.image || SITE + "/og-image.jpg", true);
   html = meta(html, "twitter:title", data.title);
   html = meta(html, "twitter:description", data.description);
-  html = html.replace(/<link\\s+rel=["']canonical["'][^>]*>/gi, "");
-  html = html.replace("</head>", '<link rel="canonical" href="' + esc(data.url) + '" />\\n<script type="application/ld+json">' + JSON.stringify(data.schema).replace(/</g, "\\\\u003c") + "</script>\\n</head>");
+  html = html.replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "");
+  html = html.replace(/<link\s+rel=["']alternate["'][^>]*>/gi, "");
+  html = html.replace("</head>", '<link rel="canonical" href="' + esc(data.url) + '" />\n' +
+    '<link rel="alternate" hreflang="en-KE" href="' + esc(data.url) + '" />\n' +
+    '<link rel="alternate" hreflang="x-default" href="' + esc(data.url) + '" />\n' +
+    '<script type="application/ld+json">' + JSON.stringify(data.schema).replace(/</g, "\\u003c") +
+    "</script>\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + data.body + "</div>");
 }
 async function writePage(route, html) {
