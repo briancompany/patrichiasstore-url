@@ -37,6 +37,7 @@ function meta(html, key, value, property = false) {
 }
 function render(template, data) {
   let html = template.replace(/<title>[^<]*<\/title>/i, "<title>" + esc(data.title) + "</title>");
+  html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
   html = meta(html, "description", data.description);
   html = meta(html, "robots", "index, follow, max-image-preview:large");
   html = meta(html, "og:title", data.title, true);
