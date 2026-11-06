@@ -38,6 +38,7 @@ const AdminSchools = lazy(() => import("./pages/admin/Schools"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const AdminDiscounts = lazy(() => import("./pages/admin/Discounts"));
 const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
+const AdminVisitors = lazy(() => import("./pages/admin/Visitors"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const PricingChart = lazy(() => import("./pages/admin/PricingChart"));
 const AdminPayments = lazy(() => import("./pages/admin/Payments"));
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="/admin/users" element={<LazyPage><AdminUsers /></LazyPage>} />
             <Route path="/admin/discounts" element={<LazyPage><AdminDiscounts /></LazyPage>} />
             <Route path="/admin/analytics" element={<LazyPage><AdminAnalytics /></LazyPage>} />
+            <Route path="/admin/visitors" element={<LazyPage><AdminVisitors /></LazyPage>} />
             <Route path="/admin/settings" element={<LazyPage><AdminSettings /></LazyPage>} />
             <Route path="/admin/pricing" element={<LazyPage><PricingChart /></LazyPage>} />
             <Route path="/admin/payments" element={<LazyPage><AdminPayments /></LazyPage>} />

@@ -434,8 +434,8 @@ export default function Visitors() {
                             title={`${c.clicks} clicks`}
                             className="absolute rounded-full -translate-x-1/2 -translate-y-1/2"
                             style={{
-                              left: `${(c.x_bucket / 20) * 100 + 2.5}%`,
-                              top: `${(c.y_bucket / 20) * 100 + 2.5}%`,
+                              left: `${Math.max(0, Math.min(100, c.x_bucket))}%`,
+                              top: `${Math.max(0, Math.min(100, c.y_bucket))}%`,
                               width: '10%',
                               height: '10%',
                               backgroundColor: `hsl(var(--primary) / ${a.toFixed(2)})`,
