@@ -10,7 +10,6 @@ import { TrendingUp, Package, ShoppingCart, DollarSign, Star } from 'lucide-reac
 import { LowStockAlerts } from '@/components/admin/LowStockAlerts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminExports } from '@/components/admin/AdminExports';
 
