@@ -174,6 +174,10 @@ export function usePricingChart() {
  * renders instantly on first visit. Safe to call multiple times.
  */
 export function prefetchStoreData() {
+  // Only warm the general product catalogue on the homepage. The full schools
+  // list is not needed to render the homepage or general Shop products; it is
+  // fetched by useSchoolsList when a school-selection screen actually needs it.
+  // This avoids an unrelated schools request competing with first-page assets.
   const jobs: [string, () => Promise<unknown>][] = [
     [IDB_KEYS.products, async () => {
       if (_generalProducts) return;
@@ -190,13 +194,6 @@ export function prefetchStoreData() {
       })) as GeneralProduct[];
       _generalProducts = mapped;
       await idbSetWithTTL(IDB_KEYS.products, mapped);
-    }],
-    [IDB_KEYS.schools, async () => {
-      if (_schools) return;
-      const { data } = await supabase.from('schools').select('id, name, logo_url').order('name');
-      if (!data) return;
-      _schools = data;
-      await idbSetWithTTL(IDB_KEYS.schools, data);
     }],
   ];
 

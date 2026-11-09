@@ -43,10 +43,25 @@ export function flashSoldPercent(sale: FlashSale): number {
   return Math.min(100, Math.round((sale.stock_sold / total) * 100));
 }
 
-export async function fetchActiveFlashSales(): Promise<FlashSale[]> {
-  const { data, error } = await supabase.rpc('get_active_flash_sales');
-  if (error || !data) return [];
-  return (data as unknown as FlashSale[]).filter((s) => s.remaining > 0);
+// Multiple components can request flash sales at the same time (the layout
+// alert, homepage/shop banner, and product page). Share the in-flight RPC so
+// mounting those components does not produce duplicate network requests.
+let activeFlashSalesRequest: Promise<FlashSale[]> | null = null;
+
+export function fetchActiveFlashSales(): Promise<FlashSale[]> {
+  if (activeFlashSalesRequest) return activeFlashSalesRequest;
+
+  activeFlashSalesRequest = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_active_flash_sales');
+      if (error || !data) return [];
+      return (data as unknown as FlashSale[]).filter((s) => s.remaining > 0);
+    } finally {
+      activeFlashSalesRequest = null;
+    }
+  })();
+
+  return activeFlashSalesRequest;
 }
 
 /**
