@@ -78,6 +78,10 @@ serve(async (req) => {
       });
     }
 
+    // Always send customers directly to the matching product on the production Vercel site.
+    // Do not use preview/Lovable origins: restock emails must open this exact product page.
+    const productUrl = `https://patrichiasstore-url.vercel.app/shop/product/${encodeURIComponent(String(productId))}`;
+
     // Send emails in batches
     let notified = 0;
     for (const sub of subscribers) {
@@ -100,7 +104,7 @@ serve(async (req) => {
                 <h2 style="color: #333;">Good news! 🎉</h2>
                 <p><strong>${product.name}</strong> is now back in stock at Patrichia's Store.</p>
                 <p>Don't miss out — grab yours before it sells out again!</p>
-                <a href="https://patrichiasstore-url.vercel.app/shop/product/${productId}" 
+                <a href="${productUrl}" 
                    style="display: inline-block; background: #333; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
                   Shop Now
                 </a>
