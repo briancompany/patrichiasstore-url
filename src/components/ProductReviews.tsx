@@ -57,8 +57,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
       .from('public_product_reviews')
       .select('id, reviewer_name, rating, review_text, created_at')
       .eq('product_id', productId)
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .order('created_at', { ascending: false });
 
     if (data && data.length > 0) {
       const rows = data as Review[];
@@ -146,8 +145,8 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
       )}
 
       {reviews.length > 0 && (
-        <div className="space-y-2 max-h-40 overflow-y-auto">
-          {reviews.slice(0, 3).map((review) => (
+        <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+          {reviews.map((review) => (
             <div key={review.id} className="text-xs space-y-1">
               <div className="flex items-center gap-2">
                 <StarRating value={review.rating} />

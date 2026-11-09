@@ -8,6 +8,9 @@ import {
 } from 'recharts';
 import { TrendingUp, Package, ShoppingCart, DollarSign, Star } from 'lucide-react';
 import { LowStockAlerts } from '@/components/admin/LowStockAlerts';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { AdminExports } from '@/components/admin/AdminExports';
 
 interface OrderStats {
@@ -26,6 +29,8 @@ export default function AdminAnalytics() {
   const [ordersByStatus, setOrdersByStatus] = useState<{ name: string; value: number }[]>([]);
   const [revenueByDay, setRevenueByDay] = useState<{ day: string; revenue: number }[]>([]);
   const [topProducts, setTopProducts] = useState<{ name: string; count: number }[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewProducts, setReviewProducts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchAnalytics();
@@ -36,7 +41,7 @@ export default function AdminAnalytics() {
       const [{ data: ordersData }, { data: orderItems }, { data: reviewsData }] = await Promise.all([
         supabase.from('orders').select('*'),
         supabase.from('order_items').select('product_name, quantity'),
-        supabase.from('product_reviews').select('id'),
+        supabase.from('product_reviews').select('id, product_id, reviewer_name, rating, review_text, is_approved, created_at').order('created_at', { ascending: false }),
       ]);
 
       const orders = ordersData || [];
@@ -44,6 +49,13 @@ export default function AdminAnalytics() {
       const totalOrders = orders.length;
       const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
       const completedOrders = orders.filter((o) => o.status === 'completed').length;
+
+      setReviews(reviewsData || []);
+      const productIds = [...new Set((reviewsData || []).map((review: any) => review.product_id).filter(Boolean))];
+      if (productIds.length) {
+        const { data: reviewProductRows } = await supabase.from('products').select('id, name').in('id', productIds);
+        setReviewProducts(Object.fromEntries((reviewProductRows || []).map((product: any) => [product.id, product.name])));
+      }
 
       setStats({
         totalRevenue, totalOrders,
@@ -102,6 +114,16 @@ export default function AdminAnalytics() {
   };
 
   const COLORS = ['#f59e0b', '#6366f1', '#3b82f6', '#06b6d4', '#22c55e'];
+
+  const setReviewApproval = async (reviewId: string, approved: boolean) => {
+    const { error } = await supabase.from('product_reviews').update({ is_approved: approved }).eq('id', reviewId);
+    if (error) {
+      toast.error('Could not update review. Please try again.');
+      return;
+    }
+    setReviews((current) => current.map((review) => review.id === reviewId ? { ...review, is_approved: approved } : review));
+    toast.success(approved ? 'Review is now visible on its product' : 'Review hidden from the product page');
+  };
 
   const statCards = [
     { title: 'Total Revenue', value: `Ksh ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
@@ -207,6 +229,38 @@ export default function AdminAnalytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Product review moderation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-3">
+              <span>Product Reviews</span>
+              <Badge variant="secondary">{reviews.filter((review) => !review.is_approved).length} pending</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">Read customer feedback and tick a review to publish it on its product page.</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {reviews.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No product reviews yet.</p>
+            ) : reviews.map((review) => (
+              <div key={review.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
+                <Checkbox checked={!!review.is_approved} onCheckedChange={(checked) => void setReviewApproval(review.id, checked === true)} aria-label={`Publish review by ${review.reviewer_name}`} className="mt-1" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{review.reviewer_name || 'Customer'}</span>
+                    <span className="text-xs text-muted-foreground">{reviewProducts[review.product_id] || 'Product'}</span>
+                    <Badge variant={review.is_approved ? 'default' : 'outline'}>{review.is_approved ? 'Published' : 'Pending'}</Badge>
+                  </div>
+                  <div className="flex items-center gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                    {Array.from({ length: 5 }, (_, index) => <Star key={index} className={`h-3.5 w-3.5 ${index < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />)}
+                  </div>
+                  {review.review_text && <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{review.review_text}</p>}
+                  <p className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         {/* Exports */}
         <AdminExports />
