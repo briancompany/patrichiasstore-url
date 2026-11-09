@@ -6,7 +6,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" as="image" href="/hero-uniforms.webp" fetchpriority="high" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" />
+    <!-- Load the brand fonts without holding up the first render. The existing
+         system fallbacks keep text readable while the stylesheet downloads. -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" />
+    </noscript>
   <title>Uhuru Market Uniforms |Affordable School Uniforms & Tracksuits Nairobi | Patrichia Kavingo Store F47</title>
 <meta name="description" content="Affordable school uniforms,Nairobi's trusted school uniform shop at Uhuru Market, Store F47, Jogoo Road. All schools stocked — tracksuits, shirts, shorts, skirts & more. Same-day pickup. Call +254 726 075 180." />
     <meta name="keywords" content="school uniforms Nairobi, uniforms Uhuru Market, tracksuits Nairobi, clothes Uhuru Market, affordable tracksuits, Patrichia Kavingo, Jogoo Road uniforms, school uniforms Kenya" />
