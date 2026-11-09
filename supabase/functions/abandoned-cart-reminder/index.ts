@@ -68,7 +68,7 @@ serve(async (req) => {
                 <h2 style="color: #333;">Hi ${order.customer_name}! 👋</h2>
                 <p>You have an incomplete order worth <strong>Ksh ${order.total_amount.toLocaleString()}</strong> at Patrichia's Store.</p>
                 <p>Complete your payment to secure your items before they sell out!</p>
-                <a href="https://patrichiasstore-url.lovable.app/payment" 
+                <a href="https://patrichiasstore-url.vercel.app/payment" 
                    style="display: inline-block; background: #333; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
                   Complete Payment
                 </a>
