@@ -10,12 +10,39 @@ export function AdBanner({ placement, className = '' }: { placement: 'home' | 's
   const [idx, setIdx] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Ads are secondary content. Wait until the banner is close to the viewport
+  // so its RPC does not compete with the initial hero/product requests.
   useEffect(() => {
-    let alive = true;
-    supabase.rpc('get_live_ads', { _placement: placement }).then(({ data }) => {
-      if (alive && data) setAds(data as LiveAd[]);
-    });
-    return () => { alive = false; };
+    const element = ref.current;
+    if (!element) return;
+
+    let cancelled = false;
+    let requested = false;
+
+    const loadAds = async () => {
+      if (requested) return;
+      requested = true;
+      const { data } = await supabase.rpc('get_live_ads', { _placement: placement });
+      if (!cancelled && data) setAds(data as LiveAd[]);
+    };
+
+    if (typeof IntersectionObserver === 'undefined') {
+      void loadAds();
+      return () => { cancelled = true; };
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        void loadAds();
+      }
+    }, { rootMargin: '300px 0px', threshold: 0 });
+
+    observer.observe(element);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [placement]);
 
   useEffect(() => {
@@ -41,7 +68,7 @@ export function AdBanner({ placement, className = '' }: { placement: 'home' | 's
     return () => obs.disconnect();
   }, [ad, placement]);
 
-  if (!ad) return null;
+  if (!ad) return <div ref={ref} className={className} aria-hidden="true" />;
 
   const img = (
     <img
