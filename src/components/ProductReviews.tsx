@@ -53,17 +53,22 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
   }, [productId]);
 
   const fetchReviews = async () => {
-    const { data } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from('public_product_reviews')
       .select('id, reviewer_name, rating, review_text, created_at')
       .eq('product_id', productId)
       .order('created_at', { ascending: false });
 
-    if (data && data.length > 0) {
-      const rows = data as Review[];
-      setReviews(rows);
-      setAvgRating(rows.reduce((s, r) => s + r.rating, 0) / rows.length);
+    if (error) {
+      console.error('Could not load published product reviews:', error);
+      setReviews([]);
+      setAvgRating(0);
+      return;
     }
+
+    const rows = (data ?? []) as Review[];
+    setReviews(rows);
+    setAvgRating(rows.length ? rows.reduce((s, r) => s + r.rating, 0) / rows.length : 0);
   };
 
   const handleSubmit = async () => {

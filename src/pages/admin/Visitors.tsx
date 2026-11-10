@@ -127,6 +127,7 @@ export default function Visitors() {
       if (error) throw error;
       return (data ?? []) as { page: string; clicks: number }[];
     },
+    refetchInterval: autoRefresh ? 15000 : false,
   });
 
   const clickMapQ = useQuery({
@@ -419,14 +420,18 @@ export default function Visitors() {
 
                 {clickPage === '' && (
                   <div className="text-xs text-muted-foreground">
-                    No page chosen yet. Pages with the most clicks:{' '}
-                    <span className="inline-flex flex-wrap gap-1.5 mt-2">
-                      {(pagesQ.data ?? []).slice(0, 12).map((p) => (
-                        <Badge key={p.page} variant="outline" className="text-[10px] cursor-pointer" onClick={() => setClickPage(p.page)}>
-                          {p.page || '/'} · {p.clicks}
-                        </Badge>
-                      ))}
-                    </span>
+                    {pagesQ.isLoading ? 'Loading available pages…' : (pagesQ.data ?? []).length > 0
+                      ? 'Choose any visited page above. Pages remain selectable even before their first click.'
+                      : 'No public page views recorded in this date range yet. Visit the storefront, then refresh this panel.'}
+                    {(pagesQ.data ?? []).length > 0 && (
+                      <span className="inline-flex flex-wrap gap-1.5 mt-2">
+                        {(pagesQ.data ?? []).slice(0, 12).map((p) => (
+                          <Badge key={p.page} variant="outline" className="text-[10px] cursor-pointer" onClick={() => setClickPage(p.page)}>
+                            {p.page || '/'} · {p.clicks} clicks
+                          </Badge>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 )}
 
