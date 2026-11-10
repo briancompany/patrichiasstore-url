@@ -61,7 +61,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           .from('orders')
           .select('id', { count: 'exact', head: true })
           .eq('is_special_order', true)
-          .not('status', 'in', '("awaiting_payment","pending_payment","payment_initiated","declined","completed","delivered")'),
+          .not('status', 'in', '("declined","completed","delivered")'),
         supabase
           .from('chat_leads')
           .select('id', { count: 'exact', head: true })
