@@ -115,9 +115,24 @@ export function ChatAssistant() {
   }
 
   function checkout(items: CartItem[]) {
+    const shortItems = items.filter((item) =>
+      !item.product.inStock ||
+      (typeof item.product.stockQuantity === 'number' && item.product.stockQuantity < item.quantity)
+    );
+    const specialOrderNote = shortItems.map((item) => {
+      const available = item.product.inStock ? item.product.stockQuantity ?? 0 : 0;
+      return `${item.product.name} (${item.selectedSize}): ${available} available, ${Math.max(0, item.quantity - available)} to be specially sourced`;
+    }).join('; ');
     storageSet(STORAGE_KEYS.shopCart, items);
     setOpen(false);
-    navigate('/order', { state: { cart: items } });
+    navigate('/order', {
+      state: {
+        cart: items,
+        isSpecialOrder: shortItems.length > 0,
+        specialOrderNote,
+        chatSessionId: sessionId,
+      },
+    });
   }
 
   return (
