@@ -1466,6 +1466,8 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_schools: { Args: { _school_ids: string[] }; Returns: number }
+      mark_chat_special_order_converted: { Args: { _order_id: string; _session_id: string }; Returns: boolean }
       adjust_product_stock: {
         Args: { _delta: number; _product_id: string }
         Returns: number
