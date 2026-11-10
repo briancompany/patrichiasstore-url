@@ -170,6 +170,9 @@ export default function Visitors() {
 
   const liveCount = feedQ.data?.filter((f) => Date.now() - new Date(f.created_at).getTime() < 5 * 60000).length ?? 0;
 
+  const analyticsError = [summaryQ.error, feedQ.error, listQ.error, pagesQ.error, clickMapQ.error, timelineQ.error]
+    .find((error) => error instanceof Error);
+
   const stats = [
     { icon: Users, label: 'Visitors', value: s.visitors ?? 0, sub: `${s.returning ?? 0} returning` },
     { icon: Radio, label: 'Live now', value: s.live_now ?? 0, sub: `${liveCount} active in feed` },
@@ -217,6 +220,12 @@ export default function Visitors() {
         </div>
 
         {/* Stat cards */}
+        {analyticsError && (
+          <div role="alert" className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            Visitor analytics could not load: {analyticsError.message}. Check the database migration and admin RPC permissions.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-3 mb-4">
           {summaryQ.isLoading
             ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24" />)
