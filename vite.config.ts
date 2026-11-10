@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     mcpPlugin(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: null,
       includeAssets: ["favicon.ico", "icon-192.png", "icon-512.png"],
       devOptions: {
@@ -66,8 +66,8 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["index.html", "assets/**/*.{js,css,woff2}", "favicon.ico", "icon-192.png", "icon-512.png", "manifest.json", "hero-uniforms.webp", "patrichia-store-logo.png"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
+        clientsClaim: false,
+        skipWaiting: false,
         navigateFallbackDenylist: [
           /^\/\.lovable\/oauth/,
           /^\/\.well-known\//,
