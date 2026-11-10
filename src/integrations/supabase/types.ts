@@ -1597,6 +1597,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_visitor_events: {
+        Args: { _events: Json }
+        Returns: Json
+      }
       visitor_clickmap: {
         Args: { _from: string; _page: string; _to: string }
         Returns: {

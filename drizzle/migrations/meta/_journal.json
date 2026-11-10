@@ -43,6 +43,13 @@
       "when": 1793923605453,
       "tag": "0005_storefront_read_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794337675184,
+      "tag": "0006_visitor_analytics_ingest_rpc",
+      "breakpoints": true
     }
   ]
 }
