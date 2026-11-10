@@ -2,7 +2,7 @@
 -- The view exposes only approved reviews and deliberately omits reviewer_email.
 CREATE OR REPLACE VIEW public.public_product_reviews
 WITH (security_invoker = false, security_barrier = true) AS
-SELECT id, product_id, reviewer_name, rating, review_text, created_at
+SELECT id, product_id, reviewer_name, rating, review_text, created_at, is_approved
 FROM public.product_reviews
 WHERE is_approved = true;
 
