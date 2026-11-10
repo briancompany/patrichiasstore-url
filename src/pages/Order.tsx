@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { searchSchoolsFromDB, type DBSchoolResult } from '@/lib/api/schoolSearch';
+import { checkStockAvailability } from '@/hooks/useLiveStock';
 
 const getBackendErrorMessage = (err: unknown) => {
   const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
@@ -29,7 +30,7 @@ export default function Order() {
   const navState = location.state as { cart?: CartItem[]; isSpecialOrder?: boolean; specialOrderNote?: string; chatSessionId?: string } | null;
   const navCart = navState?.cart;
   const isChatbotSpecialOrder = Boolean(navState?.isSpecialOrder);
-  const specialOrderNote = navState?.specialOrderNote || null;
+  const chatbotSpecialOrderNote = navState?.specialOrderNote || null;
   const [cartItems] = useState<CartItem[]>(() => navCart ?? storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
 
   useEffect(() => {
@@ -95,6 +96,25 @@ export default function Order() {
     setIsSubmitting(true);
 
     try {
+      // Re-check live stock for both regular and chatbot orders. Any shortage
+      // becomes a flagged special order rather than silently looking ordinary.
+      const stockCheck = await checkStockAvailability(
+        cartItems
+          .filter((item) => isUuid(item.product.id))
+          .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+      );
+      const shortfallByProduct = new Map(
+        stockCheck.unavailable.map((item) => [item.product_id, item]),
+      );
+      const isSpecialOrder = isChatbotSpecialOrder || stockCheck.unavailable.length > 0;
+      const liveShortfallNote = stockCheck.unavailable.map((item) =>
+        `${item.product_name}: requested ${item.requested}, available ${item.available}`
+      ).join('; ');
+      const finalSpecialOrderNote = [
+        chatbotSpecialOrderNote,
+        liveShortfallNote ? `Live stock check — ${liveShortfallNote}` : '',
+      ].filter(Boolean).join(' | ') || null;
+
       // Create the order (generate UUID client-side to avoid relying on returned rows)
       const orderId = createUuid();
 
@@ -110,8 +130,8 @@ export default function Order() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
-          is_special_order: isChatbotSpecialOrder,
-          special_order_note: isChatbotSpecialOrder ? specialOrderNote : null,
+          is_special_order: isSpecialOrder,
+          special_order_note: isSpecialOrder ? finalSpecialOrderNote : null,
           is_new_school: Boolean(formData.school.trim() && !selectedSchoolId),
           linked_school_id: selectedSchoolId,
           // Order must be saved first; payment comes after
@@ -142,7 +162,7 @@ export default function Order() {
         logo_url: null,
         color: null,
         sample_image_url: null,
-        shortfall_quantity: Math.max(0, item.quantity - (item.product.inStock ? item.product.stockQuantity ?? item.quantity : 0)),
+        shortfall_quantity: Math.max(0, shortfallByProduct.has(item.product.id) ? item.quantity - (shortfallByProduct.get(item.product.id)?.available ?? 0) : 0),
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
