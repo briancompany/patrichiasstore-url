@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
+import { searchSchoolsFromDB, type DBSchoolResult } from '@/lib/api/schoolSearch';
 
 const getBackendErrorMessage = (err: unknown) => {
   const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
@@ -25,7 +26,10 @@ export default function Order() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navCart = (location.state as { cart?: CartItem[] } | null)?.cart;
+  const navState = location.state as { cart?: CartItem[]; isSpecialOrder?: boolean; specialOrderNote?: string; chatSessionId?: string } | null;
+  const navCart = navState?.cart;
+  const isChatbotSpecialOrder = Boolean(navState?.isSpecialOrder);
+  const specialOrderNote = navState?.specialOrderNote || null;
   const [cartItems] = useState<CartItem[]>(() => navCart ?? storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
 
   useEffect(() => {
@@ -33,6 +37,9 @@ export default function Order() {
   }, [navCart]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [schoolSuggestions, setSchoolSuggestions] = useState<DBSchoolResult[]>([]);
+  const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -43,11 +50,35 @@ export default function Order() {
     notes: '',
   });
 
+  useEffect(() => {
+    const query = formData.school.trim();
+    if (query.length < 2) {
+      setSchoolSuggestions([]);
+      setShowSchoolSuggestions(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const results = await searchSchoolsFromDB(query);
+      if (!cancelled) {
+        setSchoolSuggestions(results);
+        setShowSchoolSuggestions(true);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [formData.school]);
+
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'school') setSelectedSchoolId(null);
   };
 
   const generateTrackingCode = () => {
@@ -79,8 +110,12 @@ export default function Order() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
+          is_special_order: isChatbotSpecialOrder,
+          special_order_note: isChatbotSpecialOrder ? specialOrderNote : null,
+          is_new_school: Boolean(formData.school.trim() && !selectedSchoolId),
+          linked_school_id: selectedSchoolId,
           // Order must be saved first; payment comes after
-          status: 'pending',
+          status: formData.school.trim() && !selectedSchoolId ? 'new_school_setup' : 'pending',
         });
 
       if (orderError) throw orderError;
@@ -107,11 +142,22 @@ export default function Order() {
         logo_url: null,
         color: null,
         sample_image_url: null,
+        shortfall_quantity: Math.max(0, item.quantity - (item.product.inStock ? item.product.stockQuantity ?? item.quantity : 0)),
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // Convert the pending chatbot lead into this real order so the admin
+      // notification count does not double-count the same request.
+      if (isChatbotSpecialOrder && navState?.chatSessionId) {
+        const { error: linkError } = await supabase.rpc('mark_chat_special_order_converted', {
+          _session_id: navState.chatSessionId,
+          _order_id: orderId,
+        });
+        if (linkError) console.warn('Could not link chatbot special-order lead:', linkError);
+      }
 
       // Generate tracking code (best-effort)
       const trackingCode = generateTrackingCode();
@@ -171,7 +217,17 @@ export default function Order() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Order Summary */}
+              {isChatbotSpecialOrder && (
+            <Card className="border-destructive/40 bg-destructive/5">
+              <CardContent className="p-4 text-sm">
+                <p className="font-semibold text-destructive">Special order request</p>
+                <p className="mt-1 text-muted-foreground">The store team will see this order as a priority request.</p>
+                {specialOrderNote && <p className="mt-2">{specialOrderNote}</p>}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Order Summary */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -239,15 +295,42 @@ export default function Order() {
                     />
                   </div>
 
-                  <div>
+                  <div className="relative">
                     <Label htmlFor="school">School Name (Optional)</Label>
                     <Input
                       id="school"
                       name="school"
                       value={formData.school}
                       onChange={handleInputChange}
-                      placeholder="Enter the school name"
+                      onFocus={() => schoolSuggestions.length > 0 && setShowSchoolSuggestions(true)}
+                      placeholder="Search schools registered in our store"
+                      autoComplete="off"
                     />
+                    {showSchoolSuggestions && formData.school.trim().length >= 2 && (
+                      <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-lg">
+                        {schoolSuggestions.length > 0 ? schoolSuggestions.map((school) => (
+                          <button
+                            key={school.id}
+                            type="button"
+                            className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm hover:bg-accent"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, school: school.name }));
+                              setSelectedSchoolId(school.id);
+                              setShowSchoolSuggestions(false);
+                            }}
+                          >
+                            {school.name}
+                          </button>
+                        )) : (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">
+                            No matching registered school. You can continue with this name as a new school.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {formData.school.trim() && selectedSchoolId && (
+                      <p className="mt-1 text-xs text-emerald-600">Registered school selected</p>
+                    )}
                   </div>
 
                   <div>
