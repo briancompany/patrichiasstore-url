@@ -19,8 +19,10 @@ root.render(
   </AppErrorBoundary>,
 );
 
+// Start tracking immediately so the initial route is recorded before load.
+initVisitorTracking();
+
 window.addEventListener("load", () => {
-  initVisitorTracking();
   void registerServiceWorker().catch((error) => {
     console.error("Service worker setup failed", error);
   });
