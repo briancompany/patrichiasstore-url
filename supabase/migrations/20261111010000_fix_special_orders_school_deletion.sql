@@ -63,15 +63,15 @@ BEGIN
     AND ord.is_special_order = true
     AND (
       CASE
-        WHEN left(regexp_replace(coalesce(lead.phone, ''), '\\D', '', 'g'), 1) = '0'
-          THEN '254' || substr(regexp_replace(coalesce(lead.phone, ''), '\\D', '', 'g'), 2)
-        ELSE regexp_replace(coalesce(lead.phone, ''), '\\D', '', 'g')
+        WHEN left(regexp_replace(coalesce(lead.phone, ''), '[^0-9]', '', 'g'), 1) = '0'
+          THEN '254' || substr(regexp_replace(coalesce(lead.phone, ''), '[^0-9]', '', 'g'), 2)
+        ELSE regexp_replace(coalesce(lead.phone, ''), '[^0-9]', '', 'g')
       END
     ) = (
       CASE
-        WHEN left(regexp_replace(coalesce(ord.customer_phone, ''), '\\D', '', 'g'), 1) = '0'
-          THEN '254' || substr(regexp_replace(coalesce(ord.customer_phone, ''), '\\D', '', 'g'), 2)
-        ELSE regexp_replace(coalesce(ord.customer_phone, ''), '\\D', '', 'g')
+        WHEN left(regexp_replace(coalesce(ord.customer_phone, ''), '[^0-9]', '', 'g'), 1) = '0'
+          THEN '254' || substr(regexp_replace(coalesce(ord.customer_phone, ''), '[^0-9]', '', 'g'), 2)
+        ELSE regexp_replace(coalesce(ord.customer_phone, ''), '[^0-9]', '', 'g')
       END
     );
 
