@@ -47,5 +47,20 @@ export async function registerServiceWorker() {
     return;
   }
 
-  registerSW({ immediate: true });
+  // Keep the current app session stable when a deployment is published.
+  // A waiting worker is activated only after the visitor explicitly accepts.
+  let updateSW: (reloadPage?: boolean) => Promise<void> = async () => {};
+  updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      const accepted = window.confirm(
+        "A new version of Patrichia's Store is ready. Update now?",
+      );
+      if (accepted) {
+        void updateSW(true).catch((error) => {
+          console.error("App update failed", error);
+        });
+      }
+    },
+  });
 }
