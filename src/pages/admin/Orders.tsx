@@ -90,7 +90,10 @@ export default function AdminOrders() {
     fetchOrders();
     fetchChatSpecialOrders();
     const channel = supabase
-      .channel('admin-chat-special-order-leads')
+      .channel('admin-orders-and-special-order-leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        void fetchOrders();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_leads' }, () => {
         void fetchChatSpecialOrders();
       })
@@ -110,7 +113,8 @@ export default function AdminOrders() {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
-      query = query.gte('created_at', startOfMonth.toISOString());
+      // Always include special orders, even when they were placed before this month.
+      query = query.or(`created_at.gte.${startOfMonth.toISOString()},is_special_order.eq.true`);
     }
 
     const { data, error } = await query;
@@ -368,17 +372,17 @@ export default function AdminOrders() {
           </Card>
         )}
 
-        {/* Chatbot special-order requests */}
+        {/* Chatbot requests awaiting checkout; converted requests appear as normal flagged orders below. */}
         {chatSpecialOrders.length > 0 && (
           <Card className="border-2 border-destructive/50">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <BellRing className="h-5 w-5" />
-                Chatbot Special Orders
+                Pending Chatbot Special-Order Requests
                 <Badge variant="destructive">{chatSpecialOrders.length} needs attention</Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                These customers requested items that are short or out of stock. Contact them to confirm availability and arrangements.
+                These requests are waiting for checkout. Once a customer continues to payment, the request is converted into a priority special order in the orders list.
               </p>
             </CardHeader>
             <CardContent className="space-y-3">

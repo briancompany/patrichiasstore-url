@@ -21,6 +21,8 @@ interface Product {
   type: string;
   image_url: string | null;
   sizes: ProductSize[];
+  in_stock: boolean;
+  stock_quantity: number;
 }
 
 interface School {
@@ -44,7 +46,9 @@ export default function SchoolUniformPage() {
 
       const { data: schools, error } = await supabase
         .from('schools')
-        .select('id, name, logo_url');
+        .select('id, name, logo_url')
+        .order('name')
+        .range(0, 999);
 
       if (error || !schools) {
         setNotFound(true);
@@ -64,10 +68,10 @@ export default function SchoolUniformPage() {
 
       const { data: productData } = await supabase
         .from('products')
-        .select('id, name, type, image_url, sizes')
+        .select('id, name, type, image_url, sizes, in_stock, stock_quantity')
         .eq('school_id', match.id)
-        .eq('in_stock', true)
-        .order('type');
+        .order('type')
+        .range(0, 999);
 
       const mapped = (productData || []).map((p) => ({
         ...p,
@@ -238,7 +242,16 @@ export default function SchoolUniformPage() {
                   )}
                   <CardContent className="p-3">
                     <p className="font-medium text-sm">{product.name}</p>
-                    <Badge variant="secondary" className="mt-1">{product.type}</Badge>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">{product.type}</Badge>
+                      {product.in_stock && product.stock_quantity > 0 ? (
+                        <Badge variant="outline" className="border-emerald-500 text-emerald-700">
+                          In stock · {product.stock_quantity}
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">Special order · Out of stock</Badge>
+                      )}
+                    </div>
                     {product.sizes[0] && (
                       <p className="text-sm text-muted-foreground mt-1">From KES {product.sizes[0].price}</p>
                     )}

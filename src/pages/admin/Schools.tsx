@@ -137,34 +137,48 @@ export default function AdminSchools() {
 
   const deleteSelectedSchools = async () => {
     if (selectedSchoolIds.length === 0) return;
-    for (const id of selectedSchoolIds) {
-      await supabase.from('schools').delete().eq('id', id);
+    const idsToDelete = [...selectedSchoolIds];
+    const { data, error } = await supabase.rpc('admin_delete_schools', {
+      _school_ids: idsToDelete,
+    });
+    if (error) {
+      console.error('Bulk school deletion failed:', error);
+      toast.error(`Could not delete selected schools: ${error.message}`);
+      return;
     }
-    toast.success(`Deleted ${selectedSchoolIds.length} schools`);
+    const deletedCount = Number(data ?? 0);
+    toast.success(`Deleted ${deletedCount} of ${idsToDelete.length} selected schools`);
     setSelectedSchoolIds([]);
-    setDuplicatesInSystem((prev) => prev.filter((s) => !selectedSchoolIds.includes(s.id)));
+    setDuplicatesInSystem((prev) => prev.filter((s) => !idsToDelete.includes(s.id)));
     setDuplicateGroups((prev) =>
       prev
-        .map((g) => ({ ...g, items: g.items.filter((s) => !selectedSchoolIds.includes(s.id)) }))
+        .map((g) => ({ ...g, items: g.items.filter((s) => !idsToDelete.includes(s.id)) }))
         .filter((g) => g.items.length > 0),
     );
     await fetchSchools();
   };
 
   const deleteDuplicateSchool = async (id: string) => {
-    const { error } = await supabase.from('schools').delete().eq('id', id);
+    const { data, error } = await supabase.rpc('admin_delete_schools', {
+      _school_ids: [id],
+    });
     if (error) {
-      toast.error('Failed to delete school');
-    } else {
-      toast.success('School deleted');
-      setDuplicatesInSystem((prev) => prev.filter((s) => s.id !== id));
-      setDuplicateGroups((prev) =>
-        prev
-          .map((g) => ({ ...g, items: g.items.filter((s) => s.id !== id) }))
-          .filter((g) => g.items.length > 0),
-      );
-      await fetchSchools();
+      console.error('Duplicate school deletion failed:', error);
+      toast.error(`Failed to delete school: ${error.message}`);
+      return;
     }
+    if (Number(data ?? 0) === 0) {
+      toast.error('School was not found or could not be deleted');
+      return;
+    }
+    toast.success('School deleted');
+    setDuplicatesInSystem((prev) => prev.filter((s) => s.id !== id));
+    setDuplicateGroups((prev) =>
+      prev
+        .map((g) => ({ ...g, items: g.items.filter((s) => s.id !== id) }))
+        .filter((g) => g.items.length > 0),
+    );
+    await fetchSchools();
   };
 
   const handleBulkImport = async () => {
@@ -388,14 +402,21 @@ export default function AdminSchools() {
   };
 
   const deleteSchool = async (id: string) => {
-    const { error } = await supabase.from('schools').delete().eq('id', id);
+    const { data, error } = await supabase.rpc('admin_delete_schools', {
+      _school_ids: [id],
+    });
 
     if (error) {
-      toast.error('Error deleting school');
-    } else {
-      toast.success('School deleted');
-      setSchools(schools.filter((s) => s.id !== id));
+      console.error('School deletion failed:', error);
+      toast.error(`Error deleting school: ${error.message}`);
+      return;
     }
+    if (Number(data ?? 0) === 0) {
+      toast.error('School was not found or could not be deleted');
+      return;
+    }
+    toast.success('School deleted. Linked products and orders have been safely unlinked.');
+    setSchools((current) => current.filter((s) => s.id !== id));
   };
 
   const openEditDialog = (school: SchoolData) => {

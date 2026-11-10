@@ -18,7 +18,8 @@ export async function searchSchoolsFromDB(query: string): Promise<DBSchoolResult
     .from('schools')
     .select('id, name, logo_url')
     .ilike('name', `%${query}%`)
-    .limit(10);
+    .order('name')
+    .range(0, 999);
 
   if (error) {
     console.error('Error fetching schools from DB:', error);
