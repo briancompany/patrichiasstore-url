@@ -90,7 +90,10 @@ export default function AdminOrders() {
     fetchOrders();
     fetchChatSpecialOrders();
     const channel = supabase
-      .channel('admin-chat-special-order-leads')
+      .channel('admin-orders-and-special-order-leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        void fetchOrders();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_leads' }, () => {
         void fetchChatSpecialOrders();
       })
