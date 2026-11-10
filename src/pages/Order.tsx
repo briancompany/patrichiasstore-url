@@ -53,6 +53,11 @@ export default function Order() {
 
   useEffect(() => {
     const query = formData.school.trim();
+    if (selectedSchoolId) {
+      setSchoolSuggestions([]);
+      setShowSchoolSuggestions(false);
+      return;
+    }
     if (query.length < 2) {
       setSchoolSuggestions([]);
       setShowSchoolSuggestions(false);
@@ -72,7 +77,7 @@ export default function Order() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [formData.school]);
+  }, [formData.school, selectedSchoolId]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price, 0);
 
