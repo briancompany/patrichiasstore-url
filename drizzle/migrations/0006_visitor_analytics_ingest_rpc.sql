@@ -22,7 +22,7 @@ DECLARE
   v_count integer := 0;
   v_existing integer;
 BEGIN
-  IF jsonb_typeof(_events) <> 'array'
+  IF _events IS NULL OR jsonb_typeof(_events) <> 'array'
      OR jsonb_array_length(_events) < 1
      OR jsonb_array_length(_events) > 40 THEN
     RAISE EXCEPTION 'Invalid analytics batch' USING ERRCODE = '22023';
@@ -34,7 +34,8 @@ BEGIN
     v_session := item->>'sessionId';
     v_type := item->>'type';
 
-    IF v_visitor !~ '^[a-f0-9]{32}$'
+    IF v_visitor IS NULL OR v_session IS NULL OR v_type IS NULL
+       OR v_visitor !~ '^[a-f0-9]{32}$'
        OR v_session !~ '^[a-f0-9]{32}$'
        OR v_type NOT IN (
          'page_view','school_viewed','product_viewed','search','add_to_cart',
@@ -56,8 +57,9 @@ BEGIN
     v_school := nullif(left(regexp_replace(coalesce(item->>'school',''), '[[:cntrl:]]', '', 'g'), 120), '');
     v_device := CASE WHEN item->>'deviceType' IN ('mobile','desktop','tablet') THEN item->>'deviceType' ELSE NULL END;
     v_referrer := nullif(left(regexp_replace(coalesce(item->>'referrer',''), '[[:cntrl:]]', '', 'g'), 200), '');
-    v_product := CASE WHEN coalesce(item->>'productId','') ~* '^[0-9a-f-]{36}$'
-                      THEN (item->>'productId')::uuid ELSE NULL END;
+    v_product := CASE
+      WHEN coalesce(item->>'productId','') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      THEN (item->>'productId')::uuid ELSE NULL END;
     v_x := CASE WHEN jsonb_typeof(item->'xPct') = 'number'
                      AND (item->>'xPct')::numeric BETWEEN 0 AND 100
                 THEN (item->>'xPct')::numeric ELSE NULL END;
@@ -65,7 +67,16 @@ BEGIN
                      AND (item->>'yPct')::numeric BETWEEN 0 AND 100
                 THEN (item->>'yPct')::numeric ELSE NULL END;
 
-    v_meta := CASE WHEN jsonb_typeof(item->'meta') = 'object' THEN item->'meta' ELSE '{}'::jsonb END;
+    SELECT COALESCE(jsonb_object_agg(left(key, 40),
+      CASE WHEN jsonb_typeof(value) = 'string'
+        THEN to_jsonb(left(value #>> '{}', 200))
+        ELSE value
+      END
+    ), '{}'::jsonb)
+    INTO v_meta
+    FROM jsonb_each(CASE WHEN jsonb_typeof(item->'meta') = 'object' THEN item->'meta' ELSE '{}'::jsonb END)
+    WHERE jsonb_typeof(value) IN ('string','number','boolean','null');
+
     IF pg_column_size(v_meta) > 2048 THEN
       v_meta := '{}'::jsonb;
     END IF;
