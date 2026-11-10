@@ -247,7 +247,7 @@ export default function Order() {
               <CardContent className="p-4 text-sm">
                 <p className="font-semibold text-destructive">Special order request</p>
                 <p className="mt-1 text-muted-foreground">The store team will see this order as a priority request.</p>
-                {specialOrderNote && <p className="mt-2">{specialOrderNote}</p>}
+                {chatbotSpecialOrderNote && <p className="mt-2">{chatbotSpecialOrderNote}</p>}
               </CardContent>
             </Card>
           )}
