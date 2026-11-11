@@ -15,6 +15,7 @@ import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { searchSchoolsFromDB, type DBSchoolResult } from '@/lib/api/schoolSearch';
 import { checkStockAvailability } from '@/hooks/useLiveStock';
+import { DeliveryLocationPicker } from '@/components/DeliveryLocationPicker';
 import {
   Dialog,
   DialogContent,
@@ -443,17 +444,11 @@ export default function Order() {
                   </RadioGroup>
 
                   {formData.deliveryType === 'delivery' && (
-                    <div>
-                      <Label htmlFor="location">Delivery Location *</Label>
-                      <Textarea
-                        id="location"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleInputChange}
-                        placeholder="Enter your delivery address (area, landmark, building)"
-                        required
-                      />
-                    </div>
+                    <DeliveryLocationPicker
+                      id="location"
+                      value={formData.location}
+                      onChange={(location) => setFormData((prev) => ({ ...prev, location }))}
+                    />
                   )}
                 </CardContent>
               </Card>
