@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -161,13 +162,15 @@ export default function AdminOrders() {
   };
 
   const sendDeliveryEmail = async (orderId: string, payload: { scheduledDate?: string; statusUpdate?: string }) => {
-    try {
-      await supabase.functions.invoke('send-delivery-update', {
-        body: { orderId, ...payload },
-      });
-    } catch {
-      // Non-fatal
+    const { error } = await supabase.functions.invoke('send-delivery-update', {
+      body: { orderId, ...payload },
+    });
+    if (error) {
+      console.error('Customer delivery email failed:', error);
+      toast.error('Order updated, but the customer email could not be sent');
+      return false;
     }
+    return true;
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
@@ -200,6 +203,11 @@ export default function AdminOrders() {
 
   const scheduleDelivery = async (orderId: string, date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
+    const previousDate = orders.find((order) => order.id === orderId)?.scheduled_delivery_date || null;
+    if (previousDate === dateStr) {
+      toast.info('That delivery date is already scheduled');
+      return;
+    }
     const { error } = await supabase
       .from('orders')
       .update({ scheduled_delivery_date: dateStr } as any)
@@ -208,13 +216,14 @@ export default function AdminOrders() {
     if (error) {
       toast.error('Error scheduling delivery');
     } else {
-      toast.success(`Delivery scheduled for ${date.toLocaleDateString()}`);
-      setOrders(orders.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
+      setOrders((current) => current.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, scheduled_delivery_date: dateStr });
       }
-      // Send email notification about scheduled delivery
-      sendDeliveryEmail(orderId, { scheduledDate: dateStr });
+      const sent = await sendDeliveryEmail(orderId, { scheduledDate: dateStr });
+      toast.success(sent
+        ? previousDate ? 'Delivery rescheduled and customer notified by email' : 'Delivery scheduled and customer notified by email'
+        : 'Delivery date saved; customer email needs attention');
     }
   };
 
