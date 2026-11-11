@@ -14,6 +14,7 @@ import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { ChevronLeft, ShoppingBag, Printer, MapPin, Store, Loader2, CreditCard, Phone, AlertTriangle, Truck } from 'lucide-react';
 import { DeliveryCostCalculator } from '@/components/DeliveryCostCalculator';
+import { DeliveryLocationPicker } from '@/components/DeliveryLocationPicker';
 import { CouponApply } from '@/components/CouponApply';
 import { toast } from 'sonner';
 import { checkStockAvailability } from '@/hooks/useLiveStock';
@@ -481,17 +482,11 @@ export default function Checkout() {
 
                 {formData.deliveryType === 'delivery' && (
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="location">Delivery Location *</Label>
-                      <Textarea
-                        id="location"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleInputChange}
-                        placeholder="Enter your delivery address (area, landmark, building)"
-                        required
-                      />
-                    </div>
+                    <DeliveryLocationPicker
+                      id="location"
+                      value={formData.location}
+                      onChange={(location) => setFormData((prev) => ({ ...prev, location }))}
+                    />
                     <DeliveryCostCalculator onZoneSelect={setDeliveryZone} />
                   </div>
                 )}
