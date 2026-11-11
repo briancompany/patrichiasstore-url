@@ -1,6 +1,6 @@
 import { trackVisitorEvent } from '@/lib/visitor-track';
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,7 @@ type Step = 'search' | 'products' | 'printing' | 'review';
 
 export default function UniformShop() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SchoolResult[]>([]);
@@ -142,6 +143,32 @@ export default function UniformShop() {
     }
     setIsLoading(false);
   };
+
+  // A school page can send customers straight into its product-ordering flow.
+  useEffect(() => {
+    const schoolId = searchParams.get('school');
+    if (!schoolId) return;
+    let cancelled = false;
+    const loadSelectedSchool = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .eq('id', schoolId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast.error('We could not find that school. Please search again.');
+        setIsLoading(false);
+        return;
+      }
+      setSelectedSchool({ id: data.id, name: data.name, logo_url: data.logo_url, isFromDB: true });
+      setStep('products');
+      await fetchProductsForSchool(data.id);
+    };
+    void loadSelectedSchool();
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
   // Create standard products for unregistered schools
   const createStandardProducts = (schoolName: string): Product[] => {
