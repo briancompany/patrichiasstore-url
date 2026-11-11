@@ -235,7 +235,7 @@ export default function SchoolUniformPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {products.map((product) => (
-              <Link key={product.id} to={`/shop/product/${product.id}`} className="block">
+              <Link key={product.id} to={`/uniform-shop?school=${school.id}`} className="block">
                 <Card className="h-full hover:shadow-md transition-shadow">
                   {product.image_url && (
                     <img src={product.image_url} alt={product.name} className="w-full h-32 object-cover rounded-t-lg" loading="lazy" />

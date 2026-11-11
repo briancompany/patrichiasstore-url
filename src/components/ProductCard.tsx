@@ -37,22 +37,17 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const limitedSale = sale ? isLimitedFlashStock(sale) : false;
   const saleRemaining = sale && limitedSale ? sale.remaining : Number.POSITIVE_INFINITY;
   const saleActive = !!sale && saleRemaining > 0;
-  const maxQty = Math.min(stock.max, saleActive ? saleRemaining : Number.POSITIVE_INFINITY);
+  const maxQty = saleActive ? saleRemaining : Number.POSITIVE_INFINITY;
   const soldOut = !stock.orderable;
   const unitPrice = saleActive ? sale!.sale_price : selectedSize.price;
   const totalPrice = unitPrice * quantity;
 
   const handleQuantityChange = (delta: number) => {
-    const max = Number.isFinite(maxQty) && maxQty > 0 ? maxQty : 1;
-    const next = Math.min(max, Math.max(1, quantity + delta));
-    if (delta > 0 && next === quantity && Number.isFinite(maxQty)) {
-      return;
-    }
-    setQuantity(next);
+    const max = Number.isFinite(maxQty) ? maxQty : 9999;
+    setQuantity(Math.min(max, Math.max(1, quantity + delta)));
   };
 
   const handleAddToCart = () => {
-    if (soldOut) return;
     onAddToCart(product, selectedSize.size, quantity, totalPrice);
   };
 
@@ -94,7 +89,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         {!product.inStock && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <span className="bg-destructive text-destructive-foreground px-3 py-1 rounded-full font-medium">
-              SOLD OUT
+              SPECIAL ORDER AVAILABLE
             </span>
           </div>
         )}
@@ -154,15 +149,26 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleQuantityChange(-1)}
-              disabled={soldOut}
+              disabled={quantity <= 1}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
               <Minus className="h-4 w-4" />
             </button>
-            <span className="font-semibold w-8 text-center">{quantity}</span>
+            <input
+              type="number"
+              min={1}
+              max={Number.isFinite(maxQty) ? maxQty : 9999}
+              value={quantity}
+              onChange={(e) => {
+                const value = Number.parseInt(e.target.value, 10);
+                if (Number.isFinite(value)) setQuantity(Math.min(Number.isFinite(maxQty) ? maxQty : 9999, Math.max(1, value)));
+              }}
+              className="font-semibold w-14 text-center rounded-md border border-border bg-background py-1"
+              aria-label="Quantity"
+            />
             <button
               onClick={() => handleQuantityChange(1)}
-              disabled={soldOut || quantity >= maxQty}
+              disabled={quantity >= maxQty}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -206,11 +212,10 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         {/* Add to Cart */}
         <Button
           onClick={handleAddToCart}
-          disabled={soldOut}
           className="w-full btn-secondary gap-2"
         >
           <ShoppingCart className="h-4 w-4" />
-          {soldOut ? 'Sold Out' : 'Add to Order'}
+          {soldOut ? 'Add as Special Order' : 'Add to Order'}
         </Button>
 
         {soldOut && (

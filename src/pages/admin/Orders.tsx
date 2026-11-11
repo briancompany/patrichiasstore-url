@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink, Truck, CalendarDays, MessageCircle, Mail, CheckCircle2, BellRing } from 'lucide-react';
@@ -57,6 +58,15 @@ const toWhatsAppNumber = (phone: string) => {
   return digits;
 };
 
+const getDeliveryMapUrl = (location: string | null) => {
+  if (!location) return null;
+  const match = location.match(/https?:\/\/[^\s]+/i);
+  if (match) return match[0].replace(/[),.]+$/, '');
+  const coordinates = location.match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if (coordinates) return `https://www.google.com/maps?q=${coordinates[1]},${coordinates[2]}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+};
+
 interface Order {
   id: string;
   customer_name: string;
@@ -77,7 +87,6 @@ interface Order {
 }
 
 export default function AdminOrders() {
-  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [chatSpecialOrders, setChatSpecialOrders] = useState<ChatSpecialOrderLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +94,9 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState<'month' | 'all'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [schoolProfileOrder, setSchoolProfileOrder] = useState<Order | null>(null);
+  const [schoolProfileName, setSchoolProfileName] = useState('');
+  const [isCreatingSchoolProfile, setIsCreatingSchoolProfile] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -157,13 +169,15 @@ export default function AdminOrders() {
   };
 
   const sendDeliveryEmail = async (orderId: string, payload: { scheduledDate?: string; statusUpdate?: string }) => {
-    try {
-      await supabase.functions.invoke('send-delivery-update', {
-        body: { orderId, ...payload },
-      });
-    } catch {
-      // Non-fatal
+    const { error } = await supabase.functions.invoke('send-delivery-update', {
+      body: { orderId, ...payload },
+    });
+    if (error) {
+      console.error('Customer delivery email failed:', error);
+      toast.error('Order updated, but the customer email could not be sent');
+      return false;
     }
+    return true;
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
@@ -196,6 +210,11 @@ export default function AdminOrders() {
 
   const scheduleDelivery = async (orderId: string, date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
+    const previousDate = orders.find((order) => order.id === orderId)?.scheduled_delivery_date || null;
+    if (previousDate === dateStr) {
+      toast.info('That delivery date is already scheduled');
+      return;
+    }
     const { error } = await supabase
       .from('orders')
       .update({ scheduled_delivery_date: dateStr } as any)
@@ -204,25 +223,74 @@ export default function AdminOrders() {
     if (error) {
       toast.error('Error scheduling delivery');
     } else {
-      toast.success(`Delivery scheduled for ${date.toLocaleDateString()}`);
-      setOrders(orders.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
+      setOrders((current) => current.map((o) => (o.id === orderId ? { ...o, scheduled_delivery_date: dateStr } : o)));
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, scheduled_delivery_date: dateStr });
       }
-      // Send email notification about scheduled delivery
-      sendDeliveryEmail(orderId, { scheduledDate: dateStr });
+      const sent = await sendDeliveryEmail(orderId, { scheduledDate: dateStr });
+      toast.success(sent
+        ? previousDate ? 'Delivery rescheduled and customer notified by email' : 'Delivery scheduled and customer notified by email'
+        : 'Delivery date saved; customer email needs attention');
     }
   };
 
   const handleCreateSchoolProfile = (order: Order) => {
-    // Navigate to schools page with pre-filled school name
-    navigate('/admin/schools', { 
-      state: { 
-        createSchool: true,
-        schoolName: order.customer_school,
-        orderId: order.id,
+    setSchoolProfileOrder(order);
+    setSchoolProfileName(order.customer_school?.trim() || '');
+  };
+
+  const saveSchoolProfileForOrder = async () => {
+    if (!schoolProfileOrder || !schoolProfileName.trim()) {
+      toast.error('Enter the school name first');
+      return;
+    }
+    setIsCreatingSchoolProfile(true);
+    try {
+      const normalizedName = schoolProfileName.trim().replace(/\\s+/g, ' ');
+      const { data: existing, error: lookupError } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .ilike('name', normalizedName)
+        .limit(1)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      let schoolId = existing?.id;
+      if (!schoolId) {
+        const { data: created, error: createError } = await supabase
+          .from('schools')
+          .insert({ name: normalizedName })
+          .select('id')
+          .single();
+        if (createError) throw createError;
+        schoolId = created.id;
       }
-    });
+
+      const nextStatus = schoolProfileOrder.is_special_order ? 'processing' : 'ready';
+      const { error: linkError } = await supabase
+        .from('orders')
+        .update({ linked_school_id: schoolId, customer_school: normalizedName, is_new_school: false, status: nextStatus })
+        .eq('id', schoolProfileOrder.id);
+      if (linkError) throw linkError;
+
+      const { error: itemError } = await supabase
+        .from('order_items')
+        .update({ school_name: normalizedName })
+        .eq('order_id', schoolProfileOrder.id);
+      if (itemError) console.warn('School profile linked, but order item labels could not be updated:', itemError);
+
+      const updatedOrder = { ...schoolProfileOrder, linked_school_id: schoolId, customer_school: normalizedName, is_new_school: false, status: nextStatus };
+      setOrders((current) => current.map((order) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order));
+      if (selectedOrder?.id === updatedOrder.id) setSelectedOrder({ ...selectedOrder, ...updatedOrder });
+      await sendDeliveryEmail(updatedOrder.id, { statusUpdate: nextStatus });
+      toast.success(`School profile created and order moved to ${nextStatus === 'processing' ? 'Processing' : 'Ready'}`);
+      setSchoolProfileOrder(null);
+    } catch (error) {
+      console.error('Could not create school profile from order:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not create school profile');
+    } finally {
+      setIsCreatingSchoolProfile(false);
+    }
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -605,7 +673,17 @@ export default function AdminOrders() {
                               {selectedOrder.delivery_location && (
                                 <div>
                                   <p className="text-sm text-muted-foreground">Delivery Location</p>
-                                  <p className="font-medium">{selectedOrder.delivery_location}</p>
+                                  <p className="font-medium break-words">{selectedOrder.delivery_location}</p>
+                                  {getDeliveryMapUrl(selectedOrder.delivery_location) && (
+                                    <a
+                                      href={getDeliveryMapUrl(selectedOrder.delivery_location)!}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-1 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                    >
+                                      <MapPin className="h-3 w-3" /> Open exact location in Google Maps
+                                    </a>
+                                  )}
                                 </div>
                               )}
 
@@ -825,6 +903,32 @@ export default function AdminOrders() {
           </div>
         )}
       </div>
+
+      <Dialog open={Boolean(schoolProfileOrder)} onOpenChange={(open) => !open && setSchoolProfileOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create School Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="orderSchoolProfileName">School name</Label>
+            <Input
+              id="orderSchoolProfileName"
+              value={schoolProfileName}
+              onChange={(event) => setSchoolProfileName(event.target.value)}
+              placeholder="Enter the school's official name"
+            />
+            <p className="text-sm text-muted-foreground">
+              The new profile will be linked directly to this order. Existing matching school profiles will be reused.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSchoolProfileOrder(null)} disabled={isCreatingSchoolProfile}>Cancel</Button>
+            <Button onClick={saveSchoolProfileForOrder} disabled={isCreatingSchoolProfile || !schoolProfileName.trim()}>
+              {isCreatingSchoolProfile ? 'Creating…' : 'Create and link profile'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

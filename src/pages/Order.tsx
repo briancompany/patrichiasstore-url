@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,22 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from '@/types/product';
-import { CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
 import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persist';
 import { searchSchoolsFromDB, type DBSchoolResult } from '@/lib/api/schoolSearch';
 import { checkStockAvailability } from '@/hooks/useLiveStock';
+import { DeliveryLocationPicker } from '@/components/DeliveryLocationPicker';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const getBackendErrorMessage = (err: unknown) => {
   const e = err as { message?: string; details?: string; hint?: string; code?: string } | null;
@@ -38,6 +47,13 @@ export default function Order() {
   }, [navCart]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shortfalls, setShortfalls] = useState<{
+    product_id: string; product_name: string; requested: number; available: number;
+  }[]>([]);
+  const [showSpecialDialog, setShowSpecialDialog] = useState(false);
+  const [specialNote, setSpecialNote] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const confirmedShortfallsRef = useRef<typeof shortfalls | null>(null);
   const [schoolSuggestions, setSchoolSuggestions] = useState<DBSchoolResult[]>([]);
   const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
@@ -101,13 +117,23 @@ export default function Order() {
     setIsSubmitting(true);
 
     try {
-      // Re-check live stock for both regular and chatbot orders. Any shortage
-      // becomes a flagged special order rather than silently looking ordinary.
-      const stockCheck = await checkStockAvailability(
-        cartItems
-          .filter((item) => isUuid(item.product.id))
-          .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
-      );
+      // Re-check stock immediately before checkout. If there is a shortage,
+      // ask the customer how to handle it before creating a priority order.
+      const confirmedShortfalls = confirmedShortfallsRef.current;
+      confirmedShortfallsRef.current = null;
+      const stockCheck = confirmedShortfalls
+        ? { ok: false, unavailable: confirmedShortfalls }
+        : await checkStockAvailability(
+            cartItems
+              .filter((item) => isUuid(item.product.id))
+              .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+          );
+      if (!confirmedShortfalls && stockCheck.unavailable.length > 0) {
+        setShortfalls(stockCheck.unavailable);
+        setShowSpecialDialog(true);
+        setIsSubmitting(false);
+        return;
+      }
       const shortfallByProduct = new Map(
         stockCheck.unavailable.map((item) => [item.product_id, item]),
       );
@@ -117,6 +143,7 @@ export default function Order() {
       ).join('; ');
       const finalSpecialOrderNote = [
         chatbotSpecialOrderNote,
+        specialNote.trim(),
         liveShortfallNote ? `Live stock check — ${liveShortfallNote}` : '',
       ].filter(Boolean).join(' | ') || null;
 
@@ -241,7 +268,7 @@ export default function Order() {
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
               {isChatbotSpecialOrder && (
             <Card className="border-destructive/40 bg-destructive/5">
               <CardContent className="p-4 text-sm">
@@ -417,17 +444,11 @@ export default function Order() {
                   </RadioGroup>
 
                   {formData.deliveryType === 'delivery' && (
-                    <div>
-                      <Label htmlFor="location">Delivery Location *</Label>
-                      <Textarea
-                        id="location"
-                        name="location"
-                        value={formData.location}
-                        onChange={handleInputChange}
-                        placeholder="Enter your delivery address (area, landmark, building)"
-                        required
-                      />
-                    </div>
+                    <DeliveryLocationPicker
+                      id="location"
+                      value={formData.location}
+                      onChange={(location) => setFormData((prev) => ({ ...prev, location }))}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -474,6 +495,63 @@ export default function Order() {
           )}
         </div>
       </div>
-    </Layout>
+
+      <Dialog open={showSpecialDialog} onOpenChange={setShowSpecialDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Some items are short on stock
+            </DialogTitle>
+            <DialogDescription>
+              You can still place this order. It will be marked as a priority special order so our
+              team restocks and contacts you first.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+              {shortfalls.map((item) => (
+                <div key={item.product_id} className="text-sm">
+                  <p className="font-medium">{item.product_name}</p>
+                  <p className="text-muted-foreground">
+                    {item.available === 0
+                      ? `Out of stock · you asked for ${item.requested}`
+                      : `Only ${item.available} left · you asked for ${item.requested}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label htmlFor="specialOrderNote">Tell us how to handle it (optional)</Label>
+              <Textarea
+                id="specialOrderNote"
+                value={specialNote}
+                onChange={(e) => setSpecialNote(e.target.value)}
+                placeholder="e.g. I still need all 5 pieces by Friday, or send what's available first"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowSpecialDialog(false)} disabled={isSubmitting}>
+              Go back
+            </Button>
+            <Button
+              onClick={() => {
+                confirmedShortfallsRef.current = shortfalls;
+                setShowSpecialDialog(false);
+                formRef.current?.requestSubmit();
+              }}
+              disabled={isSubmitting}
+            >
+              Proceed as special order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </Layout>
   );
 }
