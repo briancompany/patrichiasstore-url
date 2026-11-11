@@ -60,9 +60,9 @@ const toWhatsAppNumber = (phone: string) => {
 
 const getDeliveryMapUrl = (location: string | null) => {
   if (!location) return null;
-  const match = location.match(/https?:\\/\\/[^\\s]+/i);
+  const match = location.match(/https?:\/\/[^\s]+/i);
   if (match) return match[0].replace(/[),.]+$/, '');
-  const coordinates = location.match(/(-?\\d{1,2}\\.\\d+)\\s*,\\s*(-?\\d{1,3}\\.\\d+)/);
+  const coordinates = location.match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
   if (coordinates) return `https://www.google.com/maps?q=${coordinates[1]},${coordinates[2]}`;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 };
