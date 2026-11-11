@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Eye, Phone, MapPin, Calendar, ClipboardList, Printer, School, AlertTriangle, Plus, Image as ImageIcon, Palette, ExternalLink, Truck, CalendarDays, MessageCircle, Mail, CheckCircle2, BellRing } from 'lucide-react';
@@ -85,6 +86,9 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState<'month' | 'all'>('month');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [schoolProfileOrder, setSchoolProfileOrder] = useState<Order | null>(null);
+  const [schoolProfileName, setSchoolProfileName] = useState('');
+  const [isCreatingSchoolProfile, setIsCreatingSchoolProfile] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -215,14 +219,62 @@ export default function AdminOrders() {
   };
 
   const handleCreateSchoolProfile = (order: Order) => {
-    // Navigate to schools page with pre-filled school name
-    navigate('/admin/schools', { 
-      state: { 
-        createSchool: true,
-        schoolName: order.customer_school,
-        orderId: order.id,
+    setSchoolProfileOrder(order);
+    setSchoolProfileName(order.customer_school?.trim() || '');
+  };
+
+  const saveSchoolProfileForOrder = async () => {
+    if (!schoolProfileOrder || !schoolProfileName.trim()) {
+      toast.error('Enter the school name first');
+      return;
+    }
+    setIsCreatingSchoolProfile(true);
+    try {
+      const normalizedName = schoolProfileName.trim().replace(/\\s+/g, ' ');
+      const { data: existing, error: lookupError } = await supabase
+        .from('schools')
+        .select('id, name, logo_url')
+        .ilike('name', normalizedName)
+        .limit(1)
+        .maybeSingle();
+      if (lookupError) throw lookupError;
+
+      let schoolId = existing?.id;
+      if (!schoolId) {
+        const { data: created, error: createError } = await supabase
+          .from('schools')
+          .insert({ name: normalizedName })
+          .select('id')
+          .single();
+        if (createError) throw createError;
+        schoolId = created.id;
       }
-    });
+
+      const nextStatus = schoolProfileOrder.is_special_order ? 'processing' : 'ready';
+      const { error: linkError } = await supabase
+        .from('orders')
+        .update({ linked_school_id: schoolId, customer_school: normalizedName, is_new_school: false, status: nextStatus })
+        .eq('id', schoolProfileOrder.id);
+      if (linkError) throw linkError;
+
+      const { error: itemError } = await supabase
+        .from('order_items')
+        .update({ school_name: normalizedName })
+        .eq('order_id', schoolProfileOrder.id);
+      if (itemError) console.warn('School profile linked, but order item labels could not be updated:', itemError);
+
+      const updatedOrder = { ...schoolProfileOrder, linked_school_id: schoolId, customer_school: normalizedName, is_new_school: false, status: nextStatus };
+      setOrders((current) => current.map((order) => order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order));
+      if (selectedOrder?.id === updatedOrder.id) setSelectedOrder({ ...selectedOrder, ...updatedOrder });
+      await sendDeliveryEmail(updatedOrder.id, { statusUpdate: nextStatus });
+      toast.success(`School profile created and order moved to ${nextStatus === 'processing' ? 'Processing' : 'Ready'}`);
+      setSchoolProfileOrder(null);
+    } catch (error) {
+      console.error('Could not create school profile from order:', error);
+      toast.error(error instanceof Error ? error.message : 'Could not create school profile');
+    } finally {
+      setIsCreatingSchoolProfile(false);
+    }
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -825,6 +877,32 @@ export default function AdminOrders() {
           </div>
         )}
       </div>
+
+      <Dialog open={Boolean(schoolProfileOrder)} onOpenChange={(open) => !open && setSchoolProfileOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create School Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="orderSchoolProfileName">School name</Label>
+            <Input
+              id="orderSchoolProfileName"
+              value={schoolProfileName}
+              onChange={(event) => setSchoolProfileName(event.target.value)}
+              placeholder="Enter the school's official name"
+            />
+            <p className="text-sm text-muted-foreground">
+              The new profile will be linked directly to this order. Existing matching school profiles will be reused.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSchoolProfileOrder(null)} disabled={isCreatingSchoolProfile}>Cancel</Button>
+            <Button onClick={saveSchoolProfileForOrder} disabled={isCreatingSchoolProfile || !schoolProfileName.trim()}>
+              {isCreatingSchoolProfile ? 'Creating…' : 'Create and link profile'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
