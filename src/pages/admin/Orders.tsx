@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +58,15 @@ const toWhatsAppNumber = (phone: string) => {
   return digits;
 };
 
+const getDeliveryMapUrl = (location: string | null) => {
+  if (!location) return null;
+  const match = location.match(/https?:\\/\\/[^\\s]+/i);
+  if (match) return match[0].replace(/[),.]+$/, '');
+  const coordinates = location.match(/(-?\\d{1,2}\\.\\d+)\\s*,\\s*(-?\\d{1,3}\\.\\d+)/);
+  if (coordinates) return `https://www.google.com/maps?q=${coordinates[1]},${coordinates[2]}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+};
+
 interface Order {
   id: string;
   customer_name: string;
@@ -79,7 +87,6 @@ interface Order {
 }
 
 export default function AdminOrders() {
-  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [chatSpecialOrders, setChatSpecialOrders] = useState<ChatSpecialOrderLead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -666,7 +673,17 @@ export default function AdminOrders() {
                               {selectedOrder.delivery_location && (
                                 <div>
                                   <p className="text-sm text-muted-foreground">Delivery Location</p>
-                                  <p className="font-medium">{selectedOrder.delivery_location}</p>
+                                  <p className="font-medium break-words">{selectedOrder.delivery_location}</p>
+                                  {getDeliveryMapUrl(selectedOrder.delivery_location) && (
+                                    <a
+                                      href={getDeliveryMapUrl(selectedOrder.delivery_location)!}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-1 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                    >
+                                      <MapPin className="h-3 w-3" /> Open exact location in Google Maps
+                                    </a>
+                                  )}
                                 </div>
                               )}
 
