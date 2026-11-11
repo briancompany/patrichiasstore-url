@@ -129,7 +129,6 @@ export default function UniformShop() {
       .from('products')
       .select('*, schools(id, name, logo_url)')
       .eq('school_id', schoolId)
-      .eq('in_stock', true)
       .order('type');
 
     if (error) {
