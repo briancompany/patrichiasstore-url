@@ -18,7 +18,7 @@ ALTER TABLE public.orders
   ADD CONSTRAINT orders_payment_status_check
   CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded'));
 
--- Preserve historical paid orders when payment records or paid fulfilment states exist.
+-- Preserve historical paid orders.
 UPDATE public.orders o
 SET payment_status = 'paid',
     payment_updated_at = COALESCE(o.payment_updated_at, p.verified_at, o.updated_at)
@@ -34,7 +34,7 @@ SET payment_status = 'paid',
     payment_updated_at = COALESCE(payment_updated_at, updated_at)
 WHERE status IN ('confirmed', 'completed') AND payment_status <> 'paid';
 
--- Reuse the Pesapal IPN registration instead of registering it on every retry.
+-- Persist the Pesapal IPN registration so every retry does not register it again.
 CREATE TABLE IF NOT EXISTS public.payment_provider_settings (
   provider text PRIMARY KEY CHECK (provider IN ('pesapal')),
   ipn_id text NOT NULL,
@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS public.order_payment_events (
   recorded_by uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-
 ALTER TABLE public.order_payment_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Admins view order payment events" ON public.order_payment_events;
 CREATE POLICY "Admins view order payment events"
@@ -73,7 +72,7 @@ AS $$
 DECLARE
   v_order public.orders%ROWTYPE;
 BEGIN
-  IF _payment_method NOT IN ('pesapal', 'mpesa', 'cash') THEN
+  IF _payment_method IS NULL OR _payment_method NOT IN ('pesapal', 'mpesa', 'cash') THEN
     RAISE EXCEPTION 'Choose a valid payment method';
   END IF;
 
@@ -97,7 +96,7 @@ BEGIN
   VALUES
     (_order_id, 'method_changed', _payment_method, 'pending', v_order.total_amount, auth.uid());
 
-  -- Prevent a stale queued Pesapal job from starting after the customer switches methods.
+  -- Stop queued Pesapal jobs when the customer chooses another payment method.
   IF _payment_method <> 'pesapal' THEN
     UPDATE public.payment_tasks
     SET status = 'dead', error_message = 'Customer changed payment method'
@@ -117,7 +116,9 @@ AS $$
 DECLARE
   v_order public.orders%ROWTYPE;
 BEGIN
-  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Only an admin can record a payment'; END IF;
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only an admin can record a payment';
+  END IF;
 
   SELECT * INTO v_order FROM public.orders WHERE id = _order_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Order not found'; END IF;
@@ -149,18 +150,14 @@ RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $$
 DECLARE
   v_payment_status text;
   v_task text;
 BEGIN
-  IF _callback_url IS NULL OR NOT (_callback_url ~ '^https://[^\s]+
-REVOKE ALL ON FUNCTION public.admin_mark_order_paid(uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.enqueue_payment_task(uuid, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.set_order_payment_method(uuid, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_mark_order_paid(uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.enqueue_payment_task(uuid, text) TO anon, authenticated;
- OR _callback_url ~ '^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/') THEN
+  IF _callback_url IS NULL
+     OR NOT (_callback_url LIKE 'https://%' OR _callback_url LIKE 'http://localhost%' OR _callback_url LIKE 'http://127.0.0.1%')
+     OR _callback_url ~ '[[:space:]]' THEN
     RAISE EXCEPTION 'Invalid return address';
   END IF;
 
@@ -186,9 +183,11 @@ GRANT EXECUTE ON FUNCTION public.enqueue_payment_task(uuid, text) TO anon, authe
 
   RETURN public.get_payment_task_status(_order_id);
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.set_order_payment_method(uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_mark_order_paid(uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enqueue_payment_task(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.set_order_payment_method(uuid, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_mark_order_paid(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_payment_task(uuid, text) TO anon, authenticated;
