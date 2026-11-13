@@ -27,8 +27,11 @@ async function pesapalSession() {
     }),
     signal: AbortSignal.timeout(15000),
   });
-  const data = await res.json();
-  if (!data.token) throw new Error("Pesapal auth failed");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.token) {
+    const detail = String(data?.error?.message || data?.message || data?.error || res.statusText || "Unknown response");
+    throw new Error(`Pesapal authentication failed (HTTP ${res.status}): ${detail.slice(0, 220)}`);
+  }
   const token = data.token as string;
   const ipnRes = await fetch(`${PESAPAL_BASE}/URLSetup/RegisterIPN`, {
     method: "POST",
@@ -36,8 +39,11 @@ async function pesapalSession() {
     body: JSON.stringify({ url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/pesapal-ipn`, ipn_notification_type: "GET" }),
     signal: AbortSignal.timeout(15000),
   });
-  const ipn = await ipnRes.json();
-  if (!ipn.ipn_id) throw new Error("Pesapal IPN registration failed");
+  const ipn = await ipnRes.json().catch(() => ({}));
+  if (!ipnRes.ok || !ipn.ipn_id) {
+    const detail = String(ipn?.error?.message || ipn?.message || ipn?.error || ipnRes.statusText || "Unknown response");
+    throw new Error(`Pesapal IPN registration failed (HTTP ${ipnRes.status}): ${detail.slice(0, 220)}`);
+  }
   return { token, ipnId: ipn.ipn_id as string };
 }
 
@@ -115,9 +121,10 @@ Deno.serve(async (req) => {
           }),
           signal: AbortSignal.timeout(20000),
         });
-        const submit = await submitRes.json();
-        if (!submit.redirect_url) {
-          throw new Error(String(submit?.error?.message || submit?.message || "Pesapal returned no payment link").slice(0, 300));
+        const submit = await submitRes.json().catch(() => ({}));
+        if (!submitRes.ok || !submit.redirect_url) {
+          const detail = String(submit?.error?.message || submit?.message || submit?.error || submitRes.statusText || "Pesapal returned no payment link");
+          throw new Error(`Pesapal order request failed (HTTP ${submitRes.status}): ${detail.slice(0, 260)}`);
         }
 
         await supabase.from("payment_tasks").update({
@@ -133,6 +140,7 @@ Deno.serve(async (req) => {
         results[task.id] = "completed";
       } catch (e) {
         const message = (e as Error).message?.slice(0, 300) || "Unknown error";
+        console.error("Pesapal payment task failed", { orderId: order.id, taskId: task.id, retry: task.retry_count + 1, message });
         const retries = (task.retry_count ?? 0) + 1;
 
         if (retries < (task.max_retries ?? 3)) {
