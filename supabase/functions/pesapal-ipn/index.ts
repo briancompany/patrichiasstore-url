@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order?.status || "")
-      ? order!.status
+      ? order.status
       : "pending";
     await supabase.from("orders").update({
       status: nextOrderStatus,
@@ -131,11 +131,7 @@ Deno.serve(async (req) => {
       payment_reference: paymentCode,
       payment_updated_at: new Date().toISOString(),
       notes: `Pesapal Auto-Verified | Ref: ${paymentCode} | TrackingId: ${orderTrackingId}`,
-    }).eq("id", orderId");
-
-
-      .eq("id", orderId)
-      .maybeSingle();
+    }).eq("id", orderId);
 
     const { error: paymentInsertError } = await supabase.from("payments").insert({
       order_id: orderId,
