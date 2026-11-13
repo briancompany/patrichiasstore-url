@@ -12,7 +12,6 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 const PESAPAL_BASE = "https://pay.pesapal.com/v3/api";
-const PAID = ["confirmed", "completed", "processing", "ready", "out_for_delivery", "delivered"];
 
 const esc = (v: string) =>
   v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -55,8 +54,8 @@ function failureEmailHtml(name: string, code: string, total: number, retryUrl: s
   </div>
   <div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:24px;">
     <p>Hello ${esc(name)},</p>
-    <p>We saved your order <strong>${esc(code)}</strong> (Ksh ${total.toLocaleString()}), but we could not start your payment after several tries. <strong>You have not been charged.</strong></p>
-    <p>Please try your order again. You can also pay by M-Pesa Paybill 247247, account 0726075180.</p>
+    <p>Your order <strong>${esc(code)}</strong> (Ksh ${total.toLocaleString()}) is saved and remains active, but we could not start your Pesapal payment. <strong>You have not been charged.</strong></p>
+    <p>You do not need to place another order. Return to your saved order to retry Pesapal, switch to M-Pesa Paybill 247247 (account 0726075180), or choose Cash (Pay later).</p>
     <p style="text-align:center;margin:28px 0;">
       <a href="${esc(retryUrl)}" style="background:#D4AF37;color:#0B1736;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Retry order</a>
     </p>
@@ -90,7 +89,7 @@ Deno.serve(async (req) => {
         results[task.id] = "dead";
         continue;
       }
-      if (order.payment_status === "paid" || PAID.includes(order.status)) {
+      if (order.payment_status === "paid") {
         await supabase.from("payment_tasks").update({ status: "completed", error_message: null }).eq("id", task.id);
         results[task.id] = "completed";
         continue;
@@ -155,7 +154,6 @@ Deno.serve(async (req) => {
           results[task.id] = "retry";
         } else {
           await supabase.from("payment_tasks").update({ status: "dead", retry_count: retries, error_message: message }).eq("id", task.id);
-          await supabase.from("orders").update({ status: "declined" }).eq("id", order.id);
           await supabase.from("system_errors").insert({
             error_type: "PAYMENT_TASK_DEAD",
             error_message: `Pesapal could not start payment for order ${order.id}: ${message}`,
