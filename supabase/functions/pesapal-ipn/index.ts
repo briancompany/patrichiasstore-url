@@ -82,6 +82,21 @@ Deno.serve(async (req) => {
       .slice(0, 12)
       .padEnd(8, "0");
     const amount = Number(statusData.amount || 0);
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("customer_name, customer_phone, status, total_amount, payment_status")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (orderError || !order) throw new Error("Pesapal notification references an unknown order");
+    if (order.payment_status === "paid") {
+      return new Response(JSON.stringify({ orderNotificationType, orderTrackingId, status: "already_processed" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (!Number.isFinite(amount) || Math.round(amount * 100) !== Math.round(Number(order.total_amount) * 100) ||
+        (statusData.currency && statusData.currency !== "KES")) {
+      throw new Error("Pesapal payment amount or currency does not match the order");
+    }
 
     const { data: existing } = await supabase
       .from("payments")
@@ -115,26 +130,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    await supabase
-      .from("orders")
-      .update({
-        status: "confirmed",
-        notes: `Pesapal Auto-Verified | Ref: ${paymentCode} | TrackingId: ${orderTrackingId}`,
-      })
-      .eq("id", orderId);
+    const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order?.status || "")
+      ? order.status
+      : "pending";
+    const { data: updatedOrder, error: updateError } = await supabase.from("orders").update({
+      status: nextOrderStatus,
+      payment_method: "pesapal",
+      payment_status: "paid",
+      payment_reference: paymentCode,
+      payment_updated_at: new Date().toISOString(),
+      notes: `Pesapal Auto-Verified | Ref: ${paymentCode} | TrackingId: ${orderTrackingId}`,
+    }).eq("id", orderId).eq("payment_status", "pending").select("id").maybeSingle();
+    if (updateError) throw updateError;
+    if (!updatedOrder) {
+      return new Response(JSON.stringify({ orderNotificationType, orderTrackingId, status: "already_processed" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-    const { data: order } = await supabase
-      .from("orders")
-      .select("customer_name, customer_phone")
-      .eq("id", orderId)
-      .maybeSingle();
-
-    await supabase.from("payments").insert({
+    const { error: paymentInsertError } = await supabase.from("payments").insert({
       order_id: orderId,
       amount,
       mpesa_code: paymentCode,
       customer_name: order?.customer_name || "Pesapal Customer",
       customer_phone: order?.customer_phone || null,
+    });
+    if (paymentInsertError) {
+      await supabase.from("orders").update({
+        payment_status: "pending", payment_reference: null, payment_updated_at: null,
+      }).eq("id", orderId).eq("payment_reference", paymentCode);
+      throw new Error("Could not save verified Pesapal payment record");
+    }
+    await supabase.from("order_payment_events").insert({
+      order_id: orderId, event_type: "payment_recorded", payment_method: "pesapal",
+      payment_status: "paid", amount, reference: paymentCode,
     });
 
     await triggerReceiptEmail(orderId, paymentCode);

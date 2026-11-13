@@ -12,12 +12,11 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 const PESAPAL_BASE = "https://pay.pesapal.com/v3/api";
-const PAID = ["confirmed", "completed", "processing", "ready", "out_for_delivery", "delivered"];
 
 const esc = (v: string) =>
   v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
-async function pesapalSession() {
+async function pesapalSession(supabase: ReturnType<typeof createClient>) {
   const res = await fetch(`${PESAPAL_BASE}/Auth/RequestToken`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -27,18 +26,41 @@ async function pesapalSession() {
     }),
     signal: AbortSignal.timeout(15000),
   });
-  const data = await res.json();
-  if (!data.token) throw new Error("Pesapal auth failed");
-  const token = data.token as string;
-  const ipnRes = await fetch(`${PESAPAL_BASE}/URLSetup/RegisterIPN`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/pesapal-ipn`, ipn_notification_type: "GET" }),
-    signal: AbortSignal.timeout(15000),
-  });
-  const ipn = await ipnRes.json();
-  if (!ipn.ipn_id) throw new Error("Pesapal IPN registration failed");
-  return { token, ipnId: ipn.ipn_id as string };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.token) {
+    const detail = String(data?.error?.message || data?.message || data?.error || res.statusText || "Unknown response");
+    throw new Error(`Pesapal authentication failed (HTTP ${res.status}): ${detail.slice(0, 220)}`);
+  }
+
+  // IPN registrations are persistent at Pesapal. Reuse the saved ID to avoid
+  // repeated RegisterIPN calls during retries and high checkout traffic.
+  const { data: savedSettings } = await supabase
+    .from("payment_provider_settings")
+    .select("ipn_id")
+    .eq("provider", "pesapal")
+    .maybeSingle();
+
+  let ipnId = savedSettings?.ipn_id as string | undefined;
+  if (!ipnId) {
+    const ipnRes = await fetch(`${PESAPAL_BASE}/URLSetup/RegisterIPN`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${data.token}` },
+      body: JSON.stringify({ url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/pesapal-ipn`, ipn_notification_type: "GET" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const ipn = await ipnRes.json().catch(() => ({}));
+    if (!ipnRes.ok || !ipn.ipn_id) {
+      const detail = String(ipn?.error?.message || ipn?.message || ipn?.error || ipnRes.statusText || "Unknown response");
+      throw new Error(`Pesapal IPN registration failed (HTTP ${ipnRes.status}): ${detail.slice(0, 220)}`);
+    }
+    ipnId = ipn.ipn_id as string;
+    const { error: saveError } = await supabase.from("payment_provider_settings").upsert({
+      provider: "pesapal", ipn_id: ipnId, updated_at: new Date().toISOString(),
+    }, { onConflict: "provider" });
+    if (saveError) console.error("Could not cache Pesapal IPN registration:", saveError.message);
+  }
+
+  return { token: data.token as string, ipnId };
 }
 
 function failureEmailHtml(name: string, code: string, total: number, retryUrl: string) {
@@ -49,8 +71,8 @@ function failureEmailHtml(name: string, code: string, total: number, retryUrl: s
   </div>
   <div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:24px;">
     <p>Hello ${esc(name)},</p>
-    <p>We saved your order <strong>${esc(code)}</strong> (Ksh ${total.toLocaleString()}), but we could not start your payment after several tries. <strong>You have not been charged.</strong></p>
-    <p>Please try your order again. You can also pay by M-Pesa Paybill 247247, account 0726075180.</p>
+    <p>Your order <strong>${esc(code)}</strong> (Ksh ${total.toLocaleString()}) is saved and remains active, but we could not start your Pesapal payment. <strong>You have not been charged.</strong></p>
+    <p>You do not need to place another order. Return to your saved order to retry Pesapal, switch to M-Pesa Paybill 247247 (account 0726075180), or choose Cash (Pay later).</p>
     <p style="text-align:center;margin:28px 0;">
       <a href="${esc(retryUrl)}" style="background:#D4AF37;color:#0B1736;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Retry order</a>
     </p>
@@ -75,7 +97,7 @@ Deno.serve(async (req) => {
     for (const task of tasks) {
       const { data: order } = await supabase
         .from("orders")
-        .select("id, total_amount, customer_name, customer_phone, status")
+        .select("id, total_amount, customer_name, customer_phone, status, payment_method, payment_status")
         .eq("id", task.order_id)
         .maybeSingle();
 
@@ -84,15 +106,20 @@ Deno.serve(async (req) => {
         results[task.id] = "dead";
         continue;
       }
-      if (PAID.includes(order.status)) {
+      if (order.payment_status === "paid") {
         await supabase.from("payment_tasks").update({ status: "completed", error_message: null }).eq("id", task.id);
         results[task.id] = "completed";
+        continue;
+      }
+      if (order.payment_method && order.payment_method !== "pesapal") {
+        await supabase.from("payment_tasks").update({ status: "dead", error_message: "Order is not using Pesapal" }).eq("id", task.id);
+        results[task.id] = "cancelled";
         continue;
       }
 
       try {
         if (!session && !sessionError) {
-          try { session = await pesapalSession(); } catch (e) { sessionError = (e as Error).message; }
+          try { session = await pesapalSession(supabase); } catch (e) { sessionError = (e as Error).message; }
         }
         if (!session) throw new Error(sessionError ?? "Pesapal unavailable");
 
@@ -115,9 +142,10 @@ Deno.serve(async (req) => {
           }),
           signal: AbortSignal.timeout(20000),
         });
-        const submit = await submitRes.json();
-        if (!submit.redirect_url) {
-          throw new Error(String(submit?.error?.message || submit?.message || "Pesapal returned no payment link").slice(0, 300));
+        const submit = await submitRes.json().catch(() => ({}));
+        if (!submitRes.ok || !submit.redirect_url) {
+          const detail = String(submit?.error?.message || submit?.message || submit?.error || submitRes.statusText || "Pesapal returned no payment link");
+          throw new Error(`Pesapal order request failed (HTTP ${submitRes.status}): ${detail.slice(0, 260)}`);
         }
 
         await supabase.from("payment_tasks").update({
@@ -126,13 +154,13 @@ Deno.serve(async (req) => {
           pesapal_tracking_id: submit.order_tracking_id ?? null,
           error_message: null,
         }).eq("id", task.id);
-        await supabase.from("orders").update({
-          status: order.status === "new_school_setup" ? "new_school_setup" : "payment_initiated",
-          notes: `Pesapal Tracking: ${submit.order_tracking_id}`,
-        }).eq("id", order.id);
         results[task.id] = "completed";
       } catch (e) {
         const message = (e as Error).message?.slice(0, 300) || "Unknown error";
+        console.error("Pesapal payment task failed", { orderId: order.id, taskId: task.id, retry: task.retry_count + 1, message });
+        if (/notification.?id|ipn/i.test(message)) {
+          await supabase.from("payment_provider_settings").delete().eq("provider", "pesapal");
+        }
         const retries = (task.retry_count ?? 0) + 1;
 
         if (retries < (task.max_retries ?? 3)) {
@@ -146,7 +174,6 @@ Deno.serve(async (req) => {
           results[task.id] = "retry";
         } else {
           await supabase.from("payment_tasks").update({ status: "dead", retry_count: retries, error_message: message }).eq("id", task.id);
-          await supabase.from("orders").update({ status: "declined" }).eq("id", order.id);
           await supabase.from("system_errors").insert({
             error_type: "PAYMENT_TASK_DEAD",
             error_message: `Pesapal could not start payment for order ${order.id}: ${message}`,

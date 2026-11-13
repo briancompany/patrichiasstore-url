@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderFetchError } = await supabase
       .from("orders")
-      .select("id, total_amount, status")
+      .select("id, total_amount, status, payment_status")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (order.status === "confirmed" || order.status === "completed") {
+    if (order.payment_status === "paid") {
       return new Response(JSON.stringify({ error: "Order is already paid" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -133,19 +133,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    const methodLabel = paymentMethod === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
-    const { error: updateError } = await supabase
+    const method = paymentMethod === "pesapal" ? "pesapal" : "mpesa";
+    const methodLabel = method === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
+    const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order.status)
+      ? order.status
+      : "pending";
+    const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
       .update({
-        status: "confirmed",
+        status: nextOrderStatus,
+        payment_method: method,
+        payment_status: "paid",
+        payment_reference: code,
+        payment_updated_at: new Date().toISOString(),
         notes: `Payment Method: ${methodLabel} | Ref: ${code}`,
       })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .eq("payment_status", "pending")
+      .select("id")
+      .maybeSingle();
 
-    if (updateError) {
+    if (updateError || !updatedOrder) {
       await logError(supabase, 'PAYMENT_ORDER_UPDATE_FAILED', `Failed to update order ${orderId} status to confirmed`, { orderId, updateError }, 'critical');
-      return new Response(JSON.stringify({ error: "Failed to update order status" }), {
-        status: 500,
+      return new Response(JSON.stringify({ error: updateError ? "Failed to update order status" : "Payment has already been recorded for this order" }), {
+        status: updateError ? 500 : 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -160,7 +171,18 @@ Deno.serve(async (req) => {
 
     if (paymentError) {
       console.error("Payment record error:", paymentError);
+      await supabase.from("orders").update({
+        payment_status: "pending", payment_reference: null, payment_updated_at: null,
+      }).eq("id", orderId).eq("payment_reference", code);
+      return new Response(JSON.stringify({ error: "Payment could not be recorded. Please contact the store before retrying." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    await supabase.from("order_payment_events").insert({
+      order_id: orderId, event_type: "payment_recorded", payment_method: method,
+      payment_status: "paid", amount: Number(amount), reference: code,
+    });
 
     await triggerReceiptEmail(orderId, code, paymentMethod === "pesapal" ? "pesapal" : "mpesa");
 
@@ -168,7 +190,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch {
+  } catch (err) {
     console.error('Unhandled payment error:', err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,

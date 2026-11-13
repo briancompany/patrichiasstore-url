@@ -85,6 +85,7 @@ export default function Checkout() {
   const printingRequired = checkoutState?.printingRequired || false;
   const isNewSchool = checkoutState?.isNewSchool || !selectedSchool?.isFromDB;
 
+  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<
     { product_id: string; product_name: string; requested: number; available: number }[]
@@ -153,6 +154,8 @@ export default function Checkout() {
             ? [note.trim(), `Shortfall — ${shortfallSummary}`].filter(Boolean).join(' | ')
             : null,
           total_amount: grandTotal,
+          payment_method: paymentMethod,
+          payment_status: 'pending',
           // Order must be saved first; payment comes after
           status: isNewSchool ? 'new_school_setup' : 'pending',
           is_new_school: isNewSchool,
@@ -219,6 +222,7 @@ export default function Checkout() {
         customerPhone: formData.phone,
         customerEmail: formData.email,
         isNewSchool,
+        paymentMethod,
       };
 
       // Persist so refresh in published site doesn't lose the order/payment state
@@ -493,19 +497,16 @@ export default function Checkout() {
               </CardContent>
             </Card>
 
-            {/* Payment Info */}
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <CreditCard className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-medium text-foreground">M-Pesa Payment</p>
-                    <p className="text-sm text-muted-foreground">
-                      After submitting, you'll be directed to pay via M-Pesa Paybill. 
-                      Paste your confirmation SMS to instantly verify payment.
-                    </p>
-                  </div>
-                </div>
+            {/* Payment Method */}
+            <Card>
+              <CardHeader><CardTitle>Choose Payment Method</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'pesapal' | 'mpesa' | 'cash')} className="space-y-3">
+                  <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="pesapal" /><CreditCard className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Pesapal</strong><span className="block text-sm text-muted-foreground">Pay securely online.</span></span></label>
+                  <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="mpesa" /><Phone className="h-5 w-5 text-primary" /><span className="flex-1"><strong>M-Pesa Paybill</strong><span className="block text-sm text-muted-foreground">Pay manually using the store Paybill.</span></span></label>
+                  <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="cash" /><Store className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Cash (Pay later)</strong><span className="block text-sm text-muted-foreground">Pay when visiting the shop or when receiving your order.</span></span></label>
+                </RadioGroup>
+                <p className="text-sm text-muted-foreground">Payment is not required for your order to be placed successfully. You can pay later if you choose Cash (Pay later).</p>
               </CardContent>
             </Card>
 
@@ -524,7 +525,7 @@ export default function Checkout() {
               ) : (
                 <>
                   <CreditCard className="h-4 w-4 mr-2" />
-                  Proceed to Payment
+                  Place Order
                 </>
               )}
             </Button>

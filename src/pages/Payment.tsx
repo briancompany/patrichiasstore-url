@@ -31,9 +31,10 @@ interface LocationState {
   customerName: string;
   customerPhone?: string;
   customerEmail?: string;
+  paymentMethod?: 'pesapal' | 'mpesa' | 'cash';
 }
 
-type PaymentMethod = 'pesapal' | 'mpesa';
+type PaymentMethod = 'pesapal' | 'mpesa' | 'cash';
 
 // Parse M-Pesa confirmation message
 const parseMpesaMessage = (message: string) => {
@@ -86,6 +87,7 @@ export default function Payment() {
 
     if (effectiveState) {
       setOrderDetails(effectiveState);
+      setPaymentMethod(effectiveState.paymentMethod || 'pesapal');
       storageSet(STORAGE_KEYS.pendingOrder, effectiveState);
 
       // Fetch order items
@@ -292,6 +294,27 @@ export default function Payment() {
     }
   };
 
+  const handlePaymentMethodChange = async (value: string) => {
+    const nextMethod = value as PaymentMethod;
+    if (!orderDetails) {
+      setPaymentMethod(nextMethod);
+      return;
+    }
+    const { error } = await supabase.rpc('set_order_payment_method', {
+      _order_id: orderDetails.orderId,
+      _payment_method: nextMethod,
+    });
+    if (error) {
+      toast.error(error.message || 'Could not update payment method');
+      return;
+    }
+    setPaymentMethod(nextMethod);
+    const updated = { ...orderDetails, paymentMethod: nextMethod };
+    setOrderDetails(updated);
+    storageSet(STORAGE_KEYS.pendingOrder, updated);
+    toast.success('Payment method updated');
+  };
+
   const handlePesapalPayment = async () => {
     if (!orderDetails) return;
     // Hard guard against double-submit (button disable + ref-lock)
@@ -358,7 +381,7 @@ export default function Payment() {
   const generateReceipt = async () => {
     if (!orderDetails) return;
 
-    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : 'M-Pesa Paybill';
+    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : paymentMethod === 'mpesa' ? 'M-Pesa Paybill' : 'Cash (Pay later)';
 
     try {
       await downloadReceiptPDF({
@@ -445,14 +468,14 @@ export default function Payment() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {paymentVerified ? 'Payment Confirmed!' : isVerifying ? 'Verifying Payment...' : 'Complete Your Payment'}
+                {paymentVerified ? 'Payment Confirmed!' : isVerifying ? 'Verifying Payment...' : paymentMethod === 'cash' ? 'Your Order Is Placed!' : 'Complete Your Payment'}
               </h1>
               <p className="text-muted-foreground">
                 {paymentVerified 
                   ? 'Thank you! Your order has been confirmed.' 
                   : isVerifying 
                     ? pollingStatus || 'Checking with payment provider...'
-                    : `Hi ${orderDetails.customerName}, choose your payment method below.`}
+                    : paymentMethod === 'cash' ? `Hi ${orderDetails.customerName}, your order is saved. You can pay later.` : `Hi ${orderDetails.customerName}, choose your payment method below.`}
               </p>
             </div>
           </div>
@@ -474,7 +497,7 @@ export default function Payment() {
                   ) : isVerifying ? (
                     <><Loader2 className="h-3 w-3 animate-spin" /> Verifying</>
                   ) : (
-                    <><Clock className="h-3 w-3" /> Awaiting Payment</>
+                    <><Clock className="h-3 w-3" /> {paymentMethod === 'cash' ? 'Pay later · Pending' : 'Awaiting Payment'}</>
                   )}
                 </Badge>
               </div>
@@ -500,7 +523,7 @@ export default function Payment() {
                 <CardContent className="space-y-4">
                   <RadioGroup
                     value={paymentMethod}
-                    onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                    onValueChange={handlePaymentMethodChange}
                     className="space-y-3"
                   >
                     <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'pesapal' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
@@ -524,20 +547,33 @@ export default function Payment() {
                         <p className="font-semibold">🏦 M-Pesa Paybill</p>
                         <p className="text-sm text-muted-foreground">Manual Paybill payment. Paste SMS to verify.</p>
                       </div>
-                      <Badge variant="outline">Fallback</Badge>
+                      <Badge variant="outline">Manual</Badge>
+                    </label>
+                    <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
+                      <RadioGroupItem value="cash" />
+                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-amber-700" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold">Cash (Pay later)</p>
+                        <p className="text-sm text-muted-foreground">Pay when visiting the shop or receiving your order.</p>
+                      </div>
                     </label>
                   </RadioGroup>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800">
-                      <p className="font-semibold">Important:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Pay the <strong>exact amount: Ksh {orderDetails.total.toLocaleString()}</strong></li>
-                        <li>Underpayment or overpayment will be rejected</li>
-                      </ul>
+                  {paymentMethod !== 'cash' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-semibold">Important:</p>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>Pay the <strong>exact amount: Ksh {orderDetails.total.toLocaleString()}</strong></li>
+                          <li>Underpayment or overpayment will be rejected</li>
+                        </ul>
+                      </div>
                     </div>
-                  </div>
+   
+                  )}
                 </CardContent>
               </Card>
 
@@ -708,9 +744,22 @@ export default function Payment() {
                 </>
               )}
 
-              <p className="text-center text-sm text-muted-foreground">
-                ⚠️ Having trouble? Try the {paymentMethod === 'pesapal' ? 'M-Pesa Paybill' : 'Pesapal'} option instead.
-              </p>
+              {paymentMethod === 'cash' && (
+                <Card className="border-primary bg-primary/5">
+                  <CardContent className="p-6 space-y-3">
+                    <h3 className="font-semibold text-lg">Your order is placed — payment can come later</h3>
+                    <p className="text-sm text-muted-foreground">No upfront payment is required. Our team has your order and can continue processing it. Pay when you visit Patrichia Store or when receiving your delivery, as agreed with the store.</p>
+                    <p className="text-sm font-medium">Payment status: Pending</p>
+                    <Button asChild className="w-full"><Link to="/uniform-shop">Continue Shopping</Link></Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {paymentMethod !== 'cash' && (
+                <p className="text-center text-sm text-muted-foreground">
+                  ⚠️ Having trouble? Try the {paymentMethod === 'pesapal' ? 'M-Pesa Paybill' : 'Pesapal'} option instead.
+                </p>
+              )}
             </>
           )}
 

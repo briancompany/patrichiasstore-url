@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from '@/types/product';
-import { AlertTriangle, CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, ShoppingBag, Store, MapPin, Loader2, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
@@ -46,6 +46,7 @@ export default function Order() {
     if (navCart && navCart.length > 0) storageSet(STORAGE_KEYS.shopCart, navCart);
   }, [navCart]);
 
+  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<{
     product_id: string; product_name: string; requested: number; available: number;
@@ -162,6 +163,8 @@ export default function Order() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
+          payment_method: paymentMethod,
+          payment_status: 'pending',
           is_special_order: isSpecialOrder,
           special_order_note: isSpecialOrder ? finalSpecialOrderNote : null,
           is_new_school: Boolean(formData.school.trim() && !selectedSchoolId),
@@ -222,6 +225,10 @@ export default function Order() {
         console.warn('Tracking insert failed (continuing):', trackingError);
       }
 
+      supabase.functions.invoke('send-delivery-update', {
+        body: { orderId, statusUpdate: formData.school.trim() && !selectedSchoolId ? 'new_school_setup' : 'pending' },
+      }).catch(() => undefined);
+
       const paymentState = {
         orderId,
         trackingCode: trackingError ? null : trackingCode,
@@ -229,6 +236,7 @@ export default function Order() {
         customerName: formData.fullName,
         customerPhone: formData.phone,
         customerEmail: formData.email,
+        paymentMethod,
       };
 
       // Persist so refresh in published site doesn't lose the order/payment state
@@ -256,7 +264,7 @@ export default function Order() {
       <div className="container-shop py-8">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-2">Place Your Order</h1>
-          <p className="text-muted-foreground mb-8">Fill in your details and proceed to payment</p>
+          <p className="text-muted-foreground mb-8">Fill in your details and choose how you'd like to pay</p>
 
           {cartItems.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-xl border border-border">
@@ -453,18 +461,16 @@ export default function Order() {
                 </CardContent>
               </Card>
 
-              {/* Payment Info */}
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Secure Payment</p>
-                      <p className="text-sm text-muted-foreground">
-                        After submitting, you'll choose between Pesapal STK Push or M-Pesa Paybill to complete payment.
-                      </p>
-                    </div>
-                  </div>
+              {/* Payment Method */}
+              <Card>
+                <CardHeader><CardTitle>Choose Payment Method</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'pesapal' | 'mpesa' | 'cash')} className="space-y-3">
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="pesapal" /><CreditCard className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Pesapal</strong><span className="block text-sm text-muted-foreground">Pay securely online.</span></span></label>
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="mpesa" /><Phone className="h-5 w-5 text-primary" /><span className="flex-1"><strong>M-Pesa Paybill</strong><span className="block text-sm text-muted-foreground">Pay manually using the store Paybill.</span></span></label>
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="cash" /><Store className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Cash (Pay later)</strong><span className="block text-sm text-muted-foreground">Pay when visiting the shop or when receiving your order.</span></span></label>
+                  </RadioGroup>
+                  <p className="text-sm text-muted-foreground">Payment is not required for your order to be placed successfully. You can pay later if you choose Cash (Pay later).</p>
                 </CardContent>
               </Card>
 
@@ -483,13 +489,13 @@ export default function Order() {
                 ) : (
                   <>
                     <CreditCard className="h-4 w-4 mr-2" />
-                    Proceed to Payment
+                    Place Order
                   </>
                 )}
               </Button>
 
               <p className="text-sm text-muted-foreground text-center">
-                You'll be directed to our secure payment page to complete your order.
+                Your order will be saved first. You can pay now or later using your selected method.
               </p>
             </form>
           )}
