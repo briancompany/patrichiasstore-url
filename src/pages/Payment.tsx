@@ -573,7 +573,8 @@ export default function Payment() {
                       </div>
                     </div>
    
-                  )}               </CardContent>
+                  )}
+                </CardContent>
               </Card>
 
               {/* Pesapal Flow */}
