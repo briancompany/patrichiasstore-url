@@ -31,9 +31,10 @@ interface LocationState {
   customerName: string;
   customerPhone?: string;
   customerEmail?: string;
+  paymentMethod?: 'pesapal' | 'mpesa' | 'cash';
 }
 
-type PaymentMethod = 'pesapal' | 'mpesa';
+type PaymentMethod = 'pesapal' | 'mpesa' | 'cash';
 
 // Parse M-Pesa confirmation message
 const parseMpesaMessage = (message: string) => {
@@ -86,6 +87,7 @@ export default function Payment() {
 
     if (effectiveState) {
       setOrderDetails(effectiveState);
+      setPaymentMethod(effectiveState.paymentMethod || 'pesapal');
       storageSet(STORAGE_KEYS.pendingOrder, effectiveState);
 
       // Fetch order items
@@ -292,6 +294,24 @@ export default function Payment() {
     }
   };
 
+  const handlePaymentMethodChange = async (value: string) => {
+    const nextMethod = value as PaymentMethod;
+    setPaymentMethod(nextMethod);
+    if (!orderDetails) return;
+    const { error } = await supabase.rpc('set_order_payment_method', {
+      _order_id: orderDetails.orderId,
+      _payment_method: nextMethod,
+    });
+    if (error) {
+      toast.error(error.message || 'Could not update payment method');
+      return;
+    }
+    const updated = { ...orderDetails, paymentMethod: nextMethod };
+    setOrderDetails(updated);
+    storageSet(STORAGE_KEYS.pendingOrder, updated);
+    toast.success('Payment method updated');
+  };
+
   const handlePesapalPayment = async () => {
     if (!orderDetails) return;
     // Hard guard against double-submit (button disable + ref-lock)
@@ -358,7 +378,7 @@ export default function Payment() {
   const generateReceipt = async () => {
     if (!orderDetails) return;
 
-    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : 'M-Pesa Paybill';
+    const paymentMethodLabel = paymentMethod === 'pesapal' ? 'Pesapal' : paymentMethod === 'mpesa' ? 'M-Pesa Paybill' : 'Cash (Pay later)';
 
     try {
       await downloadReceiptPDF({
@@ -500,7 +520,7 @@ export default function Payment() {
                 <CardContent className="space-y-4">
                   <RadioGroup
                     value={paymentMethod}
-                    onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                    onValueChange={handlePaymentMethodChange}
                     className="space-y-3"
                   >
                     <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'pesapal' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
@@ -525,6 +545,16 @@ export default function Payment() {
                         <p className="text-sm text-muted-foreground">Manual Paybill payment. Paste SMS to verify.</p>
                       </div>
                       <Badge variant="outline">Fallback</Badge>
+                    </label>
+                    <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
+                      <RadioGroupItem value="cash" />
+                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-amber-700" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold">Cash (Pay later)</p>
+                        <p className="text-sm text-muted-foreground">Pay when visiting the shop or receiving your order.</p>
+                      </div>
                     </label>
                   </RadioGroup>
 
@@ -706,6 +736,17 @@ export default function Payment() {
                     </CardContent>
                   </Card>
                 </>
+              )}
+
+              {paymentMethod === 'cash' && (
+                <Card className="border-primary bg-primary/5">
+                  <CardContent className="p-6 space-y-3">
+                    <h3 className="font-semibold text-lg">Your order is placed — payment can come later</h3>
+                    <p className="text-sm text-muted-foreground">No upfront payment is required. Our team has your order and can continue processing it. Pay when you visit Patrichia Store or when receiving your delivery, as agreed with the store.</p>
+                    <p className="text-sm font-medium">Payment status: Pending</p>
+                    <Button asChild className="w-full"><Link to="/uniform-shop">Continue Shopping</Link></Button>
+                  </CardContent>
+                </Card>
               )}
 
               <p className="text-center text-sm text-muted-foreground">
