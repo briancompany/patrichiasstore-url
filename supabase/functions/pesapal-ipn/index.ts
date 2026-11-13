@@ -133,14 +133,20 @@ Deno.serve(async (req) => {
     const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order?.status || "")
       ? order.status
       : "pending";
-    await supabase.from("orders").update({
+    const { data: updatedOrder, error: updateError } = await supabase.from("orders").update({
       status: nextOrderStatus,
       payment_method: "pesapal",
       payment_status: "paid",
       payment_reference: paymentCode,
       payment_updated_at: new Date().toISOString(),
       notes: `Pesapal Auto-Verified | Ref: ${paymentCode} | TrackingId: ${orderTrackingId}`,
-    }).eq("id", orderId);
+    }).eq("id", orderId).eq("payment_status", "pending").select("id").maybeSingle();
+    if (updateError) throw updateError;
+    if (!updatedOrder) {
+      return new Response(JSON.stringify({ orderNotificationType, orderTrackingId, status: "already_processed" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const { error: paymentInsertError } = await supabase.from("payments").insert({
       order_id: orderId,
@@ -152,7 +158,7 @@ Deno.serve(async (req) => {
     if (paymentInsertError) {
       await supabase.from("orders").update({
         payment_status: "pending", payment_reference: null, payment_updated_at: null,
-      }).eq("id", orderId);
+      }).eq("id", orderId).eq("payment_reference", paymentCode);
       throw new Error("Could not save verified Pesapal payment record");
     }
     await supabase.from("order_payment_events").insert({
