@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from '@/types/product';
-import { AlertTriangle, CreditCard, ShoppingBag, Store, MapPin, Loader2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, ShoppingBag, Store, MapPin, Loader2, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { createUuid, isUuid } from '@/lib/uuid';
