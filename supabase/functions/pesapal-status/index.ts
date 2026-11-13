@@ -146,12 +146,16 @@ Deno.serve(async (req) => {
         customer_name: order?.customer_name || "Customer",
         customer_phone: order?.customer_phone || null,
       });
-      if (!paymentInsertError) {
-        await supabase.from("order_payment_events").insert({
-          order_id: orderId, event_type: "payment_recorded", payment_method: "pesapal",
-          payment_status: "paid", amount, reference: paymentCode,
-        });
+      if (paymentInsertError) {
+        await supabase.from("orders").update({
+          payment_status: "pending", payment_reference: null, payment_updated_at: null,
+        }).eq("id", orderId);
+        throw new Error("Could not save verified Pesapal payment record");
       }
+      await supabase.from("order_payment_events").insert({
+        order_id: orderId, event_type: "payment_recorded", payment_method: "pesapal",
+        payment_status: "paid", amount, reference: paymentCode,
+      });
 
       await triggerReceiptEmail(orderId, paymentCode);
 
