@@ -627,6 +627,11 @@ export type Database = {
           is_special_order: boolean
           linked_school_id: string | null
           notes: string | null
+          payment_method: string | null
+          payment_status: string
+          payment_reference: string | null
+          payment_updated_at: string | null
+          payment_updated_by: string | null
           scheduled_delivery_date: string | null
           special_order_note: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -647,6 +652,11 @@ export type Database = {
           is_special_order?: boolean
           linked_school_id?: string | null
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          payment_reference?: string | null
+          payment_updated_at?: string | null
+          payment_updated_by?: string | null
           scheduled_delivery_date?: string | null
           special_order_note?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -667,6 +677,11 @@ export type Database = {
           is_special_order?: boolean
           linked_school_id?: string | null
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          payment_reference?: string | null
+          payment_updated_at?: string | null
+          payment_updated_by?: string | null
           scheduled_delivery_date?: string | null
           special_order_note?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -1586,6 +1601,8 @@ export type Database = {
         Args: { _ad_id: string; _kind: string }
         Returns: undefined
       }
+      set_order_payment_method: { Args: { _order_id: string; _payment_method: string }; Returns: Json }
+      admin_mark_order_paid: { Args: { _order_id: string; _reference?: string | null }; Returns: Json }
       set_product_stock: {
         Args: { _product_id: string; _quantity: number }
         Returns: number
