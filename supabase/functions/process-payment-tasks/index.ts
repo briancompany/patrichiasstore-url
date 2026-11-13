@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         results[task.id] = "completed";
         continue;
       }
-      if (order.payment_method !== "pesapal") {
+      if (order.payment_method && order.payment_method !== "pesapal") {
         await supabase.from("payment_tasks").update({ status: "dead", error_message: "Order is not using Pesapal" }).eq("id", task.id);
         results[task.id] = "cancelled";
         continue;
