@@ -92,6 +92,16 @@ Deno.serve(async (req) => {
         .padEnd(8, "0");
 
       const amount = Number(statusData.amount || 0);
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .select("customer_name, customer_phone, status, total_amount")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (orderError || !order) throw new Error("Pesapal status references an unknown order");
+      if (!Number.isFinite(amount) || Math.round(amount * 100) !== Math.round(Number(order.total_amount) * 100) ||
+          (statusData.currency && statusData.currency !== "KES")) {
+        throw new Error("Pesapal payment amount or currency does not match the order");
+      }
 
       // Atomically claim stock — the first confirmed payment wins the piece.
       const { data: claim } = await supabase.rpc("claim_order_stock", { _order_id: orderId });
@@ -116,12 +126,6 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-
-      const { data: order } = await supabase
-        .from("orders")
-        .select("customer_name, customer_phone, status")
-        .eq("id", orderId)
-        .maybeSingle();
 
       const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order?.status || "")
         ? order.status
