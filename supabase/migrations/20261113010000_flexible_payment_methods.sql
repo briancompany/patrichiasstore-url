@@ -116,6 +116,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_order public.orders%ROWTYPE;
+  v_reference text;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Only an admin can record a payment';
@@ -127,19 +128,33 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'already_paid', true);
   END IF;
 
+  v_reference := NULLIF(left(btrim(COALESCE(_reference, '')), 120), '');
+  IF v_reference IS NULL THEN
+    v_reference := 'ADMIN-' || upper(COALESCE(v_order.payment_method, 'cash')) || '-' || upper(left(replace(_order_id::text, '-', ''), 8));
+  END IF;
+
   UPDATE public.orders
   SET payment_method = COALESCE(payment_method, 'cash'),
       payment_status = 'paid',
-      payment_reference = NULLIF(left(btrim(COALESCE(_reference, '')), 120), ''),
+      payment_reference = v_reference,
       payment_updated_at = now(),
       payment_updated_by = auth.uid()
   WHERE id = _order_id;
+
+  -- Keep the existing admin Payments dashboard and revenue totals in sync.
+  IF NOT EXISTS (SELECT 1 FROM public.payments WHERE order_id = _order_id) THEN
+    INSERT INTO public.payments
+      (order_id, amount, mpesa_code, customer_name, customer_phone)
+    VALUES
+      (_order_id, v_order.total_amount, v_reference,
+       v_order.customer_name, v_order.customer_phone);
+  END IF;
 
   INSERT INTO public.order_payment_events
     (order_id, event_type, payment_method, payment_status, amount, reference, recorded_by)
   VALUES
     (_order_id, 'payment_recorded', COALESCE(v_order.payment_method, 'cash'), 'paid',
-     v_order.total_amount, NULLIF(left(btrim(COALESCE(_reference, '')), 120), ''), auth.uid());
+     v_order.total_amount, v_reference, auth.uid());
 
   RETURN jsonb_build_object('success', true, 'payment_status', 'paid');
 END;
