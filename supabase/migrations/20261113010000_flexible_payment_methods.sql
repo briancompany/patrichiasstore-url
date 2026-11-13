@@ -156,8 +156,14 @@ DECLARE
   v_task text;
 BEGIN
   IF _callback_url IS NULL
-     OR NOT (_callback_url LIKE 'https://%' OR _callback_url LIKE 'http://localhost%' OR _callback_url LIKE 'http://127.0.0.1%')
-     OR _callback_url ~ '[[:space:]]' THEN
+     OR _callback_url ~ '[[:space:]]'
+     OR NOT (
+       left(_callback_url, 8) = 'https://'
+       OR (
+         left(_callback_url, 7) = 'http://'
+         AND split_part(split_part(_callback_url, '/', 3), ':', 1) IN ('localhost', '127.0.0.1')
+       )
+     ) THEN
     RAISE EXCEPTION 'Invalid return address';
   END IF;
 
