@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (order.payment_status === "paid" || order.status === "confirmed" || order.status === "completed") {
+    if (order.payment_status === "paid") {
       return new Response(JSON.stringify({ error: "Order is already paid" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -168,12 +168,18 @@ Deno.serve(async (req) => {
 
     if (paymentError) {
       console.error("Payment record error:", paymentError);
-    } else {
-      await supabase.from("order_payment_events").insert({
-        order_id: orderId, event_type: "payment_recorded", payment_method: method,
-        payment_status: "paid", amount: Number(amount), reference: code,
+      await supabase.from("orders").update({
+        payment_status: "pending", payment_reference: null, payment_updated_at: null,
+      }).eq("id", orderId);
+      return new Response(JSON.stringify({ error: "Payment could not be recorded. Please contact the store before retrying." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    await supabase.from("order_payment_events").insert({
+      order_id: orderId, event_type: "payment_recorded", payment_method: method,
+      payment_status: "paid", amount: Number(amount), reference: code,
+    });
 
     await triggerReceiptEmail(orderId, code, paymentMethod === "pesapal" ? "pesapal" : "mpesa");
 
