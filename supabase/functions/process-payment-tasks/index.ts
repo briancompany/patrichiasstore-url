@@ -16,7 +16,7 @@ const PESAPAL_BASE = "https://pay.pesapal.com/v3/api";
 const esc = (v: string) =>
   v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
-async function pesapalSession() {
+async function pesapalSession(supabase: ReturnType<typeof createClient>) {
   const res = await fetch(`${PESAPAL_BASE}/Auth/RequestToken`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -31,19 +31,36 @@ async function pesapalSession() {
     const detail = String(data?.error?.message || data?.message || data?.error || res.statusText || "Unknown response");
     throw new Error(`Pesapal authentication failed (HTTP ${res.status}): ${detail.slice(0, 220)}`);
   }
-  const token = data.token as string;
-  const ipnRes = await fetch(`${PESAPAL_BASE}/URLSetup/RegisterIPN`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/pesapal-ipn`, ipn_notification_type: "GET" }),
-    signal: AbortSignal.timeout(15000),
-  });
-  const ipn = await ipnRes.json().catch(() => ({}));
-  if (!ipnRes.ok || !ipn.ipn_id) {
-    const detail = String(ipn?.error?.message || ipn?.message || ipn?.error || ipnRes.statusText || "Unknown response");
-    throw new Error(`Pesapal IPN registration failed (HTTP ${ipnRes.status}): ${detail.slice(0, 220)}`);
+
+  // IPN registrations are persistent at Pesapal. Reuse the saved ID to avoid
+  // repeated RegisterIPN calls during retries and high checkout traffic.
+  const { data: savedSettings } = await supabase
+    .from("payment_provider_settings")
+    .select("ipn_id")
+    .eq("provider", "pesapal")
+    .maybeSingle();
+
+  let ipnId = savedSettings?.ipn_id as string | undefined;
+  if (!ipnId) {
+    const ipnRes = await fetch(`${PESAPAL_BASE}/URLSetup/RegisterIPN`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${data.token}` },
+      body: JSON.stringify({ url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/pesapal-ipn`, ipn_notification_type: "GET" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const ipn = await ipnRes.json().catch(() => ({}));
+    if (!ipnRes.ok || !ipn.ipn_id) {
+      const detail = String(ipn?.error?.message || ipn?.message || ipn?.error || ipnRes.statusText || "Unknown response");
+      throw new Error(`Pesapal IPN registration failed (HTTP ${ipnRes.status}): ${detail.slice(0, 220)}`);
+    }
+    ipnId = ipn.ipn_id as string;
+    const { error: saveError } = await supabase.from("payment_provider_settings").upsert({
+      provider: "pesapal", ipn_id: ipnId, updated_at: new Date().toISOString(),
+    }, { onConflict: "provider" });
+    if (saveError) console.error("Could not cache Pesapal IPN registration:", saveError.message);
   }
-  return { token, ipnId: ipn.ipn_id as string };
+
+  return { token: data.token as string, ipnId };
 }
 
 function failureEmailHtml(name: string, code: string, total: number, retryUrl: string) {
@@ -102,7 +119,7 @@ Deno.serve(async (req) => {
 
       try {
         if (!session && !sessionError) {
-          try { session = await pesapalSession(); } catch (e) { sessionError = (e as Error).message; }
+          try { session = await pesapalSession(supabase); } catch (e) { sessionError = (e as Error).message; }
         }
         if (!session) throw new Error(sessionError ?? "Pesapal unavailable");
 
