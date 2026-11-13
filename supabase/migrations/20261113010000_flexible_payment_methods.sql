@@ -61,6 +61,8 @@ DROP POLICY IF EXISTS "Admins view order payment events" ON public.order_payment
 CREATE POLICY "Admins view order payment events"
 ON public.order_payment_events FOR SELECT TO authenticated
 USING (public.is_admin());
+GRANT SELECT ON public.order_payment_events TO authenticated;
+GRANT ALL ON public.order_payment_events TO service_role;
 
 CREATE OR REPLACE FUNCTION public.set_order_payment_method(_order_id uuid, _payment_method text)
 RETURNS jsonb
