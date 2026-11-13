@@ -158,6 +158,9 @@ Deno.serve(async (req) => {
       } catch (e) {
         const message = (e as Error).message?.slice(0, 300) || "Unknown error";
         console.error("Pesapal payment task failed", { orderId: order.id, taskId: task.id, retry: task.retry_count + 1, message });
+        if (/notification.?id|ipn/i.test(message)) {
+          await supabase.from("payment_provider_settings").delete().eq("provider", "pesapal");
+        }
         const retries = (task.retry_count ?? 0) + 1;
 
         if (retries < (task.max_retries ?? 3)) {
