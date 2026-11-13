@@ -76,8 +76,8 @@ interface Order {
   delivery_location: string | null;
   status: string;
   total_amount: number;
-  payment_method: 'pesapal' | 'mpesa' | 'cash' | null;
-  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_method: string | null;
+  payment_status: string;
   payment_reference: string | null;
   notes: string | null;
   created_at: string;
