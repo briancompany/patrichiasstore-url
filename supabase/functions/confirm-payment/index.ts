@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch {
+  } catch (err) {
     console.error('Unhandled payment error:', err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
