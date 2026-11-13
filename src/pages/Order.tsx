@@ -225,6 +225,10 @@ export default function Order() {
         console.warn('Tracking insert failed (continuing):', trackingError);
       }
 
+      supabase.functions.invoke('send-delivery-update', {
+        body: { orderId, statusUpdate: formData.school.trim() && !selectedSchoolId ? 'new_school_setup' : 'pending' },
+      }).catch(() => undefined);
+
       const paymentState = {
         orderId,
         trackingCode: trackingError ? null : trackingCode,
@@ -260,7 +264,7 @@ export default function Order() {
       <div className="container-shop py-8">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-2">Place Your Order</h1>
-          <p className="text-muted-foreground mb-8">Fill in your details and proceed to payment</p>
+          <p className="text-muted-foreground mb-8">Fill in your details and choose how you'd like to pay</p>
 
           {cartItems.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-xl border border-border">
