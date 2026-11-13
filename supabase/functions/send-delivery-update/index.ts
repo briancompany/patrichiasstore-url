@@ -185,8 +185,8 @@ Deno.serve(async (req) => {
       bodyMessage = order.is_special_order
         ? `${info.body} This is a priority special order, so we are treating it as urgent.`
         : info.body;
-      if (statusUpdate === 'pending' && order.payment_method === 'cash') {
-        bodyMessage = 'Your order has been received successfully. No upfront payment is required for Cash (Pay later). Our team can continue processing your order, and payment will be recorded when you pay at the shop or on delivery as agreed.';
+      if (order.payment_method === 'cash' && order.payment_status === 'pending') {
+        bodyMessage = `${bodyMessage} No upfront payment is required for Cash (Pay later). Our team can continue processing your order, and payment will be recorded when you pay at the shop or on delivery as agreed.`;
       }
       statusBadge = `<span style="display:inline-block;background:#0B1736;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;text-transform:capitalize;">${info.label}</span>`;
     } else {
