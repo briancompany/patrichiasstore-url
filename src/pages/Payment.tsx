@@ -465,14 +465,14 @@ export default function Payment() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {paymentVerified ? 'Payment Confirmed!' : isVerifying ? 'Verifying Payment...' : 'Complete Your Payment'}
+                {paymentVerified ? 'Payment Confirmed!' : isVerifying ? 'Verifying Payment...' : paymentMethod === 'cash' ? 'Your Order Is Placed!' : 'Complete Your Payment'}
               </h1>
               <p className="text-muted-foreground">
                 {paymentVerified 
                   ? 'Thank you! Your order has been confirmed.' 
                   : isVerifying 
                     ? pollingStatus || 'Checking with payment provider...'
-                    : `Hi ${orderDetails.customerName}, choose your payment method below.`}
+                    : paymentMethod === 'cash' ? `Hi ${orderDetails.customerName}, your order is saved. You can pay later.` : `Hi ${orderDetails.customerName}, choose your payment method below.`}
               </p>
             </div>
           </div>
@@ -494,7 +494,7 @@ export default function Payment() {
                   ) : isVerifying ? (
                     <><Loader2 className="h-3 w-3 animate-spin" /> Verifying</>
                   ) : (
-                    <><Clock className="h-3 w-3" /> Awaiting Payment</>
+                    <><Clock className="h-3 w-3" /> {paymentMethod === 'cash' ? 'Pay later · Pending' : 'Awaiting Payment'}</>
                   )}
                 </Badge>
               </div>
@@ -749,9 +749,11 @@ export default function Payment() {
                 </Card>
               )}
 
-              <p className="text-center text-sm text-muted-foreground">
-                ⚠️ Having trouble? Try the {paymentMethod === 'pesapal' ? 'M-Pesa Paybill' : 'Pesapal'} option instead.
-              </p>
+              {paymentMethod !== 'cash' && (
+                <p className="text-center text-sm text-muted-foreground">
+                  ⚠️ Having trouble? Try the {paymentMethod === 'pesapal' ? 'M-Pesa Paybill' : 'Pesapal'} option instead.
+                </p>
+              )}
             </>
           )}
 
