@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, customer_name, total_amount, status, delivery_type, delivery_location, scheduled_delivery_date, is_special_order, payment_method, payment_status')
+      .select('id, customer_name, total_amount, status, delivery_type, delivery_location, scheduled_delivery_date, is_special_order, payment_method, payment_status, payment_reference')
       .eq('id', orderId)
       .maybeSingle();
 
@@ -121,6 +121,13 @@ Deno.serve(async (req) => {
       statusBadge = `<span style="display:inline-block;background:#16a34a;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;">Delivered</span>`;
     } else if (statusUpdate) {
       const map: Record<string, { label: string; title: string; sub: string; body: string; color: string }> = {
+        payment_recorded: {
+          label: 'Payment Received',
+          title: '✅ Payment Received',
+          sub: 'Your payment has been recorded successfully.',
+          body: `We have recorded your payment of KSh ${Number(order.total_amount).toLocaleString('en-KE')} using ${order.payment_method === 'cash' ? 'Cash (Pay later)' : order.payment_method === 'mpesa' ? 'M-Pesa Paybill' : 'Pesapal'}.${order.payment_reference ? ` Reference: ${escapeHtml(order.payment_reference)}.` : ''}`,
+          color: 'linear-gradient(135deg,#166534,#22c55e)',
+        },
         pending: {
           label: 'Pending',
           title: '🧾 Order Received',
