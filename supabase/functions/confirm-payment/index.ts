@@ -168,6 +168,11 @@ Deno.serve(async (req) => {
 
     if (paymentError) {
       console.error("Payment record error:", paymentError);
+    } else {
+      await supabase.from("order_payment_events").insert({
+        order_id: orderId, event_type: "payment_recorded", payment_method: method,
+        payment_status: "paid", amount: Number(amount), reference: code,
+      });
     }
 
     await triggerReceiptEmail(orderId, code, paymentMethod === "pesapal" ? "pesapal" : "mpesa");
