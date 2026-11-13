@@ -85,6 +85,13 @@ BEGIN
   VALUES
     (_order_id, 'method_changed', _payment_method, 'pending', v_order.total_amount, auth.uid());
 
+  -- Prevent a stale queued Pesapal job from starting after the customer switches methods.
+  IF _payment_method <> 'pesapal' THEN
+    UPDATE public.payment_tasks
+    SET status = 'dead', error_message = 'Customer changed payment method'
+    WHERE order_id = _order_id AND status IN ('pending', 'queued');
+  END IF;
+
   RETURN jsonb_build_object('success', true, 'payment_method', _payment_method, 'payment_status', 'pending');
 END;
 $$;
@@ -107,7 +114,8 @@ BEGIN
   END IF;
 
   UPDATE public.orders
-  SET payment_status = 'paid',
+  SET payment_method = COALESCE(payment_method, 'cash'),
+      payment_status = 'paid',
       payment_reference = NULLIF(left(btrim(COALESCE(_reference, '')), 120), ''),
       payment_updated_at = now(),
       payment_updated_by = auth.uid()
