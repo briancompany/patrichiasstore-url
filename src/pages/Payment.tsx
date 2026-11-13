@@ -547,7 +547,7 @@ export default function Payment() {
                         <p className="font-semibold">🏦 M-Pesa Paybill</p>
                         <p className="text-sm text-muted-foreground">Manual Paybill payment. Paste SMS to verify.</p>
                       </div>
-                      <Badge variant="outline">Fallback</Badge>
+                      <Badge variant="outline">Manual</Badge>
                     </label>
                     <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/50'}`}>
                       <RadioGroupItem value="cash" />
@@ -561,17 +561,19 @@ export default function Payment() {
                     </label>
                   </RadioGroup>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-800">
-                      <p className="font-semibold">Important:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Pay the <strong>exact amount: Ksh {orderDetails.total.toLocaleString()}</strong></li>
-                        <li>Underpayment or overpayment will be rejected</li>
-                      </ul>
+                  {paymentMethod !== 'cash' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-semibold">Important:</p>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          <li>Pay the <strong>exact amount: Ksh {orderDetails.total.toLocaleString()}</strong></li>
+                          <li>Underpayment or overpayment will be rejected</li>
+                        </ul>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
+   
+                  )}               </CardContent>
               </Card>
 
               {/* Pesapal Flow */}
