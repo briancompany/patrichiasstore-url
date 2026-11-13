@@ -60,6 +60,7 @@ DROP POLICY IF EXISTS "Admins view order payment events" ON public.order_payment
 CREATE POLICY "Admins view order payment events"
 ON public.order_payment_events FOR SELECT TO authenticated
 USING (public.is_admin());
+REVOKE ALL ON public.order_payment_events FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.order_payment_events TO authenticated;
 GRANT ALL ON public.order_payment_events TO service_role;
 
