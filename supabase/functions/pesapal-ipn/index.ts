@@ -84,10 +84,15 @@ Deno.serve(async (req) => {
     const amount = Number(statusData.amount || 0);
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("customer_name, customer_phone, status, total_amount")
+      .select("customer_name, customer_phone, status, total_amount, payment_status")
       .eq("id", orderId)
       .maybeSingle();
     if (orderError || !order) throw new Error("Pesapal notification references an unknown order");
+    if (order.payment_status === "paid") {
+      return new Response(JSON.stringify({ orderNotificationType, orderTrackingId, status: "already_processed" }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (!Number.isFinite(amount) || Math.round(amount * 100) !== Math.round(Number(order.total_amount) * 100) ||
         (statusData.currency && statusData.currency !== "KES")) {
       throw new Error("Pesapal payment amount or currency does not match the order");
