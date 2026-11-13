@@ -131,6 +131,51 @@ BEGIN
 END;
 $$;
 
+-- Payment eligibility is based on payment_status, never fulfilment status.
+CREATE OR REPLACE FUNCTION public.enqueue_payment_task(_order_id uuid, _callback_url text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  v_payment_status text;
+  v_task text;
+BEGIN
+  IF _callback_url IS NULL OR NOT (_callback_url ~ '^https://[^\s]+
+REVOKE ALL ON FUNCTION public.admin_mark_order_paid(uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enqueue_payment_task(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_order_payment_method(uuid, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_mark_order_paid(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.enqueue_payment_task(uuid, text) TO anon, authenticated;
+ OR _callback_url ~ '^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/') THEN
+    RAISE EXCEPTION 'Invalid return address';
+  END IF;
+
+  SELECT payment_status INTO v_payment_status
+  FROM public.orders WHERE id = _order_id FOR UPDATE;
+  IF v_payment_status IS NULL THEN RAISE EXCEPTION 'Order not found'; END IF;
+  IF v_payment_status = 'paid' OR EXISTS (
+    SELECT 1 FROM public.payments WHERE order_id = _order_id
+  ) THEN
+    RAISE EXCEPTION 'Order is already paid';
+  END IF;
+
+  SELECT status INTO v_task FROM public.payment_tasks WHERE order_id = _order_id FOR UPDATE;
+  IF v_task IS NULL THEN
+    INSERT INTO public.payment_tasks (order_id, callback_url) VALUES (_order_id, _callback_url);
+  ELSIF v_task IN ('dead', 'failed') THEN
+    UPDATE public.payment_tasks
+    SET status = 'pending', retry_count = 0, next_attempt_at = now(),
+        error_message = NULL, redirect_url = NULL, pesapal_tracking_id = NULL,
+        callback_url = _callback_url
+    WHERE order_id = _order_id;
+  END IF;
+
+  RETURN public.get_payment_task_status(_order_id);
+END;
+$;
+
 REVOKE ALL ON FUNCTION public.set_order_payment_method(uuid, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_mark_order_paid(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.set_order_payment_method(uuid, text) TO anon, authenticated;
