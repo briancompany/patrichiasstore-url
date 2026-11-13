@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderFetchError } = await supabase
       .from("orders")
-      .select("id, total_amount, status")
+      .select("id, total_amount, status, payment_status")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (order.status === "confirmed" || order.status === "completed") {
+    if (order.payment_status === "paid" || order.status === "confirmed" || order.status === "completed") {
       return new Response(JSON.stringify({ error: "Order is already paid" }), {
         status: 409,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -133,11 +133,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const methodLabel = paymentMethod === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
+    const method = paymentMethod === "pesapal" ? "pesapal" : "mpesa";
+    const methodLabel = method === "pesapal" ? "Pesapal" : "M-Pesa Paybill";
+    const nextOrderStatus = ["new_school_setup", "processing", "ready", "out_for_delivery", "delivered", "completed"].includes(order.status)
+      ? order.status
+      : "pending";
     const { error: updateError } = await supabase
       .from("orders")
       .update({
-        status: "confirmed",
+        status: nextOrderStatus,
+        payment_method: method,
+        payment_status: "paid",
+        payment_reference: code,
+        payment_updated_at: new Date().toISOString(),
         notes: `Payment Method: ${methodLabel} | Ref: ${code}`,
       })
       .eq("id", orderId);
