@@ -225,6 +225,7 @@ export default function AdminOrders() {
     const updated = { ...order, payment_status: 'paid' as const, payment_reference: reference.trim() || null };
     setOrders((current) => current.map((item) => item.id === order.id ? updated : item));
     if (selectedOrder?.id === order.id) setSelectedOrder(updated);
+    await sendDeliveryEmail(order.id, { statusUpdate: 'payment_recorded' });
     toast.success('Payment recorded. Order fulfilment status was not changed.');
   };
 
