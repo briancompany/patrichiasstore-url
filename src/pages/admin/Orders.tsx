@@ -76,6 +76,9 @@ interface Order {
   delivery_location: string | null;
   status: string;
   total_amount: number;
+  payment_method: 'pesapal' | 'mpesa' | 'cash' | null;
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  payment_reference: string | null;
   notes: string | null;
   created_at: string;
   is_new_school: boolean;
@@ -206,6 +209,23 @@ export default function AdminOrders() {
       // their order stands.
       sendDeliveryEmail(orderId, { statusUpdate: status });
     }
+  };
+
+  const markOrderPaid = async (order: Order) => {
+    const reference = window.prompt('Payment reference (optional). For cash, leave blank:');
+    if (reference === null) return;
+    const { error } = await supabase.rpc('admin_mark_order_paid', {
+      _order_id: order.id,
+      _reference: reference.trim() || null,
+    });
+    if (error) {
+      toast.error(error.message || 'Could not record payment');
+      return;
+    }
+    const updated = { ...order, payment_status: 'paid' as const, payment_reference: reference.trim() || null };
+    setOrders((current) => current.map((item) => item.id === order.id ? updated : item));
+    if (selectedOrder?.id === order.id) setSelectedOrder(updated);
+    toast.success('Payment recorded. Order fulfilment status was not changed.');
   };
 
   const scheduleDelivery = async (orderId: string, date: Date) => {
@@ -615,6 +635,10 @@ export default function AdminOrders() {
                       <p className="font-semibold text-primary">
                         Total: Ksh {order.total_amount.toLocaleString()}
                       </p>
+                      <div className="flex items-center gap-2 flex-wrap text-sm">
+                        <Badge variant="outline">{order.payment_method === 'pesapal' ? 'Pesapal' : order.payment_method === 'mpesa' ? 'M-Pesa Paybill' : order.payment_method === 'cash' ? 'Cash (Pay later)' : 'Payment method not set'}</Badge>
+                        <Badge variant={order.payment_status === 'paid' ? 'default' : 'secondary'}>{order.payment_status === 'paid' ? 'Paid' : 'Payment pending'}</Badge>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -750,6 +774,20 @@ export default function AdminOrders() {
                                 </div>
                               </div>
 
+                              <div className="rounded-lg border p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-medium">Payment</span>
+                                  <Badge variant={selectedOrder.payment_status === 'paid' ? 'default' : 'secondary'}>
+                                    {selectedOrder.payment_status === 'paid' ? 'Paid' : 'Pending'}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">Method: {selectedOrder.payment_method === 'pesapal' ? 'Pesapal' : selectedOrder.payment_method === 'mpesa' ? 'M-Pesa Paybill' : selectedOrder.payment_method === 'cash' ? 'Cash (Pay later)' : 'Not recorded'}</p>
+                                {selectedOrder.payment_reference && <p className="text-sm text-muted-foreground">Reference: {selectedOrder.payment_reference}</p>}
+                                {selectedOrder.payment_status !== 'paid' && (
+                                  <Button size="sm" className="w-full" onClick={() => markOrderPaid(selectedOrder)}>Mark Payment Received</Button>
+                                )}
+                              </div>
+
                               <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
                                 <span className="font-semibold">Total</span>
                                 <span className="text-xl font-bold text-primary">
@@ -834,6 +872,12 @@ export default function AdminOrders() {
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Create School Profile
+                        </Button>
+                      )}
+
+                      {order.payment_status !== 'paid' && (
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => markOrderPaid(order)}>
+                          Mark Paid
                         </Button>
                       )}
 
