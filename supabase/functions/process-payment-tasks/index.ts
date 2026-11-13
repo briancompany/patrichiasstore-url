@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     for (const task of tasks) {
       const { data: order } = await supabase
         .from("orders")
-        .select("id, total_amount, customer_name, customer_phone, status")
+        .select("id, total_amount, customer_name, customer_phone, status, payment_method, payment_status")
         .eq("id", task.order_id)
         .maybeSingle();
 
@@ -90,9 +90,14 @@ Deno.serve(async (req) => {
         results[task.id] = "dead";
         continue;
       }
-      if (PAID.includes(order.status)) {
+      if (order.payment_status === "paid" || PAID.includes(order.status)) {
         await supabase.from("payment_tasks").update({ status: "completed", error_message: null }).eq("id", task.id);
         results[task.id] = "completed";
+        continue;
+      }
+      if (order.payment_method !== "pesapal") {
+        await supabase.from("payment_tasks").update({ status: "dead", error_message: "Order is not using Pesapal" }).eq("id", task.id);
+        results[task.id] = "cancelled";
         continue;
       }
 
@@ -133,10 +138,6 @@ Deno.serve(async (req) => {
           pesapal_tracking_id: submit.order_tracking_id ?? null,
           error_message: null,
         }).eq("id", task.id);
-        await supabase.from("orders").update({
-          status: order.status === "new_school_setup" ? "new_school_setup" : "payment_initiated",
-          notes: `Pesapal Tracking: ${submit.order_tracking_id}`,
-        }).eq("id", order.id);
         results[task.id] = "completed";
       } catch (e) {
         const message = (e as Error).message?.slice(0, 300) || "Unknown error";
