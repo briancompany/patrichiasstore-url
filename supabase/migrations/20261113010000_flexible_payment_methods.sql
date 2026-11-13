@@ -34,6 +34,16 @@ SET payment_status = 'paid',
     payment_updated_at = COALESCE(payment_updated_at, updated_at)
 WHERE status IN ('confirmed', 'completed') AND payment_status <> 'paid';
 
+-- Reuse the Pesapal IPN registration instead of registering it on every retry.
+CREATE TABLE IF NOT EXISTS public.payment_provider_settings (
+  provider text PRIMARY KEY CHECK (provider IN ('pesapal')),
+  ipn_id text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.payment_provider_settings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.payment_provider_settings FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.payment_provider_settings TO service_role;
+
 CREATE TABLE IF NOT EXISTS public.order_payment_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
