@@ -46,6 +46,7 @@ export default function Order() {
     if (navCart && navCart.length > 0) storageSet(STORAGE_KEYS.shopCart, navCart);
   }, [navCart]);
 
+  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<{
     product_id: string; product_name: string; requested: number; available: number;
@@ -162,6 +163,8 @@ export default function Order() {
           delivery_location: formData.deliveryType === 'delivery' ? formData.location : null,
           notes: formData.notes || null,
           total_amount: cartTotal,
+          payment_method: paymentMethod,
+          payment_status: 'pending',
           is_special_order: isSpecialOrder,
           special_order_note: isSpecialOrder ? finalSpecialOrderNote : null,
           is_new_school: Boolean(formData.school.trim() && !selectedSchoolId),
@@ -229,6 +232,7 @@ export default function Order() {
         customerName: formData.fullName,
         customerPhone: formData.phone,
         customerEmail: formData.email,
+        paymentMethod,
       };
 
       // Persist so refresh in published site doesn't lose the order/payment state
@@ -453,18 +457,16 @@ export default function Order() {
                 </CardContent>
               </Card>
 
-              {/* Payment Info */}
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium text-foreground">Secure Payment</p>
-                      <p className="text-sm text-muted-foreground">
-                        After submitting, you'll choose between Pesapal STK Push or M-Pesa Paybill to complete payment.
-                      </p>
-                    </div>
-                  </div>
+              {/* Payment Method */}
+              <Card>
+                <CardHeader><CardTitle>Choose Payment Method</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'pesapal' | 'mpesa' | 'cash')} className="space-y-3">
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="pesapal" /><CreditCard className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Pesapal</strong><span className="block text-sm text-muted-foreground">Pay securely online.</span></span></label>
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="mpesa" /><Phone className="h-5 w-5 text-primary" /><span className="flex-1"><strong>M-Pesa Paybill</strong><span className="block text-sm text-muted-foreground">Pay manually using the store Paybill.</span></span></label>
+                    <label className="flex items-center gap-3 rounded-lg border p-4 cursor-pointer"><RadioGroupItem value="cash" /><Store className="h-5 w-5 text-primary" /><span className="flex-1"><strong>Cash (Pay later)</strong><span className="block text-sm text-muted-foreground">Pay when visiting the shop or when receiving your order.</span></span></label>
+                  </RadioGroup>
+                  <p className="text-sm text-muted-foreground">Payment is not required for your order to be placed successfully. You can pay later if you choose Cash (Pay later).</p>
                 </CardContent>
               </Card>
 
@@ -483,13 +485,13 @@ export default function Order() {
                 ) : (
                   <>
                     <CreditCard className="h-4 w-4 mr-2" />
-                    Proceed to Payment
+                    Place Order
                   </>
                 )}
               </Button>
 
               <p className="text-sm text-muted-foreground text-center">
-                You'll be directed to our secure payment page to complete your order.
+                Your order will be saved first. You can pay now or later using your selected method.
               </p>
             </form>
           )}
