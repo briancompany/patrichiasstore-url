@@ -296,8 +296,10 @@ export default function Payment() {
 
   const handlePaymentMethodChange = async (value: string) => {
     const nextMethod = value as PaymentMethod;
-    setPaymentMethod(nextMethod);
-    if (!orderDetails) return;
+    if (!orderDetails) {
+      setPaymentMethod(nextMethod);
+      return;
+    }
     const { error } = await supabase.rpc('set_order_payment_method', {
       _order_id: orderDetails.orderId,
       _payment_method: nextMethod,
@@ -306,6 +308,7 @@ export default function Payment() {
       toast.error(error.message || 'Could not update payment method');
       return;
     }
+    setPaymentMethod(nextMethod);
     const updated = { ...orderDetails, paymentMethod: nextMethod };
     setOrderDetails(updated);
     storageSet(STORAGE_KEYS.pendingOrder, updated);
