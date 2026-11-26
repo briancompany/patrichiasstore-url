@@ -1,20 +1,20 @@
 -- Size-aware stock checks and deductions with backward-compatible product-level fallback.
-CREATE OR REPLACE FUNCTION public.has_complete_size_inventory(_type text, _sizes jsonb)
+CREATE OR REPLACE FUNCTION public.has_complete_size_inventory(_type public.uniform_type, _sizes jsonb)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT
-    EXISTS (SELECT 1 FROM public.pricing_chart pc WHERE pc.uniform_type = _type)
+    EXISTS (SELECT 1 FROM public.pricing_chart pc WHERE pc.uniform_type = _type::text)
     AND jsonb_typeof(COALESCE(_sizes, '[]'::jsonb)) = 'array'
     AND jsonb_array_length(COALESCE(_sizes, '[]'::jsonb)) > 0
     AND (SELECT count(*) FROM jsonb_array_elements(COALESCE(_sizes, '[]'::jsonb))) =
-        (SELECT count(*) FROM public.pricing_chart pc WHERE pc.uniform_type = _type)
+        (SELECT count(*) FROM public.pricing_chart pc WHERE pc.uniform_type = _type::text)
     AND NOT EXISTS (
       SELECT 1 FROM jsonb_array_elements(COALESCE(_sizes, '[]'::jsonb)) AS s(value)
       WHERE COALESCE(s.value->>'stock', '') !~ '^[0-9]+$'
     )
     AND NOT EXISTS (
       SELECT 1 FROM public.pricing_chart pc
-      WHERE pc.uniform_type = _type
+      WHERE pc.uniform_type = _type::text
         AND NOT EXISTS (
           SELECT 1 FROM jsonb_array_elements(COALESCE(_sizes, '[]'::jsonb)) AS s(value)
           WHERE s.value->>'size' = pc.size
@@ -125,7 +125,7 @@ BEGIN
     FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
     WHERE s.value->>'size' = r.size LIMIT 1;
     v_available := COALESCE(v_size_stock, 0);
-    IF NOT r.in_stock OR v_available < r.qty THEN
+    IF NOT COALESCE(r.in_stock, false) OR v_available < r.qty THEN
       v_unavailable := v_unavailable || jsonb_build_object(
         'product_id', r.product_id, 'product_name', r.product_name, 'size', r.size,
         'requested', r.qty, 'available', v_available);
