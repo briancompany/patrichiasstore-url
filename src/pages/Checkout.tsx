@@ -249,7 +249,7 @@ export default function Checkout() {
     const availability = await checkStockAvailability(
       cart
         .filter((item) => isUuid(item.product.id))
-        .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+        .map((item) => ({ product_id: item.product.id, size: item.selectedSize, quantity: item.quantity })),
     );
 
     if (!availability.ok) {
