@@ -285,3 +285,111 @@
 .animate-bounce-gentle {
   animation: bounce-gentle 2s ease-in-out infinite;
 }
+
+/* Patrichia premium storefront system — reference-led visual foundation */
+@layer base {
+  :root {
+    --background: 214 100% 97%;
+    --foreground: 224 68% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 68% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 68% 10%;
+    --secondary: 215 88% 93%;
+    --secondary-foreground: 224 68% 13%;
+    --muted: 214 65% 94%;
+    --muted-foreground: 220 18% 42%;
+    --border: 214 42% 88%;
+    --input: 214 42% 88%;
+    --radius: 1rem;
+    --sidebar-background: 224 68% 13%;
+    --sidebar-foreground: 46 55% 92%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 224 68% 13%;
+    --sidebar-accent: 224 60% 20%;
+    --sidebar-accent-foreground: 46 55% 92%;
+    --sidebar-border: 224 40% 25%;
+    --sidebar-ring: 46 65% 52%;
+  }
+
+  html {
+    background: hsl(214 100% 97%);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 91% / .72), transparent 34rem),
+      radial-gradient(ellipse at 96% 12%, hsl(224 100% 94% / .82), transparent 38rem),
+      linear-gradient(180deg, hsl(214 100% 97%) 0%, hsl(218 75% 97%) 48%, hsl(214 100% 98%) 100%);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .store-surface {
+    background: hsl(0 0% 100% / .88);
+    border: 1px solid hsl(214 55% 91% / .9);
+    box-shadow: 0 12px 34px hsl(222 55% 30% / .07), 0 2px 8px hsl(222 55% 30% / .035);
+    backdrop-filter: blur(14px);
+  }
+
+  .store-panel {
+    border: 1px solid hsl(214 55% 90%);
+    border-radius: 1.35rem;
+    background: linear-gradient(145deg, hsl(0 0% 100% / .98), hsl(214 100% 98% / .94));
+    box-shadow: 0 8px 26px hsl(222 55% 30% / .065);
+  }
+
+  .store-section {
+    border: 1px solid hsl(214 55% 91%);
+    border-radius: 1.75rem;
+    background: hsl(0 0% 100% / .64);
+    box-shadow: 0 8px 30px hsl(222 55% 30% / .04);
+  }
+
+  .store-heading {
+    color: hsl(224 68% 13%);
+    letter-spacing: -.035em;
+    font-weight: 800;
+  }
+
+  .store-button-primary {
+    border-radius: 999px;
+    background: linear-gradient(135deg, hsl(224 68% 16%), hsl(224 68% 25%));
+    color: white;
+    box-shadow: 0 7px 18px hsl(224 68% 16% / .2);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  }
+
+  .store-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px hsl(224 68% 16% / .24);
+    filter: brightness(1.06);
+  }
+
+  .store-button-gold {
+    border-radius: 999px;
+    background: linear-gradient(135deg, hsl(46 90% 58%), hsl(43 88% 49%));
+    color: hsl(224 68% 13%);
+    box-shadow: 0 7px 18px hsl(46 75% 45% / .2);
+    font-weight: 750;
+  }
+
+  .card-product {
+    border: 1px solid hsl(214 55% 90%);
+    border-radius: 1.25rem;
+    box-shadow: 0 7px 22px hsl(222 55% 30% / .075);
+    transition: transform .22s ease, box-shadow .22s ease;
+  }
+
+  .card-product:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px hsl(222 55% 30% / .12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
