@@ -174,23 +174,26 @@ export default function Checkout() {
       if (contactError) throw contactError;
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
-      const orderItems = cart.map((item) => ({
-        order_id: orderId,
-        product_id: isUuid(item.product.id) ? item.product.id : null,
-        product_name: item.product.name,
-        school_name: selectedSchool?.name || null,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-        printing_required: item.printingRequired,
-        logo_url: item.logoUrl,
-        color: item.color || null,
-        sample_image_url: item.sampleImageUrl || null,
-        shortfall_quantity: Math.min(
-          item.quantity,
-          shortfallMap.get(`${item.product.id}::${item.selectedSize}`) ?? 0,
-        ),
-      }));
+      const orderItems = cart.map((item) => {
+        const key = `${item.product.id}::${item.selectedSize}`;
+        const remainingShortfall = shortfallMap.get(key) ?? 0;
+        const itemShortfall = Math.min(item.quantity, remainingShortfall);
+        shortfallMap.set(key, Math.max(0, remainingShortfall - itemShortfall));
+        return {
+          order_id: orderId,
+          product_id: isUuid(item.product.id) ? item.product.id : null,
+          product_name: item.product.name,
+          school_name: selectedSchool?.name || null,
+          size: item.selectedSize,
+          quantity: item.quantity,
+          price_at_purchase: item.price,
+          printing_required: item.printingRequired,
+          logo_url: item.logoUrl,
+          color: item.color || null,
+          sample_image_url: item.sampleImageUrl || null,
+          shortfall_quantity: itemShortfall,
+        };
+      });
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
