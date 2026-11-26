@@ -264,11 +264,15 @@ export default function AdminProducts() {
                   </p>
                   <div className="mb-3 space-y-2">
                     <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
-                    <StockControl
-                      productId={product.id}
-                      quantity={product.stock_quantity}
-                      onChange={(qty) => updateStock(product.id, qty)}
-                    />
+                    {product.sizes.length > 0 && product.sizes.every((size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0) ? (
+                      <p className="text-xs text-muted-foreground">Stock is managed per size. Use Edit to adjust individual sizes.</p>
+                    ) : (
+                      <StockControl
+                        productId={product.id}
+                        quantity={product.stock_quantity}
+                        onChange={(qty) => updateStock(product.id, qty)}
+                      />
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" asChild className="flex-1">
