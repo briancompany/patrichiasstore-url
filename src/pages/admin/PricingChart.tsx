@@ -16,18 +16,41 @@ interface InvalidRow { row: number; reason: string; }
 
 const knownTypes = [
   { value: 'tshirt', label: 'T-Shirt' }, { value: 'shirts', label: 'Shirts' },
-  { value: 'tracksuit', label: 'Tracksuit' }, { value: 'socks', label: 'Socks' },
-  { value: 'shorts', label: 'Shorts' }, { value: 'trousers', label: 'Trousers' },
+  { value: 'shirts_york', label: 'Shirts – York' }, { value: 'shirts_normal_plain', label: 'Shirts – Normal (Plain)' },
+  { value: 't_shirts_kids', label: 'T-Shirts – Kids' }, { value: 't_shirts_adults', label: 'T-Shirts – Adults' },
+  { value: 'polo_shirts', label: 'Polo Shirts' }, { value: 'long_sleeve_shirts_plain', label: 'Long Sleeve Shirts – Plain' },
+  { value: 'long_sleeve_shirts_stripes', label: 'Long Sleeve Shirts – Stripes' },
+  { value: 'tracksuit', label: 'Tracksuits' }, { value: 'socks', label: 'Socks' },
+  { value: 'shorts', label: 'Shorts' }, { value: 'shorts_summit', label: 'Shorts – Summit' }, { value: 'shorts_grey', label: 'Shorts – Grey' },
+  { value: 'trousers', label: 'Trousers' }, { value: 'trousers_primary_school_summit', label: 'Trousers – Primary School – Summit' },
+  { value: 'trousers_primary_school_grey', label: 'Trousers – Primary School – Grey' },
+  { value: 'trousers_high_school_summit', label: 'Trousers – High School – Summit' },
+  { value: 'trousers_high_school_grey', label: 'Trousers – High School – Grey' },
   { value: 'skirt', label: 'Skirt' }, { value: 'sweater', label: 'Sweater' },
   { value: 'tie', label: 'Tie' }, { value: 'dress', label: 'Dress' },
-  { value: 'fleece_jacket', label: 'Fleece Jacket' }, { value: 'other', label: 'Other' },
+  { value: 'fleece_jacket', label: 'Fleeze' }, { value: 'blazers', label: 'Blazers' },
+  { value: 'lab_coats', label: 'Lab Coats' }, { value: 'scrubs', label: 'Scrubs' }, { value: 'other', label: 'Other' },
 ];
+
+const TYPE_ALIASES: Record<string, string> = {
+  fleeze: 'fleece_jacket',
+  jumper: 'fleece_jacket',
+  jumpers: 'fleece_jacket',
+  tracksuits: 'tracksuit',
+  'lab coat': 'lab_coats',
+  'lab coats': 'lab_coats',
+};
 
 const normaliseType = (value: string) => {
   const cleaned = value.trim().toLowerCase();
-  const known = knownTypes.find(t => t.value === cleaned || t.label.toLowerCase() === cleaned);
-  return known?.value || cleaned.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const normalised = cleaned.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const alias = TYPE_ALIASES[cleaned] || TYPE_ALIASES[normalised];
+  if (alias) return alias;
+  const known = knownTypes.find(t => t.value === cleaned || t.label.toLowerCase() === cleaned || t.value === normalised);
+  return known?.value || normalised;
 };
+
+const isSupportedType = (type: string) => knownTypes.some(t => t.value === type);
 
 function parseCsvLine(line: string): string[] {
   const cells: string[] = [];
@@ -68,6 +91,7 @@ export default function PricingChart() {
     const size = newEntry.size.trim();
     const price = Number(newEntry.price);
     if (!type || !size || !newEntry.price.trim()) { toast.error('Enter a product category, size and price'); return; }
+    if (!isSupportedType(type)) { toast.error('Choose a supported uniform category from the current price list'); return; }
     if (!Number.isSafeInteger(price) || price <= 0) { toast.error('Enter a valid whole-number price'); return; }
     const { error } = await supabase.from('pricing_chart').upsert({ uniform_type: type, size, price }, { onConflict: 'uniform_type,size' });
     if (error) { toast.error(error.message || 'Could not save price'); return; }
@@ -125,6 +149,9 @@ export default function PricingChart() {
       const row = index + 2;
       if (!type || !size || !priceRaw || !Number.isSafeInteger(price) || price <= 0) {
         invalid.push({ row, reason: 'Missing category/size or invalid positive whole-number price' }); return;
+      }
+      if (!isSupportedType(type)) {
+        invalid.push({ row, reason: `Unsupported uniform category: ${typeRaw}. Use a category from the supported list.` }); return;
       }
       const key = type + '::' + size.toLowerCase();
       if (seen.has(key)) { invalid.push({ row, reason: 'Duplicate category and size in this file' }); return; }

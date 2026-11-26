@@ -32,15 +32,31 @@ interface School {
 const uniformTypes = [
   { value: 'tshirt', label: 'T-Shirt' },
   { value: 'shirts', label: 'Shirts' },
-  { value: 'tracksuit', label: 'Tracksuit' },
+  { value: 'shirts_york', label: 'Shirts – York' },
+  { value: 'shirts_normal_plain', label: 'Shirts – Normal (Plain)' },
+  { value: 't_shirts_kids', label: 'T-Shirts – Kids' },
+  { value: 't_shirts_adults', label: 'T-Shirts – Adults' },
+  { value: 'polo_shirts', label: 'Polo Shirts' },
+  { value: 'long_sleeve_shirts_plain', label: 'Long Sleeve Shirts – Plain' },
+  { value: 'long_sleeve_shirts_stripes', label: 'Long Sleeve Shirts – Stripes' },
+  { value: 'tracksuit', label: 'Tracksuits' },
   { value: 'socks', label: 'Socks' },
   { value: 'shorts', label: 'Shorts' },
+  { value: 'shorts_summit', label: 'Shorts – Summit' },
+  { value: 'shorts_grey', label: 'Shorts – Grey' },
   { value: 'trousers', label: 'Trousers' },
+  { value: 'trousers_primary_school_summit', label: 'Trousers – Primary School – Summit' },
+  { value: 'trousers_primary_school_grey', label: 'Trousers – Primary School – Grey' },
+  { value: 'trousers_high_school_summit', label: 'Trousers – High School – Summit' },
+  { value: 'trousers_high_school_grey', label: 'Trousers – High School – Grey' },
   { value: 'skirt', label: 'Skirt' },
   { value: 'sweater', label: 'Sweater' },
   { value: 'tie', label: 'Tie' },
   { value: 'dress', label: 'Dress' },
-  { value: 'fleece_jacket', label: 'Fleece Jacket' },
+  { value: 'fleece_jacket', label: 'Fleeze' },
+  { value: 'blazers', label: 'Blazers' },
+  { value: 'lab_coats', label: 'Lab Coats' },
+  { value: 'scrubs', label: 'Scrubs' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -168,8 +184,20 @@ export default function ProductForm() {
     return urlData.publicUrl;
   };
 
+  const chartManagedTypes = new Set([
+    'shirts_york', 'shirts_normal_plain', 't_shirts_kids', 't_shirts_adults', 'polo_shirts',
+    'long_sleeve_shirts_plain', 'long_sleeve_shirts_stripes', 'shorts_summit', 'shorts_grey',
+    'tracksuit', 'fleece_jacket', 'blazers', 'trousers_primary_school_summit',
+    'trousers_primary_school_grey', 'trousers_high_school_summit', 'trousers_high_school_grey',
+    'socks', 'lab_coats', 'scrubs',
+  ]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (chartManagedTypes.has(formData.type) && !pricingByType[formData.type]?.length) {
+      toast.error('This uniform category has no imported size/price chart. Import its CSV chart before saving the product.');
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -198,7 +226,7 @@ export default function ProductForm() {
       const productData = {
         name: formData.name,
         school_id: formData.school_id || null,
-        type: formData.type as 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'tie' | 'dress' | 'fleece_jacket' | 'other',
+        type: formData.type as import('@/integrations/supabase/types').Database['public']['Enums']['uniform_type'],
         description: formData.description || null,
         colors: [...new Set(formData.colors.map((color) => color.trim().toLowerCase()).filter(Boolean))],
         image_url: imageUrl || null,
