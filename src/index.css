@@ -430,3 +430,142 @@
   .store-home-hero { min-height: 26rem; }
   .store-home-hero::after, .store-home-hero::before { bottom: -6rem; }
 }
+
+
+/* Website-wide finishing layer: customer pages, commerce flows and portals */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    letter-spacing: -.035em;
+    font-weight: 750;
+  }
+
+  ::selection {
+    color: hsl(224 68% 13%);
+    background: hsl(46 85% 68% / .7);
+  }
+}
+
+@layer components {
+  .store-page {
+    background:
+      radial-gradient(ellipse at 4% 5%, hsl(210 100% 92% / .48), transparent 32rem),
+      radial-gradient(ellipse at 96% 28%, hsl(224 100% 95% / .55), transparent 36rem);
+    padding-bottom: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .store-page > .container-shop,
+  .store-page > section > .container-shop {
+    position: relative;
+  }
+
+  .store-page :where(.rounded-lg, .rounded-xl, .rounded-2xl):is([class*="border"], [class*="shadow"]) {
+    border-color: hsl(214 48% 89% / .9);
+  }
+
+  .store-page :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    border-radius: .85rem;
+    border-color: hsl(214 42% 86%);
+    background-color: hsl(0 0% 100% / .92);
+  }
+
+  .store-page :where(input, textarea, select):focus-visible {
+    outline: 2px solid hsl(46 65% 52% / .7);
+    outline-offset: 2px;
+  }
+
+  .store-page :where(table) {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 1rem;
+  }
+
+  .store-page :where(th) {
+    background: hsl(214 80% 94%);
+    color: hsl(224 68% 16%);
+    font-weight: 700;
+  }
+
+  .store-footer {
+    background:
+      radial-gradient(ellipse at 80% 0%, hsl(224 55% 30% / .65), transparent 35rem),
+      linear-gradient(130deg, hsl(224 68% 11%), hsl(224 68% 17%));
+  }
+
+  .admin-workspace {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 90% / .75), transparent 34rem),
+      radial-gradient(ellipse at 95% 12%, hsl(224 100% 94% / .85), transparent 38rem),
+      linear-gradient(180deg, #edf5ff 0%, #f5f8ff 55%, #eaf3ff 100%);
+  }
+
+  .admin-content {
+    min-height: 100vh;
+  }
+
+  .admin-content :where(h1, h2, h3) {
+    color: hsl(224 68% 13%);
+  }
+
+  .admin-content :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    border-radius: .8rem;
+    border-color: hsl(214 42% 85%);
+    background: white;
+  }
+
+  .admin-content :where(table) {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: hsl(0 0% 100% / .88);
+  }
+
+  .admin-content :where(th) {
+    background: hsl(214 80% 94%);
+    color: hsl(224 68% 16%);
+    font-weight: 700;
+  }
+
+  .staff-workspace {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 90% / .72), transparent 34rem),
+      linear-gradient(180deg, #edf5ff, #f7f9ff);
+  }
+
+  .staff-content > header {
+    box-shadow: 0 8px 22px hsl(224 68% 13% / .12);
+  }
+
+  .store-button-primary,
+  .store-button-gold,
+  .store-page button,
+  .admin-content button {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: ease;
+  }
+
+  .store-page button:focus-visible,
+  .admin-content button:focus-visible,
+  .staff-content button:focus-visible {
+    outline: 2px solid hsl(46 75% 48%);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 640px) {
+  .store-page {
+    padding-bottom: 1.5rem;
+  }
+
+  .admin-content {
+    padding-left: .875rem;
+    padding-right: .875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-product:hover { transform: none; }
+}
