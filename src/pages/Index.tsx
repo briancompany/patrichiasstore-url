@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 import { Shirt, Activity, Footprints, CheckCircle, Truck, CreditCard, Quote } from 'lucide-react';
 import patrichiaImage from '@/assets/patrichia-optimized.webp';
 import { prefetchStoreData } from '@/hooks/useProductCache';
@@ -49,6 +51,8 @@ const features = [
 ];
 
 export default function Index() {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
   // Warm the product + school caches while the visitor reads the homepage,
   // so opening the Shop is instant on a first visit.
   useEffect(() => {
@@ -94,6 +98,27 @@ export default function Index() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="relative z-20 -mt-7 px-4" aria-label="Search products">
+        <form
+          className="store-surface mx-auto flex w-full max-w-3xl items-center gap-2 rounded-full p-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const query = searchQuery.trim();
+            navigate(query ? `/shop?search=${encodeURIComponent(query)}` : '/shop');
+          }}
+        >
+          <Search className="ml-3 h-5 w-5 shrink-0 text-primary" />
+          <Input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search school uniforms, sweaters, socks..."
+            className="h-12 border-0 bg-transparent shadow-none focus-visible:ring-0"
+            aria-label="Search products"
+          />
+          <Button type="submit" className="store-button-primary shrink-0 px-6">Search</Button>
+        </form>
       </section>
 
       <section className="py-8 bg-background" aria-label="Live flash sales">
