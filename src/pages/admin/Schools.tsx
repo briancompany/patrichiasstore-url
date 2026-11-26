@@ -512,6 +512,18 @@ export default function AdminSchools() {
         pricingMap[p.uniform_type].push({ size: p.size, price: p.price });
       });
 
+      const chartManagedTypes = new Set([
+        'shirts_york', 'shirts_normal_plain', 't_shirts_kids', 't_shirts_adults', 'polo_shirts',
+        'long_sleeve_shirts_plain', 'long_sleeve_shirts_stripes', 'shorts_summit', 'shorts_grey',
+        'tracksuit', 'fleece_jacket', 'blazers', 'trousers_primary_school_summit',
+        'trousers_primary_school_grey', 'trousers_high_school_summit', 'trousers_high_school_grey',
+        'socks', 'lab_coats', 'scrubs',
+      ]);
+      const missingCharts = selectedUniformTypes.filter((type) => chartManagedTypes.has(type) && !pricingMap[type]?.length);
+      if (missingCharts.length) {
+        throw new Error(`Missing size/price charts for: ${missingCharts.join(', ')}. Import the complete CSV first.`);
+      }
+
       const defaultSizes = [
         { size: 'S', price: 1000 },
         { size: 'M', price: 1000 },
