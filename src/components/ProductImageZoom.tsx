@@ -16,7 +16,7 @@ export function ProductImageZoom({ src, alt, className = '' }: ProductImageZoomP
           className={`group relative block w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${className}`}
           aria-label={`Enlarge product photo: ${alt}`}
         >
-          <img src={src} alt={alt} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+          <img src={src} alt={alt} className="h-full w-full object-contain bg-white p-3 transition-transform duration-500 group-hover:scale-[1.035]" loading="lazy" decoding="async" />
           <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-background/95 px-3 py-2 text-xs font-semibold text-foreground shadow-md">
             <ZoomIn className="h-4 w-4" /> Tap to zoom
           </span>
@@ -31,7 +31,7 @@ export function ProductImageZoom({ src, alt, className = '' }: ProductImageZoomP
           <img
             src={src}
             alt={alt}
-            className="max-h-full max-w-full select-none object-contain"
+            className="max-h-full max-w-full select-none object-contain bg-white"
             style={{ touchAction: 'pinch-zoom' }}
             draggable={false}
           />
