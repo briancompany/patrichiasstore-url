@@ -136,7 +136,7 @@ export default function Order() {
         return;
       }
       const shortfallByProduct = new Map(
-        stockCheck.unavailable.map((item) => [`${item.product_id}::${item.size}`, item]),
+        stockCheck.unavailable.map((item) => [`${item.product_id}::${item.size}`, Math.max(0, item.requested - item.available)]),
       );
       const isSpecialOrder = isChatbotSpecialOrder || stockCheck.unavailable.length > 0;
       const liveShortfallNote = stockCheck.unavailable.map((item) =>
@@ -185,20 +185,26 @@ export default function Order() {
       if (contactError) throw contactError;
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
-      const orderItems = cartItems.map((item) => ({
-        order_id: orderId,
-        product_id: isUuid(item.product.id) ? item.product.id : null,
-        product_name: item.product.name,
-        school_name: item.product.school || null,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-        printing_required: false,
-        logo_url: null,
-        color: null,
-        sample_image_url: null,
-        shortfall_quantity: Math.max(0, shortfallByProduct.has(`${item.product.id}::${item.selectedSize}`) ? item.quantity - (shortfallByProduct.get(`${item.product.id}::${item.selectedSize}`)?.available ?? 0) : 0),
-      }));
+      const orderItems = cartItems.map((item) => {
+        const key = `${item.product.id}::${item.selectedSize}`;
+        const remainingShortfall = shortfallByProduct.get(key) ?? 0;
+        const itemShortfall = Math.min(item.quantity, remainingShortfall);
+        shortfallByProduct.set(key, Math.max(0, remainingShortfall - itemShortfall));
+        return {
+          order_id: orderId,
+          product_id: isUuid(item.product.id) ? item.product.id : null,
+          product_name: item.product.name,
+          school_name: item.product.school || null,
+          size: item.selectedSize,
+          quantity: item.quantity,
+          price_at_purchase: item.price,
+          printing_required: false,
+          logo_url: null,
+          color: null,
+          sample_image_url: null,
+          shortfall_quantity: itemShortfall,
+        };
+      });
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
