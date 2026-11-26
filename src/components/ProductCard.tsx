@@ -166,7 +166,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
                   <button
                     type="button"
                     key={size.size}
-                    onClick={() => { setSelectedSize(size); setSizeDialogOpen(false); }}
+                    onClick={() => { setSelectedSize(size); setQuantity(1); setSizeDialogOpen(false); }}
                     className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors ${
                       selectedSize?.size === size.size
                         ? 'border-primary bg-primary/5'
