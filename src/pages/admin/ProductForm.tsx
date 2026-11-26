@@ -510,7 +510,7 @@ export default function ProductForm() {
                       <Input
                         value={size.size}
                         onChange={(e) => updateSize(index, 'size', e.target.value)}
-                        disabled={Boolean(pricingByType[formData.type]?.length)}
+                        disabled={Boolean(findChartForType(pricingByType, formData.type)?.length)}
                         placeholder="e.g., M"
                       />
                     </div>
@@ -520,7 +520,7 @@ export default function ProductForm() {
                         type="number"
                         value={size.price}
                         onChange={(e) => updateSize(index, 'price', parseInt(e.target.value) || 0)}
-                        disabled={Boolean(pricingByType[formData.type]?.length)}
+                        disabled={Boolean(findChartForType(pricingByType, formData.type)?.length)}
                         min={0}
                       />
                     </div>
