@@ -46,9 +46,25 @@ interface UniformType {
 
 const UNIFORM_TYPES: UniformType[] = [
   { type: 'tshirt', label: 'T-Shirt' },
-  { type: 'tracksuit', label: 'Tracksuit' },
+  { type: 'shirts_york', label: 'Shirts – York' },
+  { type: 'shirts_normal_plain', label: 'Shirts – Normal (Plain)' },
+  { type: 't_shirts_kids', label: 'T-Shirts – Kids' },
+  { type: 't_shirts_adults', label: 'T-Shirts – Adults' },
+  { type: 'polo_shirts', label: 'Polo Shirts' },
+  { type: 'long_sleeve_shirts_plain', label: 'Long Sleeve Shirts – Plain' },
+  { type: 'long_sleeve_shirts_stripes', label: 'Long Sleeve Shirts – Stripes' },
+  { type: 'tracksuit', label: 'Tracksuits' },
   { type: 'socks', label: 'Socks' },
-  { type: 'shorts', label: 'Shorts' },
+  { type: 'shorts_summit', label: 'Shorts – Summit' },
+  { type: 'shorts_grey', label: 'Shorts – Grey' },
+  { type: 'trousers_primary_school_summit', label: 'Trousers – Primary – Summit' },
+  { type: 'trousers_primary_school_grey', label: 'Trousers – Primary – Grey' },
+  { type: 'trousers_high_school_summit', label: 'Trousers – High School – Summit' },
+  { type: 'trousers_high_school_grey', label: 'Trousers – High School – Grey' },
+  { type: 'fleece_jacket', label: 'Fleeze' },
+  { type: 'blazers', label: 'Blazers' },
+  { type: 'lab_coats', label: 'Lab Coats' },
+  { type: 'scrubs', label: 'Scrubs' },
   { type: 'skirt', label: 'Skirt' },
   { type: 'sweater', label: 'Sweater' },
   { type: 'other', label: 'Other Uniform' },
@@ -503,17 +519,8 @@ export default function AdminSchools() {
         { size: 'XL', price: 1000 },
       ];
 
-      const typeNames: Record<string, string> = {
-        tshirt: 'T-Shirt',
-        tracksuit: 'Tracksuit',
-        socks: 'Socks',
-        shorts: 'Shorts',
-        skirt: 'Skirt',
-        sweater: 'Sweater',
-        other: 'Uniform',
-      };
-
-      type UniformTypeEnum = 'tshirt' | 'tracksuit' | 'socks' | 'shorts' | 'skirt' | 'sweater' | 'other';
+      const typeNames: Record<string, string> = Object.fromEntries(UNIFORM_TYPES.map((item) => [item.type, item.label]));
+      type UniformTypeEnum = import('@/integrations/supabase/types').Database['public']['Enums']['uniform_type'];
 
       const productsToInsert = selectedUniformTypes.map((type) => ({
         name: `${selectedSchoolForUniforms.name} ${typeNames[type] || 'Uniform'}`,
@@ -1093,15 +1100,7 @@ function GeneralProductsSection() {
     setDialogOpen(false);
   };
 
-  const typeLabels: Record<string, string> = {
-    tshirt: 'T-Shirt',
-    tracksuit: 'Tracksuit',
-    socks: 'Socks',
-    shorts: 'Shorts',
-    skirt: 'Skirt',
-    sweater: 'Sweater',
-    other: 'Other',
-  };
+  const typeLabels: Record<string, string> = Object.fromEntries(UNIFORM_TYPES.map((item) => [item.type, item.label]));
 
   if (isLoading) {
     return (
