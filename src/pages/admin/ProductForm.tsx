@@ -62,6 +62,26 @@ const uniformTypes = [
 
 const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
+const categoryKey = (value: string) => {
+  const key = value.trim().toLowerCase().replace(/[–—-]/g, ' ').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const aliases: Record<string, string> = {
+    dresses: 'dress', dress: 'dress',
+    tracksuits: 'tracksuit', track_suit: 'tracksuit',
+    jumpers: 'fleece_jacket', jumper: 'fleece_jacket', fleeze: 'fleece_jacket',
+    lab_coat: 'lab_coats', labcoat: 'lab_coats',
+    blazer: 'blazers',
+  };
+  if (aliases[key]) return aliases[key];
+  return key.endsWith('s') && !['shorts', 'trousers', 'scrubs'].includes(key) ? key.slice(0, -1) : key;
+};
+
+const findChartForType = (charts: Record<string, { size: string; price: number }[]>, type: string) => {
+  if (charts[type]?.length) return charts[type];
+  const target = categoryKey(type);
+  const match = Object.keys(charts).find((key) => categoryKey(key) === target && charts[key]?.length);
+  return match ? charts[match] : undefined;
+};
+
 export default function ProductForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -141,7 +161,7 @@ export default function ProductForm() {
   };
 
   useEffect(() => {
-    const chart = pricingByType[formData.type];
+    const chart = findChartForType(pricingByType, formData.type);
     if (!chart?.length || isLoading) return;
     setFormData((current) => ({
       ...current,
@@ -194,7 +214,7 @@ export default function ProductForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (chartManagedTypes.has(formData.type) && !pricingByType[formData.type]?.length) {
+    if (chartManagedTypes.has(formData.type) && !findChartForType(pricingByType, formData.type)?.length) {
       toast.error('This uniform category has no imported size/price chart. Import its CSV chart before saving the product.');
       return;
     }
@@ -210,13 +230,14 @@ export default function ProductForm() {
         }
       }
 
-      const savedSizes = pricingByType[formData.type]?.length
-        ? pricingByType[formData.type].map((entry) => ({
+      const activeChart = findChartForType(pricingByType, formData.type);
+      const savedSizes = activeChart?.length
+        ? activeChart.map((entry) => ({
             ...entry,
             stock: formData.sizes.find((size) => size.size === entry.size)?.stock,
           }))
         : formData.sizes;
-      const hasCompleteSizeStock = Boolean(pricingByType[formData.type]?.length) && savedSizes.length > 0 && savedSizes.every(
+      const hasCompleteSizeStock = Boolean(activeChart?.length) && savedSizes.length > 0 && savedSizes.every(
         (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
       );
       const totalSizeStock = hasCompleteSizeStock
@@ -472,7 +493,7 @@ export default function ProductForm() {
               </Button>
             </CardHeader>
             <CardContent>
-              {pricingByType[formData.type]?.length ? (
+              {findChartForType(pricingByType, formData.type)?.length ? (
                 <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
                   This product uses the shared {uniformTypes.find((type) => type.value === formData.type)?.label || formData.type} price chart. Size labels and prices update from Admin → Size & Price Charts. Stock remains specific to this product.
                 </p>
