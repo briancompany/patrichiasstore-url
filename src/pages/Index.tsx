@@ -65,39 +65,49 @@ export default function Index() {
 
     <Layout>
       {/* Hero Section */}
-      <section className="relative store-home-hero overflow-hidden mx-3 mt-3 rounded-[2rem] border border-white/70 shadow-xl">
-        <div className="absolute inset-0 z-0">
+      <section className="luxury-showroom-hero relative isolate flex min-h-[calc(100svh-5rem)] items-center overflow-hidden">
+        <div className="absolute inset-0 -z-20">
           <img
             src="/hero-uniforms.webp"
-            alt=""
+            alt="A curated display of Patrichia school uniforms"
             width={1600}
             height={900}
             fetchPriority="high"
             decoding="async"
-            className="w-full h-full object-cover opacity-40"
+            className="h-full w-full object-cover object-center"
           />
         </div>
-        <div className="relative z-10 container-shop py-16 md:py-24">
-          <div className="max-w-3xl mr-auto text-left space-y-5">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-white drop-shadow-lg animate-fade-in">
-              Patrichia Kavingo Uniform Store
+        <div className="luxury-showroom-overlay absolute inset-0 -z-10" aria-hidden="true" />
+        <div className="container-shop relative z-10 flex w-full items-center py-20 sm:py-24 lg:py-28">
+          <div className="max-w-2xl space-y-6 text-left sm:space-y-8">
+            <span className="gold-pill border-white/35 bg-white/10 text-white backdrop-blur-sm">Patrichia Kavingo · Nairobi</span>
+            <h1 className="max-w-xl text-4xl font-semibold leading-[1.08] tracking-tight text-white drop-shadow-lg sm:text-5xl lg:text-7xl">
+              Uniforms, <span className="text-[#f2cf70]">beautifully</span> chosen.
             </h1>
-            <p className="text-xl md:text-2xl text-white/95 drop-shadow animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              Affordable School Uniforms, Tracksuits & Clothes in Nairobi
+            <p className="max-w-xl text-base leading-relaxed text-white/90 drop-shadow sm:text-lg lg:text-xl">
+              Discover quality school uniforms, tracksuits and everyday essentials — thoughtfully selected for comfort, confidence and lasting value.
             </p>
-            <p className="text-base md:text-lg text-white/85 drop-shadow animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              We are located at Uhuru Market, Jogoo Road, Nairobi (Store F47) • Serving all Kenyan schools
+            <p className="text-sm font-medium tracking-wide text-white/75 sm:text-base">
+              Uhuru Market, Jogoo Road · Store F47 · Serving schools across Kenya
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Button asChild size="lg" className="store-button-gold text-lg px-8">
-                <Link to="/shop">Shop Now</Link>
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+              <Button asChild size="lg" className="store-button-gold min-h-14 rounded-full px-9 text-base sm:text-lg">
+                <Link to="/shop">Explore the collection</Link>
               </Button>
-              <Button asChild size="lg" className="store-button-primary text-lg px-8">
-                <Link to="/order">Place Order</Link>
+              <Button asChild size="lg" variant="outline" className="min-h-14 rounded-full border-white/65 bg-white/10 px-9 text-base text-white backdrop-blur-sm hover:bg-white hover:text-[#0b1736] sm:text-lg">
+                <Link to="/order">Place an order</Link>
               </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-white/25 pt-6 text-xs font-medium tracking-wide text-white/85 sm:text-sm">
+              <span>Quality you can trust</span>
+              <span className="hidden h-1 w-1 rounded-full bg-[#e6c36a] sm:block" />
+              <span>Pickup or delivery</span>
+              <span className="hidden h-1 w-1 rounded-full bg-[#e6c36a] sm:block" />
+              <span>Made for every school day</span>
             </div>
           </div>
         </div>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#f8f6f0] to-transparent" aria-hidden="true" />
       </section>
 
       <section className="relative z-20 -mt-7 px-4" aria-label="Search products">
