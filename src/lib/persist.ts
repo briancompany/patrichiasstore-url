@@ -28,6 +28,9 @@ export function storageSet(key: StorageKey, value: unknown): void {
   if (!canUseStorage()) return;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    if (key === STORAGE_KEYS.shopCart) {
+      window.dispatchEvent(new Event('ps-cart-updated'));
+    }
   } catch {
     // ignore (quota, privacy mode)
   }
@@ -37,6 +40,9 @@ export function storageRemove(key: StorageKey): void {
   if (!canUseStorage()) return;
   try {
     window.localStorage.removeItem(key);
+    if (key === STORAGE_KEYS.shopCart) {
+      window.dispatchEvent(new Event('ps-cart-updated'));
+    }
   } catch {
     // ignore
   }
