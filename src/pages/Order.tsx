@@ -49,7 +49,7 @@ export default function Order() {
   const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<{
-    product_id: string; product_name: string; requested: number; available: number;
+    product_id: string; product_name: string; size: string; requested: number; available: number;
   }[]>([]);
   const [showSpecialDialog, setShowSpecialDialog] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
@@ -136,11 +136,11 @@ export default function Order() {
         return;
       }
       const shortfallByProduct = new Map(
-        stockCheck.unavailable.map((item) => [item.product_id, item]),
+        stockCheck.unavailable.map((item) => [`${item.product_id}::${item.size}`, item]),
       );
       const isSpecialOrder = isChatbotSpecialOrder || stockCheck.unavailable.length > 0;
       const liveShortfallNote = stockCheck.unavailable.map((item) =>
-        `${item.product_name}: requested ${item.requested}, available ${item.available}`
+        `${item.product_name} (size ${item.size}): requested ${item.requested}, available ${item.available}`
       ).join('; ');
       const finalSpecialOrderNote = [
         chatbotSpecialOrderNote,
@@ -197,7 +197,7 @@ export default function Order() {
         logo_url: null,
         color: null,
         sample_image_url: null,
-        shortfall_quantity: Math.max(0, shortfallByProduct.has(item.product.id) ? item.quantity - (shortfallByProduct.get(item.product.id)?.available ?? 0) : 0),
+        shortfall_quantity: Math.max(0, shortfallByProduct.has(`${item.product.id}::${item.selectedSize}`) ? item.quantity - (shortfallByProduct.get(`${item.product.id}::${item.selectedSize}`)?.available ?? 0) : 0),
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
@@ -518,8 +518,8 @@ export default function Order() {
           <div className="space-y-3">
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
               {shortfalls.map((item) => (
-                <div key={item.product_id} className="text-sm">
-                  <p className="font-medium">{item.product_name}</p>
+                <div key={`${item.product_id}::${item.size}`} className="text-sm">
+                  <p className="font-medium">{item.product_name} · Size {item.size}</p>
                   <p className="text-muted-foreground">
                     {item.available === 0
                       ? `Out of stock · you asked for ${item.requested}`
