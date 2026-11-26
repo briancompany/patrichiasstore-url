@@ -74,13 +74,13 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-40 store-surface border-b border-white/70">
       <div className="container-shop">
-        <div className="flex min-w-0 items-center justify-between gap-2 min-h-16 py-2">
+        <div className="flex min-w-0 items-center justify-between gap-2 min-h-[4.5rem] py-2">
           {/* Logo */}
           <Link to="/" className="flex min-w-0 items-center gap-2">
             <img src={storeLogo} alt="Patrichia's Store" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
-            <span className="min-w-0 font-bold text-base sm:text-xl text-foreground">Patrichia's Store</span>
+            <span className="min-w-0 font-extrabold tracking-tight text-base sm:text-xl text-primary">Patrichia's Store</span>
           </Link>
 
           {/* Desktop Navigation */}
