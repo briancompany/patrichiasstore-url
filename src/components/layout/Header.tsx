@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Package, Download, Heart, Smartphone, Briefcase } from 'lucide-react';
+import { Menu, X, User, Package, Download, Heart, Smartphone, Briefcase, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -112,6 +112,10 @@ export function Header() {
                 <Download className="h-5 w-5" />
               </Button>
             )}
+
+            <Button variant="ghost" size="icon" asChild className="rounded-full text-primary hover:bg-primary/10" aria-label="Open cart">
+              <Link to="/order"><ShoppingCart className="h-5 w-5" /></Link>
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
