@@ -147,7 +147,7 @@ export default function PricingChart() {
     (acc[entry.uniform_type] ||= []).push(entry);
     return acc;
   }, {} as Record<string, PriceEntry[]>);
-  const labelFor = (type: string) => knownTypes.find(t => t.value === type)?.label || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const labelFor = (type: string) => knownTypes.find(t => t.value === type)?.label || type.replace(/_/g, ' ');
 
   return (
     <AdminLayout>
