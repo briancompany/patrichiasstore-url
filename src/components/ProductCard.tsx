@@ -46,7 +46,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   }, [product.id, chartSizes, product.sizes, selectedSize?.size]);
   const { toggle, isWishlisted } = useWishlist();
 
-  const hasCompleteSizeStock = effectiveSizes.length > 0 && effectiveSizes.every(
+  const hasCompleteSizeStock = chartSizes.length > 0 && product.sizes.length === chartSizes.length && chartSizes.every(
     (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
   );
   const selectedSizeStock = hasCompleteSizeStock ? selectedSize?.stock : product.stockQuantity;
