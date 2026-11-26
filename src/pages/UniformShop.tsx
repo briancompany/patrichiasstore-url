@@ -82,7 +82,7 @@ export default function UniformShop() {
   const { products: cachedGeneralProducts } = useGeneralProducts();
   const generalProducts = cachedGeneralProducts.map((p) => ({
     ...p,
-    sizes: p.sizes as ProductSize[],
+    sizes: pricingChart[p.type]?.length ? pricingChart[p.type] : (p.sizes as ProductSize[]),
   }));
 
   // Fetch school-specific products only when needed (not on mount)
@@ -137,7 +137,7 @@ export default function UniformShop() {
     } else {
       const mapped = (data || []).map((p) => ({
         ...p,
-        sizes: (p.sizes as unknown as ProductSize[]) || [],
+        sizes: pricingChart[p.type]?.length ? pricingChart[p.type] : ((p.sizes as unknown as ProductSize[]) || []),
       }));
       setProducts(mapped);
     }
