@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,9 @@ import { ProductImageZoom } from '@/components/ProductImageZoom';
 import { getStockInfo } from '@/lib/stock';
 import { Progress } from '@/components/ui/progress';
 import { FlashCountdown } from '@/components/FlashCountdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Ruler } from 'lucide-react';
+import { usePricingChart } from '@/hooks/useProductCache';
 import {
   flashDiscount,
   flashSoldPercent,
@@ -29,8 +32,16 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const pricingChart = usePricingChart();
+  const chartSizes = pricingChart[product.type] || [];
+  const effectiveSizes = chartSizes.length ? chartSizes : product.sizes;
+  const [selectedSize, setSelectedSize] = useState(effectiveSizes[0]);
+  const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    const current = effectiveSizes.find((size) => size.size === selectedSize?.size);
+    setSelectedSize(current || effectiveSizes[0]);
+  }, [product.id, chartSizes, product.sizes]);
   const { toggle, isWishlisted } = useWishlist();
 
   const stock = getStockInfo(product.stockQuantity, product.inStock);
@@ -39,7 +50,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const saleActive = !!sale && saleRemaining > 0;
   const maxQty = saleActive ? saleRemaining : Number.POSITIVE_INFINITY;
   const soldOut = !stock.orderable;
-  const unitPrice = saleActive ? sale!.sale_price : selectedSize.price;
+  const unitPrice = saleActive ? sale!.sale_price : (selectedSize?.price ?? effectiveSizes[0]?.price ?? 0);
   const totalPrice = unitPrice * quantity;
 
   const handleQuantityChange = (delta: number) => {
@@ -123,24 +134,46 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
           <BackInStockNotify productId={product.id} productName={product.name} />
         )}
 
-        {/* Size Selection */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">Size:</p>
-          <div className="flex flex-wrap gap-2">
-            {product.sizes.map((size) => (
-              <button
-                key={size.size}
-                onClick={() => setSelectedSize(size)}
-                className={`badge-size ${
-                  selectedSize.size === size.size
-                    ? 'badge-size-active'
-                    : 'badge-size-inactive'
-                }`}
-              >
-                {size.size}
-              </button>
-            ))}
+        {/* Shared size and price chart */}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Selected size</p>
+            <p className="font-semibold">{selectedSize?.size || 'Choose a size'}</p>
+            <p className="text-sm font-bold text-foreground">KSh {(selectedSize?.price ?? 0).toLocaleString('en-KE')}</p>
           </div>
+          <Dialog open={sizeDialogOpen} onOpenChange={setSizeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="shrink-0 gap-2">
+                <Ruler className="h-4 w-4" />
+                View sizes & prices
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{product.name} — Sizes & prices</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[55vh] space-y-2 overflow-y-auto">
+                {effectiveSizes.map((size) => (
+                  <button
+                    type="button"
+                    key={size.size}
+                    onClick={() => { setSelectedSize(size); setSizeDialogOpen(false); }}
+                    className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors ${
+                      selectedSize?.size === size.size
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted'
+                    }`}
+                  >
+                    <span className="font-medium">{size.size}</span>
+                    <span className="font-bold">KSh {Number(size.price).toLocaleString('en-KE')}</span>
+                  </button>
+                ))}
+                {effectiveSizes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Size options are not available yet. Please contact the store.</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Quantity */}
