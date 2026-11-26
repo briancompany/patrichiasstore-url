@@ -88,7 +88,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<
-    { product_id: string; product_name: string; requested: number; available: number }[]
+    { product_id: string; product_name: string; size: string; requested: number; available: number }[]
   >([]);
   const [showSpecialDialog, setShowSpecialDialog] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
@@ -123,17 +123,17 @@ export default function Checkout() {
   };
 
   const placeOrder = async (
-    shortfallList: { product_id: string; product_name: string; requested: number; available: number }[],
+    shortfallList: { product_id: string; product_name: string; size: string; requested: number; available: number }[],
     note: string,
   ) => {
     setIsSubmitting(true);
     try {
       const isSpecialOrder = shortfallList.length > 0;
       const shortfallMap = new Map(
-        shortfallList.map((s) => [s.product_id, Math.max(0, s.requested - s.available)]),
+        shortfallList.map((s) => [`${s.product_id}::${s.size}`, Math.max(0, s.requested - s.available)]),
       );
       const shortfallSummary = shortfallList
-        .map((s) => `${s.product_name}: wants ${s.requested}, available ${s.available}`)
+        .map((s) => `${s.product_name} (size ${s.size}): wants ${s.requested}, available ${s.available}`)
         .join('; ');
 
       // Create the order with new school flag (generate UUID client-side to avoid relying on returned rows)
@@ -188,7 +188,7 @@ export default function Checkout() {
         sample_image_url: item.sampleImageUrl || null,
         shortfall_quantity: Math.min(
           item.quantity,
-          shortfallMap.get(item.product.id) ?? 0,
+          shortfallMap.get(`${item.product.id}::${item.selectedSize}`) ?? 0,
         ),
       }));
 
@@ -562,8 +562,8 @@ export default function Checkout() {
           <div className="space-y-3">
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
               {shortfalls.map((s) => (
-                <div key={s.product_id} className="text-sm">
-                  <p className="font-medium">{s.product_name}</p>
+                <div key={`${s.product_id}::${s.size}`} className="text-sm">
+                  <p className="font-medium">{s.product_name} · Size {s.size}</p>
                   <p className="text-muted-foreground">
                     {s.available === 0
                       ? `Out of stock · you asked for ${s.requested}`
