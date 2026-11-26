@@ -69,10 +69,7 @@ BEGIN
     v_complete_size_stock := false;
 
     SELECT p.stock_quantity, p.in_stock, p.name,
-      COALESCE((
-        SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
-        FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
-      ), false),
+      public.has_complete_size_inventory(p.type, p.sizes),
       (
         SELECT CASE WHEN COALESCE(s.value->>'stock', '') ~ '^[0-9]+$'
                     THEN (s.value->>'stock')::int ELSE NULL END
@@ -150,16 +147,13 @@ BEGIN
   FOR r IN
     SELECT oi.product_id, oi.size, SUM(oi.quantity)::int AS qty,
            MIN(oi.product_name) AS product_name, p.stock_quantity, p.in_stock,
-           p.sizes
+           p.sizes, p.type
     FROM public.order_items oi
     JOIN public.products p ON p.id = oi.product_id
     WHERE oi.order_id = _order_id AND oi.product_id IS NOT NULL
-    GROUP BY oi.product_id, oi.size, p.stock_quantity, p.in_stock, p.sizes
+    GROUP BY oi.product_id, oi.size, p.stock_quantity, p.in_stock, p.sizes, p.type
   LOOP
-    SELECT COALESCE((
-      SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
-      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
-    ), false),
+    SELECT public.has_complete_size_inventory(r.type, r.sizes),
     (
       SELECT CASE WHEN COALESCE(s.value->>'stock', '') ~ '^[0-9]+$'
                   THEN (s.value->>'stock')::int ELSE NULL END
@@ -191,16 +185,13 @@ BEGIN
   -- Deduct size stock only when every size on that product has an explicit
   -- numeric stock value. Otherwise preserve the legacy product-level behavior.
   FOR r IN
-    SELECT oi.product_id, oi.size, SUM(oi.quantity)::int AS qty, p.sizes
+    SELECT oi.product_id, oi.size, SUM(oi.quantity)::int AS qty, p.sizes, p.type
     FROM public.order_items oi
     JOIN public.products p ON p.id = oi.product_id
     WHERE oi.order_id = _order_id AND oi.product_id IS NOT NULL
-    GROUP BY oi.product_id, oi.size, p.sizes
+    GROUP BY oi.product_id, oi.size, p.sizes, p.type
   LOOP
-    SELECT COALESCE((
-      SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
-      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
-    ), false) INTO v_complete_size_stock;
+    SELECT public.has_complete_size_inventory(r.type, r.sizes) INTO v_complete_size_stock;
 
     IF v_complete_size_stock THEN
       UPDATE public.products p
