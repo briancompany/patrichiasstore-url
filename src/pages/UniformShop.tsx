@@ -82,7 +82,9 @@ export default function UniformShop() {
   const { products: cachedGeneralProducts } = useGeneralProducts();
   const generalProducts = cachedGeneralProducts.map((p) => ({
     ...p,
-    sizes: pricingChart[p.type]?.length ? pricingChart[p.type] : (p.sizes as ProductSize[]),
+    sizes: pricingChart[p.type]?.length
+      ? pricingChart[p.type].map((entry) => ({ ...entry, stock: (p.sizes as ProductSize[]).find((size) => size.size === entry.size)?.stock }))
+      : (p.sizes as ProductSize[]),
   }));
 
   useEffect(() => {
@@ -147,7 +149,9 @@ export default function UniformShop() {
     } else {
       const mapped = (data || []).map((p) => ({
         ...p,
-        sizes: pricingChart[p.type]?.length ? pricingChart[p.type] : ((p.sizes as unknown as ProductSize[]) || []),
+        sizes: pricingChart[p.type]?.length
+          ? pricingChart[p.type].map((entry) => ({ ...entry, stock: ((p.sizes as unknown as ProductSize[]) || []).find((size) => size.size === entry.size)?.stock }))
+          : ((p.sizes as unknown as ProductSize[]) || []),
       }));
       setProducts(mapped);
     }
