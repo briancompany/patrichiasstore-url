@@ -52,7 +52,7 @@ export interface StockCheckResult {
 
 /** Server-side availability check right before payment. */
 export async function checkStockAvailability(
-  items: { product_id: string; quantity: number }[],
+  items: { product_id: string; size: string; quantity: number }[],
 ): Promise<StockCheckResult> {
   if (items.length === 0) return { ok: true, unavailable: [] };
   const { data, error } = await supabase.rpc('check_stock_availability', {
