@@ -175,7 +175,9 @@ export default function Checkout() {
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
       const orderItems = cart.map((item) => {
-        const key = `${item.product.id}::${item.selectedSize}`;
+        const sizeKey = `${item.product.id}::${item.selectedSize}`;
+        const fallbackKey = `${item.product.id}::All sizes`;
+        const key = shortfallMap.has(sizeKey) ? sizeKey : fallbackKey;
         const remainingShortfall = shortfallMap.get(key) ?? 0;
         const itemShortfall = Math.min(item.quantity, remainingShortfall);
         shortfallMap.set(key, Math.max(0, remainingShortfall - itemShortfall));
