@@ -20,7 +20,7 @@ AS $$
         (SELECT count(*) FROM public.pricing_chart pc WHERE pc.uniform_type = _type)
     AND NOT EXISTS (
       SELECT 1 FROM jsonb_array_elements(COALESCE(_sizes, '[]'::jsonb)) AS s(value)
-      WHERE COALESCE(s.value->>'stock', '') !~ '^[0-9]+$
+      WHERE COALESCE(s.value->>'stock', '') !~ '^[0-9]+$'
     )
     AND NOT EXISTS (
       SELECT 1 FROM public.pricing_chart pc
@@ -28,7 +28,7 @@ AS $$
         AND NOT EXISTS (
           SELECT 1 FROM jsonb_array_elements(COALESCE(_sizes, '[]'::jsonb)) AS s(value)
           WHERE s.value->>'size' = pc.size
-            AND COALESCE(s.value->>'stock', '') ~ '^[0-9]+$
+            AND COALESCE(s.value->>'stock', '') ~ '^[0-9]+$'
         )
     );
 $$;
