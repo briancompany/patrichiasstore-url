@@ -319,7 +319,7 @@ export default function ProductForm() {
                       ))}
                       {Object.keys(pricingByType).filter((value) => !uniformTypes.some((type) => type.value === value)).map((value) => (
                         <SelectItem key={value} value={value}>
-                          {value.replace(/_/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase())}
+                          {value.replace(/_/g, ' ')}
                         </SelectItem>
                       ))}
                     </SelectContent>
