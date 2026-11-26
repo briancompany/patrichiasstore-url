@@ -14,7 +14,7 @@ interface GeneralProduct {
   description: string | null;
   image_url: string | null;
   type: string;
-  sizes: { size: string; price: number }[];
+  sizes: { size: string; price: number; stock?: number }[];
   in_stock: boolean;
   stock_quantity: number;
   school_id: string | null;
@@ -122,7 +122,7 @@ export function useGeneralProducts() {
       return data.map((p) => ({
         ...p,
         stock_quantity: Number(p.stock_quantity ?? 0),
-        sizes: Array.isArray(p.sizes) ? (p.sizes as { size: string; price: number }[]) : [],
+        sizes: Array.isArray(p.sizes) ? (p.sizes as { size: string; price: number; stock?: number }[]) : [],
       }));
     },
     (v) => { _generalProducts = v; },
