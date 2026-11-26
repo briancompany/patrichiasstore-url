@@ -60,7 +60,7 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full mx-auto min-h-screen bg-muted md:flex">
+    <div className="staff-workspace w-full min-w-0 max-w-full mx-auto min-h-screen md:flex">
       {/* Mobile drawer backdrop */}
       {open && (
         <div
@@ -122,7 +122,7 @@ export function StaffLayout({ children, title }: { children: ReactNode; title?: 
       </aside>
 
       {/* Content column */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="staff-content flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-30 bg-primary/95 backdrop-blur text-primary-foreground border-b-2 border-gold">
           <div className="px-4 py-3 flex items-center gap-3">
             <button

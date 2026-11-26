@@ -86,8 +86,8 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   };
 
   return (
-    <div className={`card-product overflow-hidden rounded-2xl border border-border/60 shadow-sm ${product.id.charCodeAt(product.id.length - 1) % 2 === 0 ? 'bg-emerald-50' : 'bg-sky-50'}`}>
-      <div className="aspect-square bg-white relative overflow-hidden">
+    <div className={`card-product overflow-hidden rounded-[1.35rem] border border-white/80 shadow-md ${product.id.charCodeAt(product.id.length - 1) % 2 === 0 ? 'bg-emerald-50/90' : 'bg-sky-50/90'}`}>
+      <div className="aspect-square bg-white relative overflow-hidden rounded-t-[1.3rem] p-1">
         <WishlistButton
           isWishlisted={isWishlisted(product.id)}
           onToggle={() => toggle(product.id)}
@@ -114,7 +114,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         )}
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-medium text-secondary bg-secondary/10 px-2 py-1 rounded-full">
             {product.school}

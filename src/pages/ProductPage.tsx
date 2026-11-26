@@ -232,7 +232,7 @@ export default function ProductPage() {
 
   return (
     <Layout>
-      <div className="w-full min-w-0 max-w-3xl mx-auto py-10 px-4">
+      <div className="w-full min-w-0 max-w-6xl mx-auto py-8 md:py-10 px-4 sm:px-6">
         <AdBanner placement="product" className="mb-4" />
         <Button variant="ghost" size="sm" asChild className="mb-4">
           <Link to={product.schools ? `/uniform-shop/school/${slugify(product.schools.name)}` : '/shop'}>
@@ -241,8 +241,8 @@ export default function ProductPage() {
           </Link>
         </Button>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
+        <div className="grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)] gap-5 md:gap-8 items-start">
+          <div className="store-panel p-2 sm:p-3">
             {product.image_url ? (
               <ProductImageZoom src={product.image_url} alt={product.name} className="aspect-square" />
             ) : (
@@ -252,7 +252,7 @@ export default function ProductPage() {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="store-panel p-5 sm:p-7 space-y-5">
             {product.schools && (
               <p className="text-sm text-muted-foreground font-medium">{product.schools.name}</p>
             )}
@@ -334,7 +334,7 @@ export default function ProductPage() {
               </div>
             </div>
 
-            <Card className="border-primary/20 mt-4">
+            <Card className="border-blue-100 mt-4 rounded-2xl shadow-sm">
               <CardContent className="py-4 space-y-3">
                 <p className="text-sm font-medium">Available in-store & online — Uhuru Market, Store F47, Jogoo Road</p>
                 <div className="flex flex-col gap-2">

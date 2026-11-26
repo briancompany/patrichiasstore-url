@@ -14,7 +14,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="w-full min-w-0 max-w-full mx-auto min-h-screen flex flex-col">
       <FlashSaleAlert />
       <Header />
-      <main className="w-full min-w-0 flex-1">{children}</main>
+      <main className="store-page w-full min-w-0 flex-1">{children}</main>
       <Footer />
       <WhatsAppButton />
       <ChatAssistant />

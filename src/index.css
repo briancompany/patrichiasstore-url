@@ -285,3 +285,287 @@
 .animate-bounce-gentle {
   animation: bounce-gentle 2s ease-in-out infinite;
 }
+
+/* Patrichia premium storefront system — reference-led visual foundation */
+@layer base {
+  :root {
+    --background: 214 100% 97%;
+    --foreground: 224 68% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 68% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 68% 10%;
+    --secondary: 215 88% 93%;
+    --secondary-foreground: 224 68% 13%;
+    --muted: 214 65% 94%;
+    --muted-foreground: 220 18% 42%;
+    --border: 214 42% 88%;
+    --input: 214 42% 88%;
+    --radius: 1rem;
+    --sidebar-background: 224 68% 13%;
+    --sidebar-foreground: 46 55% 92%;
+    --sidebar-primary: 46 65% 52%;
+    --sidebar-primary-foreground: 224 68% 13%;
+    --sidebar-accent: 224 60% 20%;
+    --sidebar-accent-foreground: 46 55% 92%;
+    --sidebar-border: 224 40% 25%;
+    --sidebar-ring: 46 65% 52%;
+  }
+
+  html {
+    background: hsl(214 100% 97%);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 91% / .72), transparent 34rem),
+      radial-gradient(ellipse at 96% 12%, hsl(224 100% 94% / .82), transparent 38rem),
+      linear-gradient(180deg, hsl(214 100% 97%) 0%, hsl(218 75% 97%) 48%, hsl(214 100% 98%) 100%);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  .store-surface {
+    background: hsl(0 0% 100% / .88);
+    border: 1px solid hsl(214 55% 91% / .9);
+    box-shadow: 0 12px 34px hsl(222 55% 30% / .07), 0 2px 8px hsl(222 55% 30% / .035);
+    backdrop-filter: blur(14px);
+  }
+
+  .store-panel {
+    border: 1px solid hsl(214 55% 90%);
+    border-radius: 1.35rem;
+    background: linear-gradient(145deg, hsl(0 0% 100% / .98), hsl(214 100% 98% / .94));
+    box-shadow: 0 8px 26px hsl(222 55% 30% / .065);
+  }
+
+  .store-section {
+    border: 1px solid hsl(214 55% 91%);
+    border-radius: 1.75rem;
+    background: hsl(0 0% 100% / .64);
+    box-shadow: 0 8px 30px hsl(222 55% 30% / .04);
+  }
+
+  .store-heading {
+    color: hsl(224 68% 13%);
+    letter-spacing: -.035em;
+    font-weight: 800;
+  }
+
+  .store-button-primary {
+    border-radius: 999px;
+    background: linear-gradient(135deg, hsl(224 68% 16%), hsl(224 68% 25%));
+    color: white;
+    box-shadow: 0 7px 18px hsl(224 68% 16% / .2);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  }
+
+  .store-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px hsl(224 68% 16% / .24);
+    filter: brightness(1.06);
+  }
+
+  .store-button-gold {
+    border-radius: 999px;
+    background: linear-gradient(135deg, hsl(46 90% 58%), hsl(43 88% 49%));
+    color: hsl(224 68% 13%);
+    box-shadow: 0 7px 18px hsl(46 75% 45% / .2);
+    font-weight: 750;
+  }
+
+  .card-product {
+    border: 1px solid hsl(214 55% 90%);
+    border-radius: 1.25rem;
+    box-shadow: 0 7px 22px hsl(222 55% 30% / .075);
+    transition: transform .22s ease, box-shadow .22s ease;
+  }
+
+  .card-product:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px hsl(222 55% 30% / .12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+
+.store-home-hero {
+  background:
+    radial-gradient(ellipse at 82% 18%, hsl(46 95% 60% / .26), transparent 28rem),
+    linear-gradient(105deg, hsl(224 68% 12% / .98) 0%, hsl(224 68% 18% / .88) 54%, hsl(214 74% 42% / .48) 100%);
+  isolation: isolate;
+}
+.store-home-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -8%;
+  right: -8%;
+  bottom: -5.5rem;
+  height: 8rem;
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(100deg, hsl(46 92% 57%), hsl(48 100% 72%));
+  transform: rotate(-2deg);
+  opacity: .95;
+}
+.store-home-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -8%;
+  right: -8%;
+  bottom: -6.5rem;
+  height: 8rem;
+  border-radius: 50% 50% 0 0;
+  background: hsl(0 0% 100% / .9);
+  transform: rotate(-2deg);
+}
+@media (max-width: 640px) {
+  .store-home-hero { min-height: 26rem; }
+  .store-home-hero::after, .store-home-hero::before { bottom: -6rem; }
+}
+
+
+/* Website-wide finishing layer: customer pages, commerce flows and portals */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    letter-spacing: -.035em;
+    font-weight: 750;
+  }
+
+  ::selection {
+    color: hsl(224 68% 13%);
+    background: hsl(46 85% 68% / .7);
+  }
+}
+
+@layer components {
+  .store-page {
+    background:
+      radial-gradient(ellipse at 4% 5%, hsl(210 100% 92% / .48), transparent 32rem),
+      radial-gradient(ellipse at 96% 28%, hsl(224 100% 95% / .55), transparent 36rem);
+    padding-bottom: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .store-page > .container-shop,
+  .store-page > section > .container-shop {
+    position: relative;
+  }
+
+  .store-page :where(.rounded-lg, .rounded-xl, .rounded-2xl):is([class*="border"], [class*="shadow"]) {
+    border-color: hsl(214 48% 89% / .9);
+  }
+
+  .store-page :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    border-radius: .85rem;
+    border-color: hsl(214 42% 86%);
+    background-color: hsl(0 0% 100% / .92);
+  }
+
+  .store-page :where(input, textarea, select):focus-visible {
+    outline: 2px solid hsl(46 65% 52% / .7);
+    outline-offset: 2px;
+  }
+
+  .store-page :where(table) {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 1rem;
+  }
+
+  .store-page :where(th) {
+    background: hsl(214 80% 94%);
+    color: hsl(224 68% 16%);
+    font-weight: 700;
+  }
+
+  .store-footer {
+    background:
+      radial-gradient(ellipse at 80% 0%, hsl(224 55% 30% / .65), transparent 35rem),
+      linear-gradient(130deg, hsl(224 68% 11%), hsl(224 68% 17%));
+  }
+
+  .admin-workspace {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 90% / .75), transparent 34rem),
+      radial-gradient(ellipse at 95% 12%, hsl(224 100% 94% / .85), transparent 38rem),
+      linear-gradient(180deg, #edf5ff 0%, #f5f8ff 55%, #eaf3ff 100%);
+  }
+
+  .admin-content {
+    min-height: 100vh;
+  }
+
+  .admin-content :where(h1, h2, h3) {
+    color: hsl(224 68% 13%);
+  }
+
+  .admin-content :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    border-radius: .8rem;
+    border-color: hsl(214 42% 85%);
+    background: white;
+  }
+
+  .admin-content :where(table) {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: hsl(0 0% 100% / .88);
+  }
+
+  .admin-content :where(th) {
+    background: hsl(214 80% 94%);
+    color: hsl(224 68% 16%);
+    font-weight: 700;
+  }
+
+  .staff-workspace {
+    background:
+      radial-gradient(ellipse at 8% 0%, hsl(210 100% 90% / .72), transparent 34rem),
+      linear-gradient(180deg, #edf5ff, #f7f9ff);
+  }
+
+  .staff-content > header {
+    box-shadow: 0 8px 22px hsl(224 68% 13% / .12);
+  }
+
+  .store-button-primary,
+  .store-button-gold,
+  .store-page button,
+  .admin-content button {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: ease;
+  }
+
+  .store-page button:focus-visible,
+  .admin-content button:focus-visible,
+  .staff-content button:focus-visible {
+    outline: 2px solid hsl(46 75% 48%);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 640px) {
+  .store-page {
+    padding-bottom: 1.5rem;
+  }
+
+  .admin-content {
+    padding-left: .875rem;
+    padding-right: .875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-product:hover { transform: none; }
+}

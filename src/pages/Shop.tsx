@@ -18,6 +18,7 @@ import { STORAGE_KEYS, storageGet, storageRemove, storageSet } from '@/lib/persi
 import { useGeneralProducts } from '@/hooks/useProductCache';
 import { ProductGridSkeleton } from '@/components/ProductSkeleton';
 import { ShoppingCart, X, Search, ChevronRight, Package, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { useFlashSales } from '@/lib/flash-sales';
 
@@ -25,6 +26,7 @@ export default function Shop() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('type') || 'all');
+  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('search') || '');
   const [cart, setCart] = useState<CartItem[]>(() => storageGet<CartItem[]>(STORAGE_KEYS.shopCart) ?? []);
   const [showCart, setShowCart] = useState(false);
   // Shared cached hooks — no duplicate API calls
@@ -49,9 +51,11 @@ export default function Shop() {
   const filteredProducts = useMemo(() => {
     return generalProducts.filter((product) => {
       const typeMatch = selectedType === 'all' || product.type === selectedType;
-      return typeMatch;
+      const query = searchQuery.trim().toLowerCase();
+      const searchMatch = !query || [product.name, product.school, product.type, product.description || ''].some((value) => value.toLowerCase().includes(query));
+      return typeMatch && searchMatch;
     });
-  }, [generalProducts, selectedType]);
+  }, [generalProducts, selectedType, searchQuery]);
 
   const handleAddToCart = (product: Product, size: string, quantity: number, price: number) => {
     const existingIndex = cart.findIndex(
@@ -138,8 +142,20 @@ export default function Shop() {
           </CardContent>
         </Card>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        {/* Search and filters */}
+        <div className="store-panel mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search products..."
+              className="h-11 rounded-full border-blue-100 bg-white pl-10"
+              aria-label="Search products"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Select Type" />
@@ -153,6 +169,7 @@ export default function Shop() {
               ))}
             </SelectContent>
           </Select>
+          </div>
 
           {cart.length > 0 && (
             <Button

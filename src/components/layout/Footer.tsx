@@ -6,7 +6,7 @@ import developerImage from '@/assets/developer-brian.webp';
 
 export function Footer() {
   return (
-    <footer className="bg-primary text-primary-foreground mt-auto">
+    <footer className="store-footer bg-primary text-primary-foreground mt-auto border-t-4 border-gold">
       <div className="container-shop py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
