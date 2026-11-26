@@ -61,7 +61,7 @@ export default function Index() {
 
     <Layout>
       {/* Hero Section */}
-      <section className="relative bg-primary overflow-hidden">
+      <section className="relative store-home-hero overflow-hidden mx-3 mt-3 rounded-[2rem] border border-white/70 shadow-xl">
         <div className="absolute inset-0 z-0">
           <img
             src="/hero-uniforms.webp"
@@ -70,25 +70,25 @@ export default function Index() {
             height={900}
             fetchPriority="high"
             decoding="async"
-            className="w-full h-full object-cover opacity-20"
+            className="w-full h-full object-cover opacity-40"
           />
         </div>
         <div className="relative z-10 container-shop py-16 md:py-24">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-primary-foreground animate-fade-in">
+          <div className="max-w-3xl mr-auto text-left space-y-5">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight text-white drop-shadow-lg animate-fade-in">
               Patrichia Kavingo Uniform Store
             </h1>
-            <p className="text-xl md:text-2xl text-primary-foreground/90 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <p className="text-xl md:text-2xl text-white/95 drop-shadow animate-fade-in" style={{ animationDelay: '0.1s' }}>
               Affordable School Uniforms, Tracksuits & Clothes in Nairobi
             </p>
-            <p className="text-lg text-primary-foreground/80 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <p className="text-base md:text-lg text-white/85 drop-shadow animate-fade-in" style={{ animationDelay: '0.2s' }}>
               We are located at Uhuru Market, Jogoo Road, Nairobi (Store F47) • Serving all Kenyan schools
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Button asChild size="lg" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground text-lg px-8">
+              <Button asChild size="lg" className="store-button-gold text-lg px-8">
                 <Link to="/shop">Shop Now</Link>
               </Button>
-              <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground text-lg px-8 shadow-lg">
+              <Button asChild size="lg" className="store-button-primary text-lg px-8">
                 <Link to="/order">Place Order</Link>
               </Button>
             </div>
