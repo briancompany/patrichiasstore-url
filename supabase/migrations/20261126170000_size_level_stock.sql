@@ -141,7 +141,7 @@ BEGIN
     GROUP BY p.id, p.name, p.stock_quantity, p.in_stock
   LOOP
     v_available := GREATEST(0, r.stock_quantity);
-    IF NOT r.in_stock OR v_available < r.qty THEN
+    IF NOT COALESCE(r.in_stock, false) OR v_available < r.qty THEN
       v_unavailable := v_unavailable || jsonb_build_object(
         'product_id', r.product_id, 'product_name', r.product_name, 'size', 'All sizes',
         'requested', r.qty, 'available', v_available);
