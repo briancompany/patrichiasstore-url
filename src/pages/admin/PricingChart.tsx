@@ -39,10 +39,22 @@ const TYPE_ALIASES: Record<string, string> = {
   tracksuits: 'tracksuit',
   'lab coat': 'lab_coats',
   'lab coats': 'lab_coats',
+  dresses: 'dress',
+  dress: 'dress',
+  'track suit': 'tracksuit',
+  tracksuit: 'tracksuit',
+  't-shirt': 'tshirt',
+  't shirts': 'tshirt',
+  't_shirt': 'tshirt',
+  't_shirts': 'tshirt',
+  labcoat: 'lab_coats',
+  lab_coat: 'lab_coats',
+  blazer: 'blazers',
+  polo: 'polo_shirts',
 };
 
 const normaliseType = (value: string) => {
-  const cleaned = value.trim().toLowerCase();
+  const cleaned = value.trim().toLowerCase().replace(/[–—-]/g, ' ').replace(/\s+/g, ' ');
   const normalised = cleaned.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   const alias = TYPE_ALIASES[cleaned] || TYPE_ALIASES[normalised];
   if (alias) return alias;
