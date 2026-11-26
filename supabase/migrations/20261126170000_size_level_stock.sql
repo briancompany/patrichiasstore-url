@@ -32,6 +32,12 @@ BEGIN
     WHERE (e->>'product_id') ~ '^[0-9a-fA-F-]{36}$'
     GROUP BY (e->>'product_id')::uuid, COALESCE(e->>'size', '')
   LOOP
+    v_product_stock := NULL;
+    v_in := NULL;
+    v_name := NULL;
+    v_size_stock := NULL;
+    v_complete_size_stock := false;
+
     SELECT p.stock_quantity, p.in_stock, p.name,
       COALESCE((
         SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
