@@ -45,6 +45,7 @@ export interface StockCheckResult {
   unavailable: {
     product_id: string;
     product_name: string;
+    size: string;
     requested: number;
     available: number;
   }[];
