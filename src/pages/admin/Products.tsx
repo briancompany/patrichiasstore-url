@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { StockControl } from '@/components/admin/StockControl';
 import { StockBadge } from '@/components/StockBadge';
 import { FlashSaleManager } from '@/components/admin/FlashSaleManager';
+import { usePricingChart } from '@/hooks/useProductCache';
 
 interface ProductSize {
   size: string;
@@ -55,6 +56,7 @@ interface School {
 }
 
 export default function AdminProducts() {
+  const pricingChart = usePricingChart();
   const [products, setProducts] = useState<Product[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -264,7 +266,7 @@ export default function AdminProducts() {
                   </p>
                   <div className="mb-3 space-y-2">
                     <StockBadge quantity={product.stock_quantity} inStock={product.in_stock} />
-                    {product.sizes.length > 0 && product.sizes.every((size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0) ? (
+                    {pricingChart[product.type]?.length === product.sizes.length && product.sizes.length > 0 && product.sizes.every((size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0 && pricingChart[product.type].some((chartSize) => chartSize.size === size.size)) ? (
                       <p className="text-xs text-muted-foreground">Stock is managed per size. Use Edit to adjust individual sizes.</p>
                     ) : (
                       <StockControl
