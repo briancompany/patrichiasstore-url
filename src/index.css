@@ -393,3 +393,40 @@
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+.store-home-hero {
+  background:
+    radial-gradient(ellipse at 82% 18%, hsl(46 95% 60% / .26), transparent 28rem),
+    linear-gradient(105deg, hsl(224 68% 12% / .98) 0%, hsl(224 68% 18% / .88) 54%, hsl(214 74% 42% / .48) 100%);
+  isolation: isolate;
+}
+.store-home-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -8%;
+  right: -8%;
+  bottom: -5.5rem;
+  height: 8rem;
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(100deg, hsl(46 92% 57%), hsl(48 100% 72%));
+  transform: rotate(-2deg);
+  opacity: .95;
+}
+.store-home-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -8%;
+  right: -8%;
+  bottom: -6.5rem;
+  height: 8rem;
+  border-radius: 50% 50% 0 0;
+  background: hsl(0 0% 100% / .9);
+  transform: rotate(-2deg);
+}
+@media (max-width: 640px) {
+  .store-home-hero { min-height: 26rem; }
+  .store-home-hero::after, .store-home-hero::before { bottom: -6rem; }
+}
