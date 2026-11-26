@@ -92,18 +92,18 @@ export default function PricingChart() {
   };
 
   const downloadTemplate = () => {
-    const csv = 'uniform_type,size,price\\nsweater,S,500\\nsweater,M,550\\nfleece_jacket,20,450\\nfleece_jacket,22,500\\n';
+    const csv = 'uniform_type,size,price\nsweater,S,500\nsweater,M,550\nfleece_jacket,20,450\nfleece_jacket,22,500\n';
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a'); link.href = url; link.download = 'patrichia-size-price-template.csv'; link.click(); URL.revokeObjectURL(url);
   };
 
   const handleFile = async (file?: File) => {
     if (!file) return;
-    if (!/\\.csv$/i.test(file.name)) { toast.error('For now, upload a CSV file. You can save an Excel sheet as CSV.'); return; }
+    if (!/\.csv$/i.test(file.name)) { toast.error('For now, upload a CSV file. You can save an Excel sheet as CSV.'); return; }
     const raw = await file.text();
-    const lines = raw.replace(/^\\uFEFF/, '').split(/\\r?\\n/).filter(line => line.trim());
+    const lines = raw.replace(/^\uFEFF/, '').split(/\\r?\n/).filter(line => line.trim());
     if (lines.length < 2) { toast.error('The file needs a header and at least one data row'); return; }
-    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\\s+/g, '_'));
+    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, '_'));
     const typeIndex = headers.findIndex(h => ['uniform_type', 'product_type', 'category', 'product'].includes(h));
     const sizeIndex = headers.indexOf('size');
     const priceIndex = headers.findIndex(h => ['price', 'price_ksh', 'amount'].includes(h));
@@ -116,7 +116,7 @@ export default function PricingChart() {
       const cells = parseCsvLine(line);
       const typeRaw = cells[typeIndex] || '', size = (cells[sizeIndex] || '').trim();
       const type = normaliseType(typeRaw);
-      const priceRaw = (cells[priceIndex] || '').replace(/[\\s,]/g, '');
+      const priceRaw = (cells[priceIndex] || '').replace(/[\s,]/g, '');
       const price = Number(priceRaw);
       const row = index + 2;
       if (!type || !size || !priceRaw || !Number.isSafeInteger(price) || price <= 0) {
@@ -147,7 +147,7 @@ export default function PricingChart() {
     (acc[entry.uniform_type] ||= []).push(entry);
     return acc;
   }, {} as Record<string, PriceEntry[]>);
-  const labelFor = (type: string) => knownTypes.find(t => t.value === type)?.label || type.replace(/_/g, ' ').replace(/\\b\\w/g, c => c.toUpperCase());
+  const labelFor = (type: string) => knownTypes.find(t => t.value === type)?.label || type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <AdminLayout>
