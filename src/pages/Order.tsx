@@ -127,7 +127,7 @@ export default function Order() {
         : await checkStockAvailability(
             cartItems
               .filter((item) => isUuid(item.product.id))
-              .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+              .map((item) => ({ product_id: item.product.id, size: item.selectedSize, quantity: item.quantity })),
           );
       if (!confirmedShortfalls && stockCheck.unavailable.length > 0) {
         setShortfalls(stockCheck.unavailable);
