@@ -118,9 +118,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-[linear-gradient(145deg,#eaf4ff_0%,#f4f8ff_48%,#e9f2ff_100%)]">
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-40 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white/90 backdrop-blur-xl border-b border-blue-100 z-40 flex items-center justify-between px-4 shadow-sm">
         <Link to="/admin/dashboard" className="flex items-center gap-2">
           <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
           <span className="font-bold text-lg">Admin</span>
@@ -132,18 +132,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-card border-r border-border z-50 transform transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-primary text-primary-foreground border-r border-primary/30 z-50 shadow-2xl transform transition-transform duration-200 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 border-b border-border">
+        <div className="p-5 border-b border-primary-foreground/15">
           <Link to="/admin/dashboard" className="flex items-center gap-2">
             <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
             <span className="font-bold text-xl">Patrichia's</span>
           </Link>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1.5">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -151,8 +151,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                 location.pathname === item.path
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-accent text-primary shadow-md'
+                  : 'text-primary-foreground/75 hover:bg-primary-foreground/10 hover:text-primary-foreground'
               }`}
             >
               <item.icon className="h-5 w-5" />
@@ -166,10 +166,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-primary-foreground/15">
           <div className="mb-3 px-3">
-            <p className="text-sm font-medium text-foreground">{profile?.full_name || profile?.email}</p>
-            <p className="text-xs text-muted-foreground">Administrator</p>
+            <p className="text-sm font-medium text-primary-foreground">{profile?.full_name || profile?.email}</p>
+            <p className="text-xs text-primary-foreground/60">Administrator</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild className="flex-1">
@@ -192,7 +192,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main content */}
       <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
-        <div className="p-6">{children}</div>
+        <div className="p-4 pt-20 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );
