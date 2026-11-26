@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, Package, Download, Heart, Smartphone, Briefcase, ShoppingCart } from 'lucide-react';
+import { Menu, X, User, Package, Download, Smartphone, Briefcase, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -29,17 +29,17 @@ export function Header() {
   const location = useLocation();
 
   useEffect(() => {
-    // Detect iOS
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true;
 
-    if (!isStandalone) {
-      setIsInstallable(true);
-    }
+    if (!isStandalone) setIsInstallable(true);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -53,62 +53,40 @@ export function Header() {
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      toast.info('To install: Tap the Share button, then "Add to Home Screen"', {
-        duration: 5000,
-      });
+      toast.info('To install: Tap the Share button, then "Add to Home Screen"', { duration: 5000 });
       return;
     }
 
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        toast.success('App installed successfully!');
-      }
+      if (outcome === 'accepted') toast.success('App installed successfully!');
       setDeferredPrompt(null);
     } else {
-      toast.info('App is ready to install from your browser menu', {
-        duration: 5000,
-      });
+      toast.info('App is ready to install from your browser menu', { duration: 5000 });
     }
   };
 
   return (
-    <header className="sticky top-0 z-40 store-surface border-b border-white/70">
+    <header className="fixed inset-x-0 top-0 z-[60] store-surface border-b border-white/70">
       <div className="container-shop">
         <div className="flex min-w-0 items-center justify-between gap-2 min-h-[4.5rem] py-2">
-          {/* Logo */}
-          <Link to="/" className="flex min-w-0 items-center gap-2">
+          <Link to="/" className="flex min-w-0 items-center gap-2" aria-label="Patrichia's Store home">
             <img src={storeLogo} alt="Patrichia's Store" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
             <span className="min-w-0 font-extrabold tracking-tight text-base sm:text-xl text-primary">Patrichia's Store</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-5">
+          <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-5">
             {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`${
-                  location.pathname === link.path ? 'nav-link-active' : 'nav-link'
-                }`}
-              >
+              <Link key={link.path} to={link.path} className={location.pathname === link.path ? 'nav-link-active' : 'nav-link'}>
                 {link.name}
               </Link>
             ))}
           </nav>
 
-          {/* Right Icons */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {/* Download App Button */}
             {isInstallable && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleInstallClick}
-                className="text-primary hover:bg-primary/10"
-                title="Install App"
-              >
+              <Button variant="ghost" size="icon" onClick={handleInstallClick} className="text-primary hover:bg-primary/10" title="Install App" aria-label="Install app">
                 <Download className="h-5 w-5" />
               </Button>
             )}
@@ -119,7 +97,7 @@ export function Header() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" aria-label="Login options">
                   <User className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -133,7 +111,7 @@ export function Header() {
                 <DropdownMenuItem asChild>
                   <Link to="/admin/login" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    Admin Login
+                    Login
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -143,11 +121,7 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <a
-                    href="/downloads/patrichias-store.apk"
-                    download
-                    className="flex items-center gap-2"
-                  >
+                  <a href="/downloads/patrichias-store.apk" download className="flex items-center gap-2">
                     <Smartphone className="h-4 w-4" />
                     Download APK
                   </a>
@@ -155,56 +129,37 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="xl:hidden"
-              onClick={() => setIsOpen(!isOpen)}
-            >
+            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? 'Close menu' : 'Open menu'} aria-expanded={isOpen}>
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         {isOpen && (
-          <nav className="xl:hidden py-4 border-t border-border animate-fade-in">
-            <div className="flex flex-col gap-4">
+          <nav aria-label="Mobile navigation" className="xl:hidden max-h-[calc(100dvh-4.5rem)] overflow-y-auto py-4 border-t border-border animate-fade-in">
+            <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setIsOpen(false)}
-                  className={`py-2 px-4 rounded-lg transition-colors ${
-                    location.pathname === link.path
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-foreground hover:bg-muted'
-                  }`}
-                >
+                <Link key={link.path} to={link.path} onClick={() => setIsOpen(false)}
+                  className={`py-2.5 px-4 rounded-lg transition-colors ${
+                    location.pathname === link.path ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-muted'
+                  }`}>
                   {link.name}
                 </Link>
               ))}
+              <Link to="/admin/login" onClick={() => setIsOpen(false)} className="py-2.5 px-4 rounded-lg text-foreground hover:bg-muted flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Login
+              </Link>
+              <Link to="/staff/login" onClick={() => setIsOpen(false)} className="py-2.5 px-4 rounded-lg text-foreground hover:bg-muted flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Staff Login
+              </Link>
               {isInstallable && (
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    handleInstallClick();
-                  }}
-                  className="py-2 px-4 rounded-lg transition-colors text-primary hover:bg-primary/10 flex items-center gap-2 text-left"
-                >
+                <button onClick={() => { setIsOpen(false); handleInstallClick(); }} className="py-2.5 px-4 rounded-lg text-primary hover:bg-primary/10 flex items-center gap-2 text-left">
                   <Download className="h-4 w-4" />
                   Install App
                 </button>
               )}
-              <Link
-                to="/admin/login"
-                onClick={() => setIsOpen(false)}
-                className="py-2 px-4 rounded-lg transition-colors text-foreground hover:bg-muted flex items-center gap-2"
-              >
-                <User className="h-4 w-4" />
-                Admin Login
-              </Link>
             </div>
           </nav>
         )}
