@@ -569,3 +569,31 @@
 @media (prefers-reduced-motion: reduce) {
   .card-product:hover { transform: none; }
 }
+
+
+/* Premium showroom homepage hero */
+.luxury-showroom-hero {
+  min-height: max(42rem, calc(100svh - 5rem));
+  background: #0b1736;
+}
+.luxury-showroom-overlay {
+  background:
+    linear-gradient(90deg, hsl(224 68% 9% / .94) 0%, hsl(224 68% 11% / .78) 42%, hsl(224 68% 12% / .24) 78%, hsl(224 68% 12% / .12) 100%),
+    linear-gradient(0deg, hsl(224 68% 9% / .34), transparent 45%);
+}
+@media (max-width: 640px) {
+  .luxury-showroom-hero {
+    min-height: max(42rem, calc(100svh - 4.25rem));
+  }
+  .luxury-showroom-hero > div:first-child img {
+    object-position: 58% center;
+  }
+  .luxury-showroom-overlay {
+    background:
+      linear-gradient(90deg, hsl(224 68% 9% / .78), hsl(224 68% 9% / .48)),
+      linear-gradient(0deg, hsl(224 68% 9% / .5), transparent 75%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .luxury-showroom-hero * { animation: none !important; }
+}
