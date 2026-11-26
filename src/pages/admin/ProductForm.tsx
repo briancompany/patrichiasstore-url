@@ -188,7 +188,7 @@ export default function ProductForm() {
             stock: formData.sizes.find((size) => size.size === entry.size)?.stock,
           }))
         : formData.sizes;
-      const hasCompleteSizeStock = savedSizes.length > 0 && savedSizes.every(
+      const hasCompleteSizeStock = Boolean(pricingByType[formData.type]?.length) && savedSizes.length > 0 && savedSizes.every(
         (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
       );
       const totalSizeStock = hasCompleteSizeStock
