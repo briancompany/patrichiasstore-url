@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Zap, Ruler } from 'lucide-react';
 import { ProductReviews } from '@/components/ProductReviews';
 import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
@@ -15,7 +15,6 @@ import { getStockInfo } from '@/lib/stock';
 import { Progress } from '@/components/ui/progress';
 import { FlashCountdown } from '@/components/FlashCountdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Ruler } from 'lucide-react';
 import { usePricingChart } from '@/hooks/useProductCache';
 import {
   flashDiscount,
@@ -41,7 +40,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   useEffect(() => {
     const current = effectiveSizes.find((size) => size.size === selectedSize?.size);
     setSelectedSize(current || effectiveSizes[0]);
-  }, [product.id, chartSizes, product.sizes]);
+  }, [product.id, chartSizes, product.sizes, selectedSize?.size]);
   const { toggle, isWishlisted } = useWishlist();
 
   const stock = getStockInfo(product.stockQuantity, product.inStock);
