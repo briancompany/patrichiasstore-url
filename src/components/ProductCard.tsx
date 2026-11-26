@@ -32,7 +32,10 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const pricingChart = usePricingChart();
-  const chartSizes = pricingChart[product.type] || [];
+  const chartSizes = (pricingChart[product.type] || []).map((entry) => ({
+    ...entry,
+    stock: product.sizes.find((size) => size.size === entry.size)?.stock,
+  }));
   const effectiveSizes = chartSizes.length ? chartSizes : product.sizes;
   const [selectedSize, setSelectedSize] = useState(effectiveSizes[0]);
   const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
@@ -43,11 +46,15 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   }, [product.id, chartSizes, product.sizes, selectedSize?.size]);
   const { toggle, isWishlisted } = useWishlist();
 
-  const stock = getStockInfo(product.stockQuantity, product.inStock);
+  const hasCompleteSizeStock = effectiveSizes.length > 0 && effectiveSizes.every(
+    (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
+  );
+  const selectedSizeStock = hasCompleteSizeStock ? selectedSize?.stock : product.stockQuantity;
+  const stock = getStockInfo(selectedSizeStock, product.inStock);
   const limitedSale = sale ? isLimitedFlashStock(sale) : false;
   const saleRemaining = sale && limitedSale ? sale.remaining : Number.POSITIVE_INFINITY;
   const saleActive = !!sale && saleRemaining > 0;
-  const maxQty = saleActive ? saleRemaining : Number.POSITIVE_INFINITY;
+  const maxQty = saleActive ? saleRemaining : stock.max;
   const soldOut = !stock.orderable;
   const unitPrice = saleActive ? sale!.sale_price : (selectedSize?.price ?? effectiveSizes[0]?.price ?? 0);
   const startingPrice = effectiveSizes.length ? Math.min(...effectiveSizes.map((size) => Number(size.price) || 0)) : 0;
@@ -129,7 +136,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         </div>
 
         {/* Live availability */}
-        <StockBadge quantity={product.stockQuantity} inStock={product.inStock} />
+        <StockBadge quantity={selectedSizeStock} inStock={product.inStock} />
 
         {/* Out of stock notification */}
         {soldOut && (
