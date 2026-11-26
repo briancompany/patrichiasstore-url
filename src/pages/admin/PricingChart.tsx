@@ -114,6 +114,10 @@ export default function PricingChart() {
     const seen = new Set<string>();
     lines.slice(1).forEach((line, index) => {
       const cells = parseCsvLine(line);
+      if (cells.length !== headers.length) {
+        invalid.push({ row: index + 2, reason: 'Unexpected number of columns. Quote prices that contain commas, for example "1,000".' });
+        return;
+      }
       const typeRaw = cells[typeIndex] || '', size = (cells[sizeIndex] || '').trim();
       const type = normaliseType(typeRaw);
       const priceRaw = (cells[priceIndex] || '').replace(/[\s,]/g, '');
