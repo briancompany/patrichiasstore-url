@@ -184,8 +184,20 @@ export default function ProductForm() {
     return urlData.publicUrl;
   };
 
+  const chartManagedTypes = new Set([
+    'shirts_york', 'shirts_normal_plain', 't_shirts_kids', 't_shirts_adults', 'polo_shirts',
+    'long_sleeve_shirts_plain', 'long_sleeve_shirts_stripes', 'shorts_summit', 'shorts_grey',
+    'tracksuit', 'fleece_jacket', 'blazers', 'trousers_primary_school_summit',
+    'trousers_primary_school_grey', 'trousers_high_school_summit', 'trousers_high_school_grey',
+    'socks', 'lab_coats', 'scrubs',
+  ]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (chartManagedTypes.has(formData.type) && !pricingByType[formData.type]?.length) {
+      toast.error('This uniform category has no imported size/price chart. Import its CSV chart before saving the product.');
+      return;
+    }
     setIsSaving(true);
 
     try {
