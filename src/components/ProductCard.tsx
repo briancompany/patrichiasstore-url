@@ -59,6 +59,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   };
 
   const handleAddToCart = () => {
+    if (!selectedSize) return;
     onAddToCart(product, selectedSize.size, quantity, totalPrice);
   };
 
