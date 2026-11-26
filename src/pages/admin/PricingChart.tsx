@@ -101,7 +101,7 @@ export default function PricingChart() {
     if (!file) return;
     if (!/\.csv$/i.test(file.name)) { toast.error('For now, upload a CSV file. You can save an Excel sheet as CSV.'); return; }
     const raw = await file.text();
-    const lines = raw.replace(/^\uFEFF/, '').split(/\\r?\n/).filter(line => line.trim());
+    const lines = raw.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
     if (lines.length < 2) { toast.error('The file needs a header and at least one data row'); return; }
     const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, '_'));
     const typeIndex = headers.findIndex(h => ['uniform_type', 'product_type', 'category', 'product'].includes(h));
