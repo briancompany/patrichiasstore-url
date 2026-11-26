@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 interface SizePrice {
   size: string;
   price: number;
-  stock: number;
+  stock?: number;
 }
 
 interface School {
@@ -131,7 +131,7 @@ export default function ProductForm() {
       ...current,
       sizes: chart.map((entry) => ({
         ...entry,
-        stock: current.sizes.find((size) => size.size === entry.size)?.stock ?? 0,
+        stock: current.sizes.find((size) => size.size === entry.size)?.stock,
       })),
     }));
   }, [formData.type, pricingByType, isLoading]);
@@ -182,6 +182,19 @@ export default function ProductForm() {
         }
       }
 
+      const savedSizes = pricingByType[formData.type]?.length
+        ? pricingByType[formData.type].map((entry) => ({
+            ...entry,
+            stock: formData.sizes.find((size) => size.size === entry.size)?.stock,
+          }))
+        : formData.sizes;
+      const hasCompleteSizeStock = savedSizes.length > 0 && savedSizes.every(
+        (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
+      );
+      const totalSizeStock = hasCompleteSizeStock
+        ? savedSizes.reduce((total, size) => total + Number(size.stock), 0)
+        : null;
+
       const productData = {
         name: formData.name,
         school_id: formData.school_id || null,
@@ -189,16 +202,9 @@ export default function ProductForm() {
         description: formData.description || null,
         colors: [...new Set(formData.colors.map((color) => color.trim().toLowerCase()).filter(Boolean))],
         image_url: imageUrl || null,
-        in_stock: formData.in_stock,
-        stock_quantity: Math.max(0, Number(formData.stock_quantity) || 0),
-        sizes: JSON.parse(JSON.stringify(
-          pricingByType[formData.type]?.length
-            ? pricingByType[formData.type].map((entry) => ({
-                ...entry,
-                stock: formData.sizes.find((size) => size.size === entry.size)?.stock ?? 0,
-              }))
-            : formData.sizes,
-        )),
+        in_stock: formData.in_stock && (totalSizeStock === null || totalSizeStock > 0),
+        stock_quantity: totalSizeStock ?? Math.max(0, Number(formData.stock_quantity) || 0),
+        sizes: JSON.parse(JSON.stringify(savedSizes)),
       };
 
       if (isEditing) {
@@ -251,7 +257,7 @@ export default function ProductForm() {
     });
   };
 
-  const updateSize = (index: number, field: keyof SizePrice, value: string | number) => {
+  const updateSize = (index: number, field: keyof SizePrice, value: string | number | undefined) => {
     const newSizes = [...formData.sizes];
     newSizes[index] = { ...newSizes[index], [field]: value };
     setFormData({ ...formData, sizes: newSizes });
@@ -378,6 +384,7 @@ export default function ProductForm() {
                   id="stock_quantity"
                   inputMode="numeric"
                   value={String(formData.stock_quantity)}
+                  disabled={Boolean(pricingByType[formData.type]?.length && formData.sizes.length > 0 && formData.sizes.every((size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0))}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -387,7 +394,7 @@ export default function ProductForm() {
                   placeholder="e.g. 299"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Stock reduces automatically after a confirmed payment. At 0 the item shows “Sold out” and cannot be ordered.
+                  When every size has a stock quantity, the total is calculated from those sizes. Otherwise this total remains the fallback inventory for older or partially configured products.
                 </p>
               </div>
             </CardContent>
@@ -472,8 +479,8 @@ export default function ProductForm() {
                       <Label>Stock</Label>
                       <Input
                         type="number"
-                        value={size.stock}
-                        onChange={(e) => updateSize(index, 'stock', parseInt(e.target.value) || 0)}
+                        value={size.stock ?? ''}
+                        onChange={(e) => updateSize(index, 'stock', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
                         min={0}
                       />
                     </div>
