@@ -54,6 +54,7 @@ export default function ProductForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
+  const [pricingByType, setPricingByType] = useState<Record<string, { size: string; price: number }[]>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -71,10 +72,21 @@ export default function ProductForm() {
 
   useEffect(() => {
     fetchSchools();
+    fetchPricingChart();
     if (isEditing) {
       fetchProduct();
     }
   }, [id]);
+
+  const fetchPricingChart = async () => {
+    const { data, error } = await supabase.from('pricing_chart').select('uniform_type, size, price').order('uniform_type').order('size');
+    if (error) { console.error('Could not load shared price charts:', error); return; }
+    const grouped: Record<string, { size: string; price: number }[]> = {};
+    (data || []).forEach((entry) => {
+      (grouped[entry.uniform_type] ||= []).push({ size: entry.size, price: Number(entry.price) });
+    });
+    setPricingByType(grouped);
+  };
 
   const fetchSchools = async () => {
     const { data } = await supabase.from('schools').select('id, name').order('name');
@@ -111,6 +123,18 @@ export default function ProductForm() {
 
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    const chart = pricingByType[formData.type];
+    if (!chart?.length || isLoading) return;
+    setFormData((current) => ({
+      ...current,
+      sizes: chart.map((entry) => ({
+        ...entry,
+        stock: current.sizes.find((size) => size.size === entry.size)?.stock ?? 0,
+      })),
+    }));
+  }, [formData.type, pricingByType, isLoading]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -167,7 +191,14 @@ export default function ProductForm() {
         image_url: imageUrl || null,
         in_stock: formData.in_stock,
         stock_quantity: Math.max(0, Number(formData.stock_quantity) || 0),
-        sizes: JSON.parse(JSON.stringify(formData.sizes)),
+        sizes: JSON.parse(JSON.stringify(
+          pricingByType[formData.type]?.length
+            ? pricingByType[formData.type].map((entry) => ({
+                ...entry,
+                stock: formData.sizes.find((size) => size.size === entry.size)?.stock ?? 0,
+              }))
+            : formData.sizes,
+        )),
       };
 
       if (isEditing) {
@@ -394,13 +425,22 @@ export default function ProductForm() {
           {/* Sizes & Pricing */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Sizes & Pricing</CardTitle>
+              <CardTitle>Sizes, Prices & Stock</CardTitle>
               <Button type="button" variant="outline" size="sm" onClick={addSize}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Size
               </Button>
             </CardHeader>
             <CardContent>
+              {pricingByType[formData.type]?.length ? (
+                <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  This product uses the shared {uniformTypes.find((type) => type.value === formData.type)?.label || formData.type} price chart. Size labels and prices update from Admin → Size & Price Charts. Stock remains specific to this product.
+                </p>
+              ) : (
+                <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                  No shared chart exists for this category yet. Add its sizes and prices in Admin → Size & Price Charts; this product will use those prices automatically. Until then, you can enter sizes and prices below.
+                </p>
+              )}
               <div className="space-y-4">
                 {formData.sizes.map((size, index) => (
                   <div key={index} className="flex items-center gap-4 p-4 bg-muted rounded-lg">
@@ -409,6 +449,7 @@ export default function ProductForm() {
                       <Input
                         value={size.size}
                         onChange={(e) => updateSize(index, 'size', e.target.value)}
+                        disabled={Boolean(pricingByType[formData.type]?.length)}
                         placeholder="e.g., M"
                       />
                     </div>
@@ -418,6 +459,7 @@ export default function ProductForm() {
                         type="number"
                         value={size.price}
                         onChange={(e) => updateSize(index, 'price', parseInt(e.target.value) || 0)}
+                        disabled={Boolean(pricingByType[formData.type]?.length)}
                         min={0}
                       />
                     </div>
