@@ -51,6 +51,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const maxQty = saleActive ? saleRemaining : Number.POSITIVE_INFINITY;
   const soldOut = !stock.orderable;
   const unitPrice = saleActive ? sale!.sale_price : (selectedSize?.price ?? effectiveSizes[0]?.price ?? 0);
+  const startingPrice = effectiveSizes.length ? Math.min(...effectiveSizes.map((size) => Number(size.price) || 0)) : 0;
   const totalPrice = unitPrice * quantity;
 
   const handleQuantityChange = (delta: number) => {
@@ -78,8 +79,8 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   };
 
   return (
-    <div className="card-product">
-      <div className="aspect-square bg-muted relative overflow-hidden">
+    <div className={`card-product overflow-hidden rounded-2xl border border-border/60 shadow-sm ${product.id.charCodeAt(product.id.length - 1) % 2 === 0 ? 'bg-emerald-50' : 'bg-sky-50'}`}>
+      <div className="aspect-square bg-white relative overflow-hidden">
         <WishlistButton
           isWishlisted={isWishlisted(product.id)}
           onToggle={() => toggle(product.id)}
@@ -123,7 +124,8 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
               {product.name}
             </Link>
           </h3>
-          <p className="text-sm text-muted-foreground">{typeLabels[product.type]}</p>
+          <p className="text-sm text-muted-foreground">{typeLabels[product.type] || product.type.replace(/_/g, ' ')}</p>
+          {startingPrice > 0 && <p className="mt-1 text-sm font-semibold text-foreground">From KSh {startingPrice.toLocaleString('en-KE')}</p>}
         </div>
 
         {/* Live availability */}
@@ -245,6 +247,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         {/* Add to Cart */}
         <Button
           onClick={handleAddToCart}
+          disabled={!selectedSize}
           className="w-full btn-secondary gap-2"
         >
           <ShoppingCart className="h-4 w-4" />
