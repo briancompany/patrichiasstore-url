@@ -16,11 +16,20 @@ interface InvalidRow { row: number; reason: string; }
 
 const knownTypes = [
   { value: 'tshirt', label: 'T-Shirt' }, { value: 'shirts', label: 'Shirts' },
-  { value: 'tracksuit', label: 'Tracksuit' }, { value: 'socks', label: 'Socks' },
-  { value: 'shorts', label: 'Shorts' }, { value: 'trousers', label: 'Trousers' },
+  { value: 'shirts_york', label: 'Shirts – York' }, { value: 'shirts_normal_plain', label: 'Shirts – Normal (Plain)' },
+  { value: 't_shirts_kids', label: 'T-Shirts – Kids' }, { value: 't_shirts_adults', label: 'T-Shirts – Adults' },
+  { value: 'polo_shirts', label: 'Polo Shirts' }, { value: 'long_sleeve_shirts_plain', label: 'Long Sleeve Shirts – Plain' },
+  { value: 'long_sleeve_shirts_stripes', label: 'Long Sleeve Shirts – Stripes' },
+  { value: 'tracksuit', label: 'Tracksuits' }, { value: 'socks', label: 'Socks' },
+  { value: 'shorts', label: 'Shorts' }, { value: 'shorts_summit', label: 'Shorts – Summit' }, { value: 'shorts_grey', label: 'Shorts – Grey' },
+  { value: 'trousers', label: 'Trousers' }, { value: 'trousers_primary_school_summit', label: 'Trousers – Primary School – Summit' },
+  { value: 'trousers_primary_school_grey', label: 'Trousers – Primary School – Grey' },
+  { value: 'trousers_high_school_summit', label: 'Trousers – High School – Summit' },
+  { value: 'trousers_high_school_grey', label: 'Trousers – High School – Grey' },
   { value: 'skirt', label: 'Skirt' }, { value: 'sweater', label: 'Sweater' },
   { value: 'tie', label: 'Tie' }, { value: 'dress', label: 'Dress' },
-  { value: 'fleece_jacket', label: 'Fleece Jacket' }, { value: 'other', label: 'Other' },
+  { value: 'fleece_jacket', label: 'Fleeze' }, { value: 'blazers', label: 'Blazers' },
+  { value: 'lab_coats', label: 'Lab Coats' }, { value: 'scrubs', label: 'Scrubs' }, { value: 'other', label: 'Other' },
 ];
 
 const normaliseType = (value: string) => {
