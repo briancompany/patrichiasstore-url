@@ -54,7 +54,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   const limitedSale = sale ? isLimitedFlashStock(sale) : false;
   const saleRemaining = sale && limitedSale ? sale.remaining : Number.POSITIVE_INFINITY;
   const saleActive = !!sale && saleRemaining > 0;
-  const maxQty = saleActive ? saleRemaining : stock.max;
+  const maxQty = saleActive ? Math.min(saleRemaining, stock.max) : stock.max;
   const soldOut = !stock.orderable;
   const unitPrice = saleActive ? sale!.sale_price : (selectedSize?.price ?? effectiveSizes[0]?.price ?? 0);
   const startingPrice = effectiveSizes.length ? Math.min(...effectiveSizes.map((size) => Number(size.price) || 0)) : 0;
