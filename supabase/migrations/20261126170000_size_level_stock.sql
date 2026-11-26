@@ -34,14 +34,14 @@ BEGIN
   LOOP
     SELECT p.stock_quantity, p.in_stock, p.name,
       COALESCE((
-        SELECT bool_and(COALESCE(s->>'stock', '') ~ '^[0-9]+$')
-        FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) s
+        SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
+        FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
       ), false),
       (
-        SELECT CASE WHEN COALESCE(s->>'stock', '') ~ '^[0-9]+$'
-                    THEN (s->>'stock')::int ELSE NULL END
-        FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) s
-        WHERE s->>'size' = r.size
+        SELECT CASE WHEN COALESCE(s.value->>'stock', '') ~ '^[0-9]+$'
+                    THEN (s.value->>'stock')::int ELSE NULL END
+        FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
+        WHERE s.value->>'size' = r.size
         LIMIT 1
       )
     INTO v_product_stock, v_in, v_name, v_complete_size_stock, v_size_stock
@@ -121,14 +121,14 @@ BEGIN
     GROUP BY oi.product_id, oi.size, p.stock_quantity, p.in_stock, p.sizes
   LOOP
     SELECT COALESCE((
-      SELECT bool_and(COALESCE(s->>'stock', '') ~ '^[0-9]+$')
-      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) s
+      SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
+      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
     ), false),
     (
-      SELECT CASE WHEN COALESCE(s->>'stock', '') ~ '^[0-9]+$'
-                  THEN (s->>'stock')::int ELSE NULL END
-      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) s
-      WHERE s->>'size' = r.size
+      SELECT CASE WHEN COALESCE(s.value->>'stock', '') ~ '^[0-9]+$'
+                  THEN (s.value->>'stock')::int ELSE NULL END
+      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
+      WHERE s.value->>'size' = r.size
       LIMIT 1
     )
     INTO v_complete_size_stock, v_size_stock;
@@ -162,8 +162,8 @@ BEGIN
     GROUP BY oi.product_id, oi.size, p.sizes
   LOOP
     SELECT COALESCE((
-      SELECT bool_and(COALESCE(s->>'stock', '') ~ '^[0-9]+$')
-      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) s
+      SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
+      FROM jsonb_array_elements(COALESCE(r.sizes, '[]'::jsonb)) AS s(value)
     ), false) INTO v_complete_size_stock;
 
     IF v_complete_size_stock THEN
@@ -192,8 +192,8 @@ BEGIN
   FOR r IN
     SELECT p.id, SUM(oi.quantity)::int AS qty,
            COALESCE((
-             SELECT bool_and(COALESCE(s->>'stock', '') ~ '^[0-9]+$')
-             FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) s
+             SELECT bool_and(COALESCE(s.value->>'stock', '') ~ '^[0-9]+$')
+             FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
            ), false) AS complete_size_stock
     FROM public.products p
     JOIN public.order_items oi ON oi.product_id = p.id
@@ -203,12 +203,12 @@ BEGIN
     IF r.complete_size_stock THEN
       UPDATE public.products p
       SET stock_quantity = COALESCE((
-            SELECT SUM((s->>'stock')::int)
-            FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) s
+            SELECT SUM((s.value->>'stock')::int)
+            FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
           ), 0),
           in_stock = COALESCE((
-            SELECT SUM((s->>'stock')::int) > 0
-            FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) s
+            SELECT SUM((s.value->>'stock')::int) > 0
+            FROM jsonb_array_elements(COALESCE(p.sizes, '[]'::jsonb)) AS s(value)
           ), false),
           updated_at = now()
       WHERE p.id = r.id;
