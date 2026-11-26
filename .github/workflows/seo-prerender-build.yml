@@ -19,5 +19,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Type-check application
+        run: npx tsc -p tsconfig.app.json --noEmit
+      - name: Run unit tests
+        run: npm test -- --passWithNoTests
       - name: Build app and prerender SEO pages
         run: npm run build

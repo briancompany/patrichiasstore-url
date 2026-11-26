@@ -88,7 +88,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<
-    { product_id: string; product_name: string; requested: number; available: number }[]
+    { product_id: string; product_name: string; size: string; requested: number; available: number }[]
   >([]);
   const [showSpecialDialog, setShowSpecialDialog] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
@@ -123,17 +123,17 @@ export default function Checkout() {
   };
 
   const placeOrder = async (
-    shortfallList: { product_id: string; product_name: string; requested: number; available: number }[],
+    shortfallList: { product_id: string; product_name: string; size: string; requested: number; available: number }[],
     note: string,
   ) => {
     setIsSubmitting(true);
     try {
       const isSpecialOrder = shortfallList.length > 0;
       const shortfallMap = new Map(
-        shortfallList.map((s) => [s.product_id, Math.max(0, s.requested - s.available)]),
+        shortfallList.map((s) => [`${s.product_id}::${s.size}`, Math.max(0, s.requested - s.available)]),
       );
       const shortfallSummary = shortfallList
-        .map((s) => `${s.product_name}: wants ${s.requested}, available ${s.available}`)
+        .map((s) => `${s.product_name} (size ${s.size}): wants ${s.requested}, available ${s.available}`)
         .join('; ');
 
       // Create the order with new school flag (generate UUID client-side to avoid relying on returned rows)
@@ -174,23 +174,28 @@ export default function Checkout() {
       if (contactError) throw contactError;
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
-      const orderItems = cart.map((item) => ({
-        order_id: orderId,
-        product_id: isUuid(item.product.id) ? item.product.id : null,
-        product_name: item.product.name,
-        school_name: selectedSchool?.name || null,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-        printing_required: item.printingRequired,
-        logo_url: item.logoUrl,
-        color: item.color || null,
-        sample_image_url: item.sampleImageUrl || null,
-        shortfall_quantity: Math.min(
-          item.quantity,
-          shortfallMap.get(item.product.id) ?? 0,
-        ),
-      }));
+      const orderItems = cart.map((item) => {
+        const sizeKey = `${item.product.id}::${item.selectedSize}`;
+        const fallbackKey = `${item.product.id}::All sizes`;
+        const key = shortfallMap.has(sizeKey) ? sizeKey : fallbackKey;
+        const remainingShortfall = shortfallMap.get(key) ?? 0;
+        const itemShortfall = Math.min(item.quantity, remainingShortfall);
+        shortfallMap.set(key, Math.max(0, remainingShortfall - itemShortfall));
+        return {
+          order_id: orderId,
+          product_id: isUuid(item.product.id) ? item.product.id : null,
+          product_name: item.product.name,
+          school_name: selectedSchool?.name || null,
+          size: item.selectedSize,
+          quantity: item.quantity,
+          price_at_purchase: item.price,
+          printing_required: item.printingRequired,
+          logo_url: item.logoUrl,
+          color: item.color || null,
+          sample_image_url: item.sampleImageUrl || null,
+          shortfall_quantity: itemShortfall,
+        };
+      });
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
@@ -249,7 +254,7 @@ export default function Checkout() {
     const availability = await checkStockAvailability(
       cart
         .filter((item) => isUuid(item.product.id))
-        .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+        .map((item) => ({ product_id: item.product.id, size: item.selectedSize, quantity: item.quantity })),
     );
 
     if (!availability.ok) {
@@ -562,8 +567,8 @@ export default function Checkout() {
           <div className="space-y-3">
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
               {shortfalls.map((s) => (
-                <div key={s.product_id} className="text-sm">
-                  <p className="font-medium">{s.product_name}</p>
+                <div key={`${s.product_id}::${s.size}`} className="text-sm">
+                  <p className="font-medium">{s.product_name} · Size {s.size}</p>
                   <p className="text-muted-foreground">
                     {s.available === 0
                       ? `Out of stock · you asked for ${s.requested}`

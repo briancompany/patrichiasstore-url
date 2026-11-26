@@ -49,7 +49,7 @@ export default function Order() {
   const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<{
-    product_id: string; product_name: string; requested: number; available: number;
+    product_id: string; product_name: string; size: string; requested: number; available: number;
   }[]>([]);
   const [showSpecialDialog, setShowSpecialDialog] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
@@ -127,7 +127,7 @@ export default function Order() {
         : await checkStockAvailability(
             cartItems
               .filter((item) => isUuid(item.product.id))
-              .map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
+              .map((item) => ({ product_id: item.product.id, size: item.selectedSize, quantity: item.quantity })),
           );
       if (!confirmedShortfalls && stockCheck.unavailable.length > 0) {
         setShortfalls(stockCheck.unavailable);
@@ -136,11 +136,11 @@ export default function Order() {
         return;
       }
       const shortfallByProduct = new Map(
-        stockCheck.unavailable.map((item) => [item.product_id, item]),
+        stockCheck.unavailable.map((item) => [`${item.product_id}::${item.size}`, Math.max(0, item.requested - item.available)]),
       );
       const isSpecialOrder = isChatbotSpecialOrder || stockCheck.unavailable.length > 0;
       const liveShortfallNote = stockCheck.unavailable.map((item) =>
-        `${item.product_name}: requested ${item.requested}, available ${item.available}`
+        `${item.product_name} (size ${item.size}): requested ${item.requested}, available ${item.available}`
       ).join('; ');
       const finalSpecialOrderNote = [
         chatbotSpecialOrderNote,
@@ -185,20 +185,28 @@ export default function Order() {
       if (contactError) throw contactError;
 
       // Create order items - product_id must be UUID (fallback to null for non-UUID products)
-      const orderItems = cartItems.map((item) => ({
-        order_id: orderId,
-        product_id: isUuid(item.product.id) ? item.product.id : null,
-        product_name: item.product.name,
-        school_name: item.product.school || null,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-        printing_required: false,
-        logo_url: null,
-        color: null,
-        sample_image_url: null,
-        shortfall_quantity: Math.max(0, shortfallByProduct.has(item.product.id) ? item.quantity - (shortfallByProduct.get(item.product.id)?.available ?? 0) : 0),
-      }));
+      const orderItems = cartItems.map((item) => {
+        const sizeKey = `${item.product.id}::${item.selectedSize}`;
+        const fallbackKey = `${item.product.id}::All sizes`;
+        const key = shortfallByProduct.has(sizeKey) ? sizeKey : fallbackKey;
+        const remainingShortfall = shortfallByProduct.get(key) ?? 0;
+        const itemShortfall = Math.min(item.quantity, remainingShortfall);
+        shortfallByProduct.set(key, Math.max(0, remainingShortfall - itemShortfall));
+        return {
+          order_id: orderId,
+          product_id: isUuid(item.product.id) ? item.product.id : null,
+          product_name: item.product.name,
+          school_name: item.product.school || null,
+          size: item.selectedSize,
+          quantity: item.quantity,
+          price_at_purchase: item.price,
+          printing_required: false,
+          logo_url: null,
+          color: null,
+          sample_image_url: null,
+          shortfall_quantity: itemShortfall,
+        };
+      });
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
@@ -518,8 +526,8 @@ export default function Order() {
           <div className="space-y-3">
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
               {shortfalls.map((item) => (
-                <div key={item.product_id} className="text-sm">
-                  <p className="font-medium">{item.product_name}</p>
+                <div key={`${item.product_id}::${item.size}`} className="text-sm">
+                  <p className="font-medium">{item.product_name} · Size {item.size}</p>
                   <p className="text-muted-foreground">
                     {item.available === 0
                       ? `Out of stock · you asked for ${item.requested}`

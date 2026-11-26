@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Phone, ArrowLeft } from 'lucide-react';
 import { slugify } from '@/lib/slug';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
+import { usePricingChart } from '@/hooks/useProductCache';
 
 interface ProductSize {
   size: string;
@@ -32,6 +33,7 @@ interface School {
 }
 
 export default function SchoolUniformPage() {
+  const pricingChart = usePricingChart();
   const { schoolSlug } = useParams<{ schoolSlug: string }>();
   const navigate = useNavigate();
   const [school, setSchool] = useState<School | null>(null);
@@ -252,9 +254,9 @@ export default function SchoolUniformPage() {
                         <Badge variant="destructive">Special order · Out of stock</Badge>
                       )}
                     </div>
-                    {product.sizes[0] && (
-                      <p className="text-sm text-muted-foreground mt-1">From KES {product.sizes[0].price}</p>
-                    )}
+                    {(pricingChart[product.type]?.length ? pricingChart[product.type] : product.sizes)?.length ? (
+                      <p className="text-sm text-muted-foreground mt-1">From KES {Math.min(...(pricingChart[product.type]?.length ? pricingChart[product.type] : product.sizes).map((size) => Number(size.price))).toLocaleString('en-KE')}</p>
+                    ) : null}
                   </CardContent>
                 </Card>
               </Link>

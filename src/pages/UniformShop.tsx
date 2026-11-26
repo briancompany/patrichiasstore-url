@@ -82,8 +82,20 @@ export default function UniformShop() {
   const { products: cachedGeneralProducts } = useGeneralProducts();
   const generalProducts = cachedGeneralProducts.map((p) => ({
     ...p,
-    sizes: p.sizes as ProductSize[],
+    sizes: pricingChart[p.type]?.length
+      ? pricingChart[p.type].map((entry) => ({ ...entry, stock: (p.sizes as ProductSize[]).find((size) => size.size === entry.size)?.stock }))
+      : (p.sizes as ProductSize[]),
   }));
+
+  useEffect(() => {
+    if (Object.keys(pricingChart).length === 0) return;
+    const applySharedPrices = (product: Product) => {
+      const chart = pricingChart[product.type];
+      return chart?.length ? { ...product, sizes: chart } : product;
+    };
+    setProducts((current) => current.map(applySharedPrices));
+    setCurrentProduct((current) => current ? applySharedPrices(current) : current);
+  }, [pricingChart]);
 
   // Fetch school-specific products only when needed (not on mount)
   // Pricing chart and general products come from shared cache hooks
@@ -137,7 +149,9 @@ export default function UniformShop() {
     } else {
       const mapped = (data || []).map((p) => ({
         ...p,
-        sizes: (p.sizes as unknown as ProductSize[]) || [],
+        sizes: pricingChart[p.type]?.length
+          ? pricingChart[p.type].map((entry) => ({ ...entry, stock: ((p.sizes as unknown as ProductSize[]) || []).find((size) => size.size === entry.size)?.stock }))
+          : ((p.sizes as unknown as ProductSize[]) || []),
       }));
       setProducts(mapped);
     }

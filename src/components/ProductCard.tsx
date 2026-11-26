@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Zap, Ruler } from 'lucide-react';
 import { ProductReviews } from '@/components/ProductReviews';
 import { WishlistButton } from '@/components/WishlistButton';
 import { useWishlist } from '@/hooks/useWishlist';
@@ -14,6 +14,8 @@ import { ProductImageZoom } from '@/components/ProductImageZoom';
 import { getStockInfo } from '@/lib/stock';
 import { Progress } from '@/components/ui/progress';
 import { FlashCountdown } from '@/components/FlashCountdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { usePricingChart } from '@/hooks/useProductCache';
 import {
   flashDiscount,
   flashSoldPercent,
@@ -29,17 +31,33 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const pricingChart = usePricingChart();
+  const chartSizes = (pricingChart[product.type] || []).map((entry) => ({
+    ...entry,
+    stock: product.sizes.find((size) => size.size === entry.size)?.stock,
+  }));
+  const effectiveSizes = chartSizes.length ? chartSizes : product.sizes;
+  const [selectedSize, setSelectedSize] = useState(effectiveSizes[0]);
+  const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    const current = effectiveSizes.find((size) => size.size === selectedSize?.size);
+    setSelectedSize(current || effectiveSizes[0]);
+  }, [product.id, chartSizes, product.sizes, selectedSize?.size]);
   const { toggle, isWishlisted } = useWishlist();
 
-  const stock = getStockInfo(product.stockQuantity, product.inStock);
+  const hasCompleteSizeStock = chartSizes.length > 0 && product.sizes.length === chartSizes.length && chartSizes.every(
+    (size) => Number.isSafeInteger(size.stock) && Number(size.stock) >= 0,
+  );
+  const selectedSizeStock = hasCompleteSizeStock ? selectedSize?.stock : product.stockQuantity;
+  const stock = getStockInfo(selectedSizeStock, product.inStock);
   const limitedSale = sale ? isLimitedFlashStock(sale) : false;
   const saleRemaining = sale && limitedSale ? sale.remaining : Number.POSITIVE_INFINITY;
   const saleActive = !!sale && saleRemaining > 0;
-  const maxQty = saleActive ? saleRemaining : Number.POSITIVE_INFINITY;
+  const maxQty = saleActive ? Math.min(saleRemaining, stock.max) : stock.max;
   const soldOut = !stock.orderable;
-  const unitPrice = saleActive ? sale!.sale_price : selectedSize.price;
+  const unitPrice = saleActive ? sale!.sale_price : (selectedSize?.price ?? effectiveSizes[0]?.price ?? 0);
+  const startingPrice = effectiveSizes.length ? Math.min(...effectiveSizes.map((size) => Number(size.price) || 0)) : 0;
   const totalPrice = unitPrice * quantity;
 
   const handleQuantityChange = (delta: number) => {
@@ -48,6 +66,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   };
 
   const handleAddToCart = () => {
+    if (!selectedSize) return;
     onAddToCart(product, selectedSize.size, quantity, totalPrice);
   };
 
@@ -67,8 +86,8 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
   };
 
   return (
-    <div className="card-product">
-      <div className="aspect-square bg-muted relative overflow-hidden">
+    <div className={`card-product overflow-hidden rounded-2xl border border-border/60 shadow-sm ${product.id.charCodeAt(product.id.length - 1) % 2 === 0 ? 'bg-emerald-50' : 'bg-sky-50'}`}>
+      <div className="aspect-square bg-white relative overflow-hidden">
         <WishlistButton
           isWishlisted={isWishlisted(product.id)}
           onToggle={() => toggle(product.id)}
@@ -112,35 +131,58 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
               {product.name}
             </Link>
           </h3>
-          <p className="text-sm text-muted-foreground">{typeLabels[product.type]}</p>
+          <p className="text-sm text-muted-foreground">{typeLabels[product.type] || product.type.replace(/_/g, ' ')}</p>
+          {startingPrice > 0 && <p className="mt-1 text-sm font-semibold text-foreground">From KSh {startingPrice.toLocaleString('en-KE')}</p>}
         </div>
 
         {/* Live availability */}
-        <StockBadge quantity={product.stockQuantity} inStock={product.inStock} />
+        <StockBadge quantity={selectedSizeStock} inStock={product.inStock} />
 
         {/* Out of stock notification */}
         {soldOut && (
           <BackInStockNotify productId={product.id} productName={product.name} />
         )}
 
-        {/* Size Selection */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">Size:</p>
-          <div className="flex flex-wrap gap-2">
-            {product.sizes.map((size) => (
-              <button
-                key={size.size}
-                onClick={() => setSelectedSize(size)}
-                className={`badge-size ${
-                  selectedSize.size === size.size
-                    ? 'badge-size-active'
-                    : 'badge-size-inactive'
-                }`}
-              >
-                {size.size}
-              </button>
-            ))}
+        {/* Shared size and price chart */}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Selected size</p>
+            <p className="font-semibold">{selectedSize?.size || 'Choose a size'}</p>
+            <p className="text-sm font-bold text-foreground">KSh {(selectedSize?.price ?? 0).toLocaleString('en-KE')}</p>
           </div>
+          <Dialog open={sizeDialogOpen} onOpenChange={setSizeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="shrink-0 gap-2">
+                <Ruler className="h-4 w-4" />
+                View sizes & prices
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{product.name} — Sizes & prices</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[55vh] space-y-2 overflow-y-auto">
+                {effectiveSizes.map((size) => (
+                  <button
+                    type="button"
+                    key={size.size}
+                    onClick={() => { setSelectedSize(size); setQuantity(1); setSizeDialogOpen(false); }}
+                    className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors ${
+                      selectedSize?.size === size.size
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted'
+                    }`}
+                  >
+                    <span className="font-medium">{size.size}</span>
+                    <span className="font-bold">KSh {Number(size.price).toLocaleString('en-KE')}</span>
+                  </button>
+                ))}
+                {effectiveSizes.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Size options are not available yet. Please contact the store.</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Quantity */}
@@ -212,6 +254,7 @@ export function ProductCard({ product, onAddToCart, sale }: ProductCardProps) {
         {/* Add to Cart */}
         <Button
           onClick={handleAddToCart}
+          disabled={!selectedSize}
           className="w-full btn-secondary gap-2"
         >
           <ShoppingCart className="h-4 w-4" />

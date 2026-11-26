@@ -1,325 +1,200 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Save, Tag } from 'lucide-react';
+import { Plus, Trash2, Save, Tag, Upload, Download, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface PriceEntry {
-  id: string;
-  uniform_type: string;
-  size: string;
-  price: number;
-}
+interface PriceEntry { id: string; uniform_type: string; size: string; price: number; }
+interface ImportRow { uniform_type: string; size: string; price: number; row: number; }
+interface InvalidRow { row: number; reason: string; }
 
-const uniformTypes = [
-  { value: 'tshirt', label: 'T-Shirt' },
-  { value: 'shirts', label: 'Shirts' },
-  { value: 'tracksuit', label: 'Tracksuit' },
-  { value: 'socks', label: 'Socks' },
-  { value: 'shorts', label: 'Shorts' },
-  { value: 'trousers', label: 'Trousers' },
-  { value: 'skirt', label: 'Skirt' },
-  { value: 'sweater', label: 'Sweater' },
-  { value: 'tie', label: 'Tie' },
-  { value: 'dress', label: 'Dress' },
-  { value: 'fleece_jacket', label: 'Fleece Jacket' },
-  { value: 'other', label: 'Other' },
+const knownTypes = [
+  { value: 'tshirt', label: 'T-Shirt' }, { value: 'shirts', label: 'Shirts' },
+  { value: 'tracksuit', label: 'Tracksuit' }, { value: 'socks', label: 'Socks' },
+  { value: 'shorts', label: 'Shorts' }, { value: 'trousers', label: 'Trousers' },
+  { value: 'skirt', label: 'Skirt' }, { value: 'sweater', label: 'Sweater' },
+  { value: 'tie', label: 'Tie' }, { value: 'dress', label: 'Dress' },
+  { value: 'fleece_jacket', label: 'Fleece Jacket' }, { value: 'other', label: 'Other' },
 ];
 
-const standardSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size'];
+const normaliseType = (value: string) => {
+  const cleaned = value.trim().toLowerCase();
+  const known = knownTypes.find(t => t.value === cleaned || t.label.toLowerCase() === cleaned);
+  return known?.value || cleaned.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+};
+
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let value = '', quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"' && line[i + 1] === '"' && quoted) { value += '"'; i++; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === ',' && !quoted) { cells.push(value.trim()); value = ''; }
+    else value += char;
+  }
+  cells.push(value.trim());
+  return cells;
+}
 
 export default function PricingChart() {
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [newEntry, setNewEntry] = useState({
-    uniform_type: '',
-    size: '',
-    price: '',
-  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [newEntry, setNewEntry] = useState({ uniform_type: '', size: '', price: '' });
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [invalidRows, setInvalidRows] = useState<InvalidRow[]>([]);
+  const [fileName, setFileName] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchPrices();
-  }, []);
+  useEffect(() => { void fetchPrices(); }, []);
 
   const fetchPrices = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('pricing_chart')
-      .select('*')
-      .order('uniform_type')
-      .order('size');
-
-    if (error) {
-      toast.error('Error fetching prices');
-    } else {
-      setPrices(data || []);
-    }
+    const { data, error } = await supabase.from('pricing_chart').select('*').order('uniform_type').order('size');
+    if (error) toast.error('Could not load price charts');
+    else setPrices((data || []) as PriceEntry[]);
     setIsLoading(false);
   };
 
   const handleAddPrice = async () => {
-    if (!newEntry.uniform_type || !newEntry.size || !newEntry.price) {
-      toast.error('Please fill all fields');
-      return;
-    }
-
-    const priceValue = parseInt(newEntry.price);
-    if (isNaN(priceValue) || priceValue <= 0) {
-      toast.error('Please enter a valid price');
-      return;
-    }
-
-    const { error } = await supabase.from('pricing_chart').upsert(
-      {
-        uniform_type: newEntry.uniform_type,
-        size: newEntry.size,
-        price: priceValue,
-      },
-      {
-        onConflict: 'uniform_type,size',
-      }
-    );
-
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('This price entry already exists');
-      } else {
-        toast.error('Error adding price');
-      }
-    } else {
-      toast.success('Price added successfully');
-      setNewEntry({ uniform_type: '', size: '', price: '' });
-      fetchPrices();
-    }
+    const type = normaliseType(newEntry.uniform_type);
+    const size = newEntry.size.trim();
+    const price = Number(newEntry.price);
+    if (!type || !size || !newEntry.price.trim()) { toast.error('Enter a product category, size and price'); return; }
+    if (!Number.isSafeInteger(price) || price <= 0) { toast.error('Enter a valid whole-number price'); return; }
+    const { error } = await supabase.from('pricing_chart').upsert({ uniform_type: type, size, price }, { onConflict: 'uniform_type,size' });
+    if (error) { toast.error(error.message || 'Could not save price'); return; }
+    toast.success('Size and price saved');
+    setNewEntry({ uniform_type: '', size: '', price: '' });
+    await fetchPrices();
   };
 
   const handleDeletePrice = async (id: string) => {
     const { error } = await supabase.from('pricing_chart').delete().eq('id', id);
-
-    if (error) {
-      toast.error('Error deleting price');
-    } else {
-      toast.success('Price deleted');
-      setPrices(prices.filter((p) => p.id !== id));
-    }
+    if (error) toast.error(error.message || 'Could not delete entry');
+    else { toast.success('Price entry deleted'); setPrices(current => current.filter(p => p.id !== id)); }
   };
 
-  const handleUpdatePrice = async (id: string, newPrice: number) => {
-    const { error } = await supabase
-      .from('pricing_chart')
-      .update({ price: newPrice })
-      .eq('id', id);
-
-    if (error) {
-      toast.error('Error updating price');
-    } else {
-      toast.success('Price updated');
-      setPrices(prices.map((p) => (p.id === id ? { ...p, price: newPrice } : p)));
-    }
+  const handleUpdatePrice = async (id: string, raw: string, oldPrice: number) => {
+    const price = Number(raw);
+    if (!Number.isSafeInteger(price) || price <= 0) { toast.error('Price must be a positive whole number'); return; }
+    if (price === oldPrice) return;
+    const { error } = await supabase.from('pricing_chart').update({ price }).eq('id', id);
+    if (error) toast.error(error.message || 'Could not update price');
+    else { toast.success('Price updated'); setPrices(current => current.map(p => p.id === id ? { ...p, price } : p)); }
   };
 
-  const getTypeLabel = (type: string) => {
-    return uniformTypes.find((t) => t.value === type)?.label || type;
+  const downloadTemplate = () => {
+    const csv = 'uniform_type,size,price\nsweater,S,500\nsweater,M,550\nfleece_jacket,20,450\nfleece_jacket,22,500\n';
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'patrichia-size-price-template.csv'; link.click(); URL.revokeObjectURL(url);
   };
 
-  const groupedPrices = prices.reduce((acc, price) => {
-    if (!acc[price.uniform_type]) {
-      acc[price.uniform_type] = [];
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name)) { toast.error('For now, upload a CSV file. You can save an Excel sheet as CSV.'); return; }
+    const raw = await file.text();
+    const lines = raw.replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) { toast.error('The file needs a header and at least one data row'); return; }
+    const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g, '_'));
+    const typeIndex = headers.findIndex(h => ['uniform_type', 'product_type', 'category', 'product'].includes(h));
+    const sizeIndex = headers.indexOf('size');
+    const priceIndex = headers.findIndex(h => ['price', 'price_ksh', 'amount'].includes(h));
+    if ([typeIndex, sizeIndex, priceIndex].some(i => i < 0)) {
+      toast.error('Required columns: uniform_type, size, price'); return;
     }
-    acc[price.uniform_type].push(price);
+    const parsed: ImportRow[] = [], invalid: InvalidRow[] = [];
+    const seen = new Set<string>();
+    lines.slice(1).forEach((line, index) => {
+      const cells = parseCsvLine(line);
+      if (cells.length !== headers.length) {
+        invalid.push({ row: index + 2, reason: 'Unexpected number of columns. Quote prices that contain commas, for example "1,000".' });
+        return;
+      }
+      const typeRaw = cells[typeIndex] || '', size = (cells[sizeIndex] || '').trim();
+      const type = normaliseType(typeRaw);
+      const priceRaw = (cells[priceIndex] || '').replace(/[\s,]/g, '');
+      const price = Number(priceRaw);
+      const row = index + 2;
+      if (!type || !size || !priceRaw || !Number.isSafeInteger(price) || price <= 0) {
+        invalid.push({ row, reason: 'Missing category/size or invalid positive whole-number price' }); return;
+      }
+      const key = type + '::' + size.toLowerCase();
+      if (seen.has(key)) { invalid.push({ row, reason: 'Duplicate category and size in this file' }); return; }
+      seen.add(key); parsed.push({ uniform_type: type, size, price, row });
+    });
+    setFileName(file.name); setImportRows(parsed); setInvalidRows(invalid);
+    if (!parsed.length) toast.error('No valid rows found in this file');
+  };
+
+  const importPrices = async () => {
+    if (!importRows.length || invalidRows.length) { toast.error('Fix invalid rows before importing'); return; }
+    setIsSaving(true);
+    const payload = importRows.map(({ uniform_type, size, price }) => ({ uniform_type, size, price }));
+    const { error } = await supabase.from('pricing_chart').upsert(payload, { onConflict: 'uniform_type,size' });
+    setIsSaving(false);
+    if (error) { toast.error(error.message || 'Bulk import failed; no success is assumed'); return; }
+    toast.success(`Imported ${payload.length} size and price entries`);
+    setImportRows([]); setInvalidRows([]); setFileName('');
+    if (fileRef.current) fileRef.current.value = '';
+    await fetchPrices();
+  };
+
+  const grouped = prices.reduce((acc, entry) => {
+    (acc[entry.uniform_type] ||= []).push(entry);
     return acc;
   }, {} as Record<string, PriceEntry[]>);
+  const labelFor = (type: string) => knownTypes.find(t => t.value === type)?.label || type.replace(/_/g, ' ');
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Pricing Chart</h1>
-            <p className="text-muted-foreground">
-              Set standard prices for all uniform types and sizes. These prices will be used for online school orders.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">Size & Price Charts</h1>
+          <p className="text-muted-foreground">Manage reusable size and price lists by product category. Sizes can be letters, numbers or custom labels.</p>
         </div>
 
-        {/* Add New Price */}
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Add Price Entry
-            </CardTitle>
-            <CardDescription>
-              Add or update a price for a specific uniform type and size
-            </CardDescription>
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" /> Bulk upload price charts</CardTitle>
+            <CardDescription>Upload one CSV containing multiple categories. Required columns: uniform_type, size, price. Existing matching entries will be updated.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>Uniform Type</Label>
-                <Select
-                  value={newEntry.uniform_type}
-                  onValueChange={(v) => setNewEntry({ ...newEntry, uniform_type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniformTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Size</Label>
-                <Select
-                  value={newEntry.size}
-                  onValueChange={(v) => setNewEntry({ ...newEntry, size: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {standardSizes.map((size) => (
-                      <SelectItem key={size} value={size}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Price (Ksh)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 800"
-                  value={newEntry.price}
-                  onChange={(e) => setNewEntry({ ...newEntry, price: e.target.value })}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button onClick={handleAddPrice} className="w-full">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Price
-                </Button>
-              </div>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={downloadTemplate}><Download className="h-4 w-4 mr-2" />Download CSV template</Button>
+              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}><FileSpreadsheet className="h-4 w-4 mr-2" />Choose CSV file</Button>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e => void handleFile(e.target.files?.[0])} />
             </div>
+            {fileName && <p className="text-sm text-muted-foreground">Selected: {fileName}</p>}
+            {importRows.length > 0 && <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex flex-wrap justify-between gap-2"><p className="font-medium">Import preview: {importRows.length} valid rows</p><p className="text-sm text-muted-foreground">{new Set(importRows.map(r => r.uniform_type)).size} categories</p></div>
+              <div className="max-h-64 overflow-auto"><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Size</TableHead><TableHead>Price (KSh)</TableHead></TableRow></TableHeader><TableBody>{importRows.slice(0, 100).map(r => <TableRow key={r.row}><TableCell>{labelFor(r.uniform_type)}</TableCell><TableCell>{r.size}</TableCell><TableCell>{r.price.toLocaleString('en-KE')}</TableCell></TableRow>)}</TableBody></Table></div>
+              {importRows.length > 100 && <p className="text-xs text-muted-foreground">Showing first 100 rows of {importRows.length}.</p>}
+              {invalidRows.length > 0 && <div className="text-sm text-destructive space-y-1"><p className="flex items-center gap-2 font-medium"><AlertCircle className="h-4 w-4" />{invalidRows.length} invalid row(s). Correct the file and upload it again.</p>{invalidRows.slice(0, 8).map(r => <p key={r.row}>Row {r.row}: {r.reason}</p>)}</div>}
+              <Button onClick={() => void importPrices()} disabled={isSaving || invalidRows.length > 0}><Upload className="h-4 w-4 mr-2" />{isSaving ? 'Importing…' : `Import ${importRows.length} entries`}</Button>
+            </div>}
           </CardContent>
         </Card>
 
-        {/* Price Table */}
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        ) : prices.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No prices configured yet</h3>
-              <p className="text-muted-foreground">
-                Add your first price entry above to get started
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6">
-            {Object.entries(groupedPrices).map(([type, typeprices]) => (
-              <Card key={type}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{getTypeLabel(type)}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Size</TableHead>
-                        <TableHead>Price (Ksh)</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {typeprices.map((price) => (
-                        <TableRow key={price.id}>
-                          <TableCell className="font-medium">{price.size}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              defaultValue={price.price}
-                              className="w-32"
-                              onBlur={(e) => {
-                                const newPrice = parseInt(e.target.value);
-                                if (newPrice !== price.price && newPrice > 0) {
-                                  handleUpdatePrice(price.id, newPrice);
-                                }
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Price Entry</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this price? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeletePrice(price.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> Add or update one size</CardTitle><CardDescription>Enter any size label exactly as you want it displayed, such as S, M, 20, 22 or 10–12 Years.</CardDescription></CardHeader>
+          <CardContent><div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2"><Label>Product category</Label><Input list="uniform-type-options" placeholder="e.g. sweater, fleece jacket" value={newEntry.uniform_type} onChange={e => setNewEntry({ ...newEntry, uniform_type: e.target.value })} /><datalist id="uniform-type-options">{knownTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</datalist></div>
+            <div className="space-y-2"><Label>Size label</Label><Input placeholder="e.g. S, 22, 10-12 Years" value={newEntry.size} onChange={e => setNewEntry({ ...newEntry, size: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Price (KSh)</Label><Input type="number" min="1" step="1" placeholder="e.g. 800" value={newEntry.price} onChange={e => setNewEntry({ ...newEntry, price: e.target.value })} /></div>
+            <div className="md:col-span-3"><Button onClick={() => void handleAddPrice()}><Save className="h-4 w-4 mr-2" />Save size & price</Button></div>
+          </div></CardContent>
+        </Card>
+
+        {isLoading ? <div className="flex items-center justify-center h-48"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" /></div> :
+          prices.length === 0 ? <Card><CardContent className="py-12 text-center"><Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><h3 className="font-semibold">No price entries yet</h3><p className="text-muted-foreground">Add entries manually or import a CSV file.</p></CardContent></Card> :
+          <div className="grid gap-5">{Object.entries(grouped).map(([type, entries]) => <Card key={type}><CardHeader><CardTitle>{labelFor(type)}</CardTitle><CardDescription>{entries.length} size option(s)</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Size</TableHead><TableHead>Price (KSh)</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{entries.map(entry => <TableRow key={entry.id}><TableCell className="font-medium">{entry.size}</TableCell><TableCell><Input type="number" min="1" step="1" defaultValue={entry.price} className="w-32" onBlur={e => void handleUpdatePrice(entry.id, e.target.value, entry.price)} /></TableCell><TableCell className="text-right"><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete price entry?</AlertDialogTitle><AlertDialogDescription>This removes this category and size from the shared chart. Products using the category may no longer offer this size.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => void handleDeletePrice(entry.id)}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>)}</div>}
       </div>
     </AdminLayout>
   );
