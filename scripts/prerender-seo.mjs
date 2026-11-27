@@ -90,8 +90,8 @@ for (const p of products) {
 }
 const urls = new Map();
 const validPrices = (p) => sizes(p.sizes).filter((x) => x && String(x.size || "").trim() && Number.isFinite(Number(x.price)) && Number(x.price) > 0);
-const richProduct = (p) => Boolean(String(p.name || "").trim() && String(p.type || "").trim() && p.image_url &&
-  (String(p.description || "").trim().length >= 40 || validPrices(p).length >= 2));
+const richProduct = (p) => Boolean(String(p.name || "").trim() && String(p.type || "").trim() &&
+  (String(p.description || "").trim().length >= 60 || validPrices(p).length >= 2));
 const schoolIsIndexable = (items) => {
   const rich = items.filter(richProduct);
   return items.length >= 3 && rich.length >= 2 &&
