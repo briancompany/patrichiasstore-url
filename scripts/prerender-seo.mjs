@@ -96,7 +96,7 @@ const richProduct = (p) => Boolean(String(p.name || "").trim() && String(p.type 
 const schoolIsIndexable = (items) => {
   const rich = items.filter(richProduct);
   return items.length >= 3 && rich.length >= 2 &&
-    new Set(rich.map((p) => String(p.type || "").trim().toLowerCase())).size >= 2;
+    new Set(rich.map((p) => String(p.name || "").trim().toLowerCase())).size >= 2;
 };
 const productFingerprint = (p) => JSON.stringify({
   school_id: p.school_id || null,
