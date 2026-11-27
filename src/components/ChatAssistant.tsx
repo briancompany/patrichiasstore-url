@@ -148,7 +148,7 @@ export function ChatAssistant() {
       )}
 
       {open && (
-        <div className="fixed inset-x-2 bottom-2 z-50 flex min-w-0 h-[78dvh] max-h-[40rem] flex-col rounded-2xl border bg-background shadow-2xl animate-in slide-in-from-bottom-8 sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
+        <div className="fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[60] flex min-w-0 h-[78dvh] max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] flex-col rounded-2xl border bg-background shadow-2xl animate-in slide-in-from-bottom-8 md:bottom-2 md:max-h-[40rem] sm:left-auto sm:right-4 sm:w-full sm:max-w-sm">
           <div className="flex shrink-0 items-center justify-between gap-2 rounded-t-2xl bg-primary px-4 py-3 text-primary-foreground">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent font-bold text-accent-foreground">P</div>
