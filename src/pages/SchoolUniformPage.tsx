@@ -117,26 +117,11 @@ export default function SchoolUniformPage() {
     });
     const indexable = products.length >= 3 && richProducts.length >= 2 &&
       new Set(richProducts.map((product) => product.type.trim().toLowerCase())).size >= 2;
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) {
-      robots = document.createElement('meta');
-      robots.setAttribute('name', 'robots');
-      document.head.appendChild(robots);
-    }
-    robots.setAttribute('content', indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow');
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', description);
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
     setMeta('meta[name="twitter:title"]', 'content', title);
     setMeta('meta[name="twitter:description"]', 'content', description);
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', canonicalUrl);
 
     // Give Google explicit school-page context after the page data is available.
     let jsonLd = document.getElementById('school-page-jsonld');
