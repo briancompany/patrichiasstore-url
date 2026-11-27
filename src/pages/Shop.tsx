@@ -149,7 +149,7 @@ export default function Shop() {
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {productTypes.map((type) => (
-                <SelectItem key={type} value={type}>
+                <SelectItem key={type.slug} value={type.slug}>
                   {type.name}
                 </SelectItem>
               ))}
