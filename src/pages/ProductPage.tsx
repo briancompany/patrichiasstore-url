@@ -109,13 +109,6 @@ export default function ProductPage() {
       product.name.trim() && product.type.trim() &&
       (String(product.description || '').trim().length >= 60 || validPrices.length >= 2)
     );
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) {
-      robots = document.createElement('meta');
-      robots.setAttribute('name', 'robots');
-      document.head.appendChild(robots);
-    }
-    robots.setAttribute('content', hasMeaningfulContent ? 'index, follow, max-image-preview:large' : 'noindex, follow');
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', description);
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
@@ -126,14 +119,6 @@ export default function ProductPage() {
       setMeta('meta[property="og:image"]', 'content', product.image_url);
       setMeta('meta[name="twitter:image"]', 'content', product.image_url);
     }
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', canonicalUrl);
 
     // Product + breadcrumb structured data helps search engines understand the landing page.
     let jsonLd = document.getElementById('product-page-jsonld');
