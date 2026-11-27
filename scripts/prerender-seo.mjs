@@ -50,10 +50,11 @@ function render(template, data) {
   html = meta(html, "twitter:description", data.description);
   html = html.replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "");
   html = html.replace(/<link\s+rel=["']alternate["'][^>]*>/gi, "");
+  const schema = data.canonicalUrl && data.schema ? { ...data.schema, url: data.canonicalUrl, ...(data.schema.offers ? { offers: { ...data.schema.offers, url: data.canonicalUrl } } : {}) } : data.schema;
   html = html.replace("</head>", '<link rel="canonical" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
-    '<link rel="alternate" hreflang="en-KE" href="' + esc(data.url) + '" />\n' +
-    '<link rel="alternate" hreflang="x-default" href="' + esc(data.url) + '" />\n' +
-    '<script type="application/ld+json">' + JSON.stringify(data.schema).replace(/</g, "\\u003c") +
+    '<link rel="alternate" hreflang="en-KE" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
+    '<link rel="alternate" hreflang="x-default" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
+    '<script type="application/ld+json">' + JSON.stringify(schema).replace(/</g, "\\u003c") +
     "</script>\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + data.body + "</div>");
 }
