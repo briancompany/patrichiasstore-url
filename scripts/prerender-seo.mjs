@@ -71,7 +71,7 @@ function storeInfo(productName = "") {
   return '<section><h2>Visit Patrichia Kavingo Uniform Store</h2><p>Uhuru Market, Store F47, Jogoo Road, Nairobi. Open Monday to Saturday, 8am–6pm.</p><p>For sizing, availability, pickup and countrywide delivery:</p><p><a href="tel:+254726075180">Call +254 726 075 180</a> · <a href="' + esc(whatsapp) + '" rel="noopener noreferrer">Chat with us on WhatsApp</a></p></section>';
 }
 function card(p, schoolName) {
-  const prices = sizes(p.sizes).map((x) => Number(x.price)).filter(Number.isFinite);
+  const prices = validPrices(p).map((x) => Number(x.price));
   const price = prices.length ? "<p>From KES " + cash(Math.min(...prices)) + "</p>" : "";
   return '<article><a href="/shop/product/' + encodeURIComponent(p.id) + '">' +
     (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="' + esc(p.name) + '" width="320" height="320" loading="lazy" />' : "") +
@@ -92,7 +92,7 @@ for (const p of products) {
 const urls = new Map();
 const validPrices = (p) => sizes(p.sizes).filter((x) => x && String(x.size || "").trim() && Number.isFinite(Number(x.price)) && Number(x.price) > 0);
 const richProduct = (p) => Boolean(String(p.name || "").trim() && String(p.type || "").trim() &&
-  (String(p.description || "").trim().length >= 60 || validPrices(p).length >= 2));
+  (String(p.description || "").trim().length >= 60 || validPrices(p).length >= 1));
 const schoolIsIndexable = (items) => {
   const rich = items.filter(richProduct);
   return items.length >= 3 && rich.length >= 2 &&
@@ -155,13 +155,13 @@ for (const s of schools) {
 for (const p of products) {
   const school = p.school_id ? schoolById.get(p.school_id) : null;
   const schoolName = school ? school.name : "";
-  const prices = sizes(p.sizes).map((x) => Number(x.price)).filter(Number.isFinite);
+  const prices = validPrices(p).map((x) => Number(x.price));
   const lowest = prices.length ? Math.min(...prices) : null;
   const title = (schoolName ? schoolName + " " : "") + p.name + " | School Uniform | Patrichia Kavingo Store";
   const description = "Buy " + (schoolName ? schoolName + " " : "") + p.name + " in Nairobi from Patrichia Kavingo Store, Uhuru Market Store F47, Jogoo Road." +
     (lowest !== null ? " From KES " + cash(lowest) + "." : "") + " Call +254 726 075 180 for sizes and availability.";
   const url = SITE + "/shop/product/" + encodeURIComponent(p.id);
-  const sizeList = sizes(p.sizes);
+  const sizeList = validPrices(p);
   const sizeMarkup = sizeList.length ? "<h2>Available sizes and prices</h2><ul>" +
     sizeList.map((x) => "<li>" + esc(x.size) + " — KES " + cash(x.price) + "</li>").join("") + "</ul>" : "";
   const body = '<main><nav><a href="/">Home</a> / <a href="/shop">Shop</a>' +
