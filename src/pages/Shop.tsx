@@ -96,8 +96,6 @@ export default function Shop() {
     navigate('/uniform-shop');
   };
 
-  const typeLabels = new Map(productTypes.map((item) => [item.slug, item.name]));
-
   return (
     <Layout>
       <div className="container-shop py-8">
