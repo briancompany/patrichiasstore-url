@@ -85,14 +85,6 @@ const [schools, products] = await Promise.all([
 ]);
 const schoolById = new Map(schools.map((s) => [s.id, s]));
 const bySchool = new Map();
-const primaryProductByFingerprint = new Map();
-for (const p of products) {
-  const fingerprint = productFingerprint(p);
-  if (!primaryProductByFingerprint.has(fingerprint)) primaryProductByFingerprint.set(fingerprint, p.id);
-}
-let indexableProductCount = 0;
-let duplicateProductCount = 0;
-
 for (const p of products) {
   if (p.school_id) bySchool.set(p.school_id, (bySchool.get(p.school_id) || []).concat(p));
 }
@@ -114,6 +106,15 @@ const productFingerprint = (p) => JSON.stringify({
   sizes: validPrices(p).map((x) => [String(x.size).trim().toLowerCase(), Number(x.price)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
 });
 const addUrl = (url, updated) => urls.set(url, updated || urls.get(url) || null);
+const primaryProductByFingerprint = new Map();
+for (const p of products) {
+  const fingerprint = productFingerprint(p);
+  if (!primaryProductByFingerprint.has(fingerprint)) primaryProductByFingerprint.set(fingerprint, p.id);
+}
+let indexableProductCount = 0;
+let duplicateProductCount = 0;
+
+
 [ "/", "/shop", "/uniform-shop", "/about", "/contact" ].forEach((p) => addUrl(SITE + p));
 
 const schoolLinks = [];
