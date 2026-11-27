@@ -62,7 +62,7 @@ const normaliseType = (value: string) => {
   return known?.value || normalised;
 };
 
-const isSupportedType = (type: string) => knownTypes.some(t => t.value === type);
+const isSupportedType = (type: string) => /^[a-z0-9]+(_[a-z0-9]+)*$/.test(type);
 
 function parseCsvLine(line: string): string[] {
   const cells: string[] = [];
@@ -162,9 +162,6 @@ export default function PricingChart() {
       if (!type || !size || !priceRaw || !Number.isSafeInteger(price) || price <= 0) {
         invalid.push({ row, reason: 'Missing category/size or invalid positive whole-number price' }); return;
       }
-      if (!isSupportedType(type)) {
-        invalid.push({ row, reason: `Unsupported uniform category: ${typeRaw}. Use a category from the supported list.` }); return;
-      }
       const key = type + '::' + size.toLowerCase();
       if (seen.has(key)) { invalid.push({ row, reason: 'Duplicate category and size in this file' }); return; }
       seen.add(key); parsed.push({ uniform_type: type, size, price, row });
@@ -177,6 +174,9 @@ export default function PricingChart() {
     if (!importRows.length || invalidRows.length) { toast.error('Fix invalid rows before importing'); return; }
     setIsSaving(true);
     const payload = importRows.map(({ uniform_type, size, price }) => ({ uniform_type, size, price }));
+    const newTypes = [...new Set(payload.map(row => row.uniform_type))].map(slug => ({ slug, name: slug.replace(/_/g, ' ').replace(/\\b\\w/g, char => char.toUpperCase()) }));
+    const { error: catalogueError } = await supabase.from('product_types').upsert(newTypes, { onConflict: 'slug', ignoreDuplicates: true });
+    if (catalogueError) { setIsSaving(false); toast.error(catalogueError.message || 'Could not register product types'); return; }
     const { error } = await supabase.from('pricing_chart').upsert(payload, { onConflict: 'uniform_type,size' });
     setIsSaving(false);
     if (error) { toast.error(error.message || 'Bulk import failed; no success is assumed'); return; }
