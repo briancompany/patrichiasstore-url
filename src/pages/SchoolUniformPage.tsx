@@ -20,6 +20,7 @@ interface Product {
   id: string;
   name: string;
   type: string;
+  description: string | null;
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
@@ -70,7 +71,7 @@ export default function SchoolUniformPage() {
 
       const { data: productData } = await supabase
         .from('products')
-        .select('id, name, type, image_url, sizes, in_stock, stock_quantity')
+        .select('id, name, type, description, image_url, sizes, in_stock, stock_quantity')
         .eq('school_id', match.id)
         .order('type')
         .range(0, 999);
@@ -105,6 +106,20 @@ export default function SchoolUniformPage() {
     };
 
     setMeta('meta[name="description"]', 'content', description);
+    const richProducts = products.filter((product) => {
+      const validPrices = product.sizes.filter((size) => size.size?.trim() && Number.isFinite(Number(size.price)) && Number(size.price) > 0);
+      return Boolean(product.name.trim() && product.type.trim() && product.image_url &&
+        (String(product.description || '').trim().length >= 40 || validPrices.length >= 2));
+    });
+    const indexable = products.length >= 3 && richProducts.length >= 2 &&
+      new Set(richProducts.map((product) => product.type.trim().toLowerCase())).size >= 2;
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.setAttribute('name', 'robots');
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute('content', indexable ? 'index, follow, max-image-preview:large' : 'noindex, follow');
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', description);
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
@@ -152,7 +167,7 @@ export default function SchoolUniformPage() {
         ],
       },
     });
-  }, [school, schoolSlug]);
+  }, [school, schoolSlug, products]);
 
   const handleOrderThisSchool = () => {
     if (school) {
