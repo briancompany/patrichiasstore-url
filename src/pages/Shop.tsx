@@ -55,10 +55,11 @@ export default function Shop() {
     return generalProducts.filter((product) => {
       const typeMatch = selectedType === 'all' || product.type === selectedType;
       const query = searchQuery.trim().toLowerCase();
-      const searchMatch = !query || [product.name, product.school, product.type, product.description || ''].some((value) => value.toLowerCase().includes(query));
+      const typeName = productTypes.find((item) => item.slug === product.type)?.name || product.type.replace(/_/g, ' ');
+      const searchMatch = !query || [product.name, product.school, product.type, typeName, product.description || ''].some((value) => value.toLowerCase().includes(query));
       return typeMatch && searchMatch;
     });
-  }, [generalProducts, selectedType, searchQuery]);
+  }, [generalProducts, selectedType, searchQuery, productTypes]);
 
   const handleAddToCart = (product: Product, size: string, quantity: number, price: number) => {
     const existingIndex = cart.findIndex(
