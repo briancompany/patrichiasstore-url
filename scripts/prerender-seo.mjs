@@ -186,7 +186,7 @@ for (const p of products) {
   const canonicalUrl = isExactDuplicate ? SITE + "/shop/product/" + encodeURIComponent(primaryId) : url;
   await writePage("shop/product/" + p.id, render(template, {
     title, description, url, canonicalUrl, body, schema, image: p.image_url, type: "product",
-    robots: isExactDuplicate ? "noindex, follow" : indexable ? "index, follow, max-image-preview:large" : "noindex, follow"
+    robots: indexable || isExactDuplicate ? "index, follow, max-image-preview:large" : "noindex, follow"
   }));
   if (isExactDuplicate) duplicateProductCount++;
   if (indexable) {
