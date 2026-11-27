@@ -107,9 +107,9 @@ const schoolIsIndexable = (items) => {
 };
 const productFingerprint = (p) => JSON.stringify({
   school_id: p.school_id || null,
-  name: String(p.name || "").trim().toLowerCase().replace(/\\s+/g, " "),
+  name: String(p.name || "").trim().toLowerCase().replace(/\s+/g, " "),
   type: String(p.type || "").trim().toLowerCase(),
-  description: String(p.description || "").trim().toLowerCase().replace(/\\s+/g, " "),
+  description: String(p.description || "").trim().toLowerCase().replace(/\s+/g, " "),
   image_url: String(p.image_url || "").trim(),
   sizes: validPrices(p).map((x) => [String(x.size).trim().toLowerCase(), Number(x.price)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
 });
@@ -212,6 +212,10 @@ const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
   "\n</urlset>\n";
 await writeFile(path.join(DIST, "sitemap.xml"), xml, "utf8");
 const indexableSchoolCount = schools.filter((s) => schoolIsIndexable(bySchool.get(s.id) || [])).length;
+const eligibleCount = indexableSchoolCount + indexableProductCount;
+const candidateCount = schools.length + products.length;
+const eligiblePercent = candidateCount ? Math.round((eligibleCount / candidateCount) * 100) : 0;
 console.log("SEO prerender complete: " + schools.length + " schools (" + indexableSchoolCount + " indexable), " +
   products.length + " products (" + indexableProductCount + " indexable, " + duplicateProductCount + " exact duplicates excluded), " +
-  urls.size + " sitemap URLs.");
+  eligiblePercent + "% of candidate pages pass quality gates; " + urls.size + " sitemap URLs.");
+if (eligiblePercent < 50) console.warn("SEO quality gate: fewer than 50% of candidate school/product pages currently qualify. Improve real product data before indexing more pages.");
