@@ -4,7 +4,7 @@ import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
 import { createGroq } from "npm:@ai-sdk/groq@2";
 import { z } from "npm:zod@3.25.76";
 
-const MODEL = "llama3-70b-8192"; strongest model on this Groq account; llama-3.3-70b-versatile is no longer offered
+const MODEL = "openai/gpt-oss-120b"; // Current Groq production model configured for Patrichia chat.
 const STORE_PHONE = "254726075180";
 const SESSION_LIMIT_PER_HOUR = 20;
 const DEVICE_LIMIT_PER_HOUR = 60;
