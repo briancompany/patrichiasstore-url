@@ -68,14 +68,19 @@ function normalizeColor(value: string | null | undefined): string | null {
 }
 function detectColor(value: string): string | null {
   const normalized = " " + String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
+  const matches: { canonical: string; index: number; length: number }[] = [];
   for (const { canonical, alias } of COLOR_ALIASES) {
     const term = " " + alias.replace(/[^a-z0-9]+/g, " ").trim() + " ";
-    if (normalized.includes(term)) return canonical;
+    const index = normalized.lastIndexOf(term);
+    if (index >= 0) matches.push({ canonical, index, length: term.length });
   }
   for (const [swahili, canonical] of Object.entries(SW)) {
-    if (normalized.includes(" " + swahili + " ")) return canonical;
+    const term = " " + swahili + " ";
+    const index = normalized.lastIndexOf(term);
+    if (index >= 0) matches.push({ canonical, index, length: term.length });
   }
-  return null;
+  matches.sort((a, b) => b.index - a.index || b.length - a.length);
+  return matches[0]?.canonical ?? null;
 }
 function colorShades(c: string): string[] {
   const base = normalizeColor(c) ?? c.toLowerCase().replace(/[^a-z -]/g, "").trim();
@@ -339,7 +344,7 @@ Deno.serve(async (req) => {
             const colourWords = new Set(colorShades(requestedColor).flatMap((shade) => shade.split(/\s+/)));
             textSearch = textSearch.split(/\s+/).filter((word) => !colourWords.has(word.toLowerCase())).join(" ");
           }
-        const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
+          const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
           if (w) q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
         }
         if (type) q = q.eq("type", type);
