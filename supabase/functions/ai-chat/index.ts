@@ -91,6 +91,51 @@ function containsColor(value: string, terms: string[]): boolean {
   return terms.some((term) => normalized.includes(" " + term.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " "));
 }
 
+// Best-effort visual fallback. Cache by product + image URL in each warm Edge
+// Function instance so repeat customer searches do not repeatedly analyse photos.
+const visualColorCache = new Map<string, { colors: string[]; expiresAt: number }>();
+const VISUAL_COLOR_MODEL = "qwen/qwen3.8-27b";
+async function detectImageColors(productId: string, imageUrl: string): Promise<string[]> {
+  if (!imageUrl || !imageUrl.startsWith("https://")) return [];
+  const cacheKey = productId + ":" + imageUrl;
+  const cached = visualColorCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.colors;
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) return [];
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: VISUAL_COLOR_MODEL,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Identify only the clearly visible main garment/product colours in this product photo. Ignore background, labels, text and lighting effects. Return JSON only: {\"colors\":[\"canonical colour names\"]}. Use simple names such as black, white, grey, blue, navy, red, maroon, green, brown, khaki, yellow, gold, purple, orange or pink. If the garment colour is unclear, return an empty array. Do not guess." },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ],
+        }],
+        temperature: 0,
+        max_completion_tokens: 100,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    const parsed = JSON.parse(typeof content === "string" ? content : "{}");
+    const colors = Array.isArray(parsed.colors)
+      ? [...new Set(parsed.colors.map((value: unknown) => normalizeColor(String(value))).filter((value: string | null): value is string => Boolean(value)))]
+      : [];
+    visualColorCache.set(cacheKey, { colors, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+    return colors;
+  } catch (error) {
+    console.warn("visual product colour analysis unavailable", String(error).slice(0, 180));
+    return [];
+  }
+}
+
 function sanitize(input: string, max = MAX_INPUT): string {
   return String(input ?? "")
     .replace(/<[^>]*>/g, "")
@@ -359,11 +404,27 @@ Deno.serve(async (req) => {
         const { data: rawProducts, error } = await q;
         if (error) throw new Error("product lookup failed");
         const shades = requestedColor ? colorShades(requestedColor) : [];
-        const data = (rawProducts ?? []).filter((p) => {
-          if (!requestedColor) return true;
-          const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
-          return containsColor(colourText, shades);
-        }).slice(0, 8);
+        const candidates = rawProducts ?? [];
+        let data = candidates;
+        if (requestedColor) {
+          const metadataMatches = candidates.filter((p) => {
+            const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
+            return containsColor(colourText, shades);
+          });
+          const metadataMatchIds = new Set(metadataMatches.map((p) => p.id));
+          // Only inspect a small number of unmatched catalogue photos; metadata remains
+          // authoritative when present, and image analysis is a fallback for missing colours.
+          const visualCandidates = candidates
+            .filter((p) => !metadataMatchIds.has(p.id) && typeof p.image_url === "string" && p.image_url.startsWith("https://"))
+            .slice(0, 3);
+          const visualResults = await Promise.all(visualCandidates.map(async (p) => ({
+            id: p.id,
+            matches: containsColor((await detectImageColors(String(p.id), p.image_url)).join(" "), shades),
+          })));
+          const visualMatchIds = new Set(visualResults.filter((p) => p.matches).map((p) => p.id));
+          data = candidates.filter((p) => metadataMatchIds.has(p.id) || visualMatchIds.has(p.id));
+        }
+        data = data.slice(0, 8);
         const { data: flash } = await admin.rpc("get_active_flash_sales");
         const fmap = new Map((flash ?? []).map((f: { product_id: string; sale_price: number }) => [f.product_id, f.sale_price]));
         const products = (data ?? []).map((p) => {
