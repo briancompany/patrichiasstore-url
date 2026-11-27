@@ -235,7 +235,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("phone_hash", session.phone_hash)
     .eq("device_hash", session.device_hash)
     .maybeSingle();
-    const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
+  const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
   const result = await generateObject({
     model: groqModel(),
     schema: z.object({
