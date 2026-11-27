@@ -64,12 +64,11 @@ ON CONFLICT (slug) DO NOTHING;
 
 -- Common spelling/plural variants resolve to one canonical catalogue entry.
 UPDATE public.products SET type = 'dress' WHERE lower(type) IN ('dresses');
-UPDATE public.pricing_chart SET uniform_type = 'dress' WHERE lower(uniform_type) IN ('dresses');
 UPDATE public.products SET type = 'fleece_jacket' WHERE lower(type) IN ('fleeze', 'fleece', 'fleece_jackets');
-UPDATE public.pricing_chart SET uniform_type = 'fleece_jacket' WHERE lower(uniform_type) IN ('fleeze', 'fleece', 'fleece_jackets');
 UPDATE public.products SET type = 'tracksuit' WHERE lower(type) IN ('tracksuits', 'track_suit');
-UPDATE public.pricing_chart SET uniform_type = 'tracksuit' WHERE lower(uniform_type) IN ('tracksuits', 'track_suit');
 
 INSERT INTO public.product_types (slug, name, sort_order) VALUES
  ('dress','Dresses',100), ('fleece_jacket','Fleece Jackets',101), ('tracksuit','Tracksuits',102)
 ON CONFLICT (slug) DO NOTHING;
+
+-- Keep historical price-chart keys intact; ProductForm resolves their aliases when applying charts.
