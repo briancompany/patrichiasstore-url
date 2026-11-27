@@ -125,9 +125,13 @@ async function detectImageColors(productId: string, imageUrl: string): Promise<s
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     const parsed = JSON.parse(typeof content === "string" ? content : "{}");
-    const colors = Array.isArray(parsed.colors)
-      ? [...new Set(parsed.colors.map((value: unknown) => normalizeColor(String(value))).filter((value: string | null): value is string => Boolean(value)))]
-      : [];
+    const colors: string[] = [];
+    if (Array.isArray(parsed.colors)) {
+      for (const value of parsed.colors as unknown[]) {
+        const normalized = normalizeColor(String(value));
+        if (normalized && !colors.includes(normalized)) colors.push(normalized);
+      }
+    }
     visualColorCache.set(cacheKey, { colors, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
     return colors;
   } catch (error) {
@@ -232,7 +236,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("device_hash", session.device_hash)
     .maybeSingle();
     const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
-  const result = streamText({
+  const result = await generateText({
     model: groqModel(),
     output: Output.object({
       schema: z.object({
@@ -247,7 +251,7 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     }),
     prompt: `Update the customer profile from this chat. Keep existing facts unless the chat changes them. Keep each field under 150 characters. Never include phone numbers, emails, payment codes or addresses. Use null when unknown.\n\nEXISTING PROFILE (json): ${JSON.stringify(existing?.facts ?? {})}\n\nCHAT:\n${transcript}`,
   });
-  const out = await result.output;
+  const out = result.output;
   const facts: Record<string, string> = {};
   for (const [k, v] of Object.entries(out ?? {})) if (typeof v === "string" && v.trim()) facts[k] = maskPhones(v).slice(0, 150);
   await admin.from("ai_memory").upsert(
@@ -687,7 +691,8 @@ Deno.serve(async (req) => {
           .in("tracking_code", ["PS-" + code, code])
           .limit(1)
           .maybeSingle();
-        const o = t?.orders as Record<string, unknown> | null;
+        const orderRelation = t?.orders;
+        const o = (Array.isArray(orderRelation) ? orderRelation[0] : orderRelation) as Record<string, unknown> | null;
         if (!o || normalizePhone(String(o.customer_phone ?? "")) !== p) {
           return { found: false, error: "No order matches that phone number and order code." };
         }
