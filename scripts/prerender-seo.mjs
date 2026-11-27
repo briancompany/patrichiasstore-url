@@ -40,20 +40,21 @@ function render(template, data) {
   let html = template.replace(/<title>[^<]*<\/title>/i, "<title>" + esc(data.title) + "</title>");
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
   html = meta(html, "description", data.description);
-  html = meta(html, "robots", "index, follow, max-image-preview:large");
+  html = meta(html, "robots", data.robots || "index, follow, max-image-preview:large");
   html = meta(html, "og:title", data.title, true);
   html = meta(html, "og:description", data.description, true);
-  html = meta(html, "og:url", data.url, true);
+  html = meta(html, "og:url", data.canonicalUrl || data.url, true);
   html = meta(html, "og:type", data.type || "website", true);
   html = meta(html, "og:image", data.image || SITE + "/og-image.jpg", true);
   html = meta(html, "twitter:title", data.title);
   html = meta(html, "twitter:description", data.description);
   html = html.replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "");
   html = html.replace(/<link\s+rel=["']alternate["'][^>]*>/gi, "");
-  html = html.replace("</head>", '<link rel="canonical" href="' + esc(data.url) + '" />\n' +
-    '<link rel="alternate" hreflang="en-KE" href="' + esc(data.url) + '" />\n' +
-    '<link rel="alternate" hreflang="x-default" href="' + esc(data.url) + '" />\n' +
-    '<script type="application/ld+json">' + JSON.stringify(data.schema).replace(/</g, "\\u003c") +
+  const schema = data.canonicalUrl && data.schema ? { ...data.schema, url: data.canonicalUrl, ...(data.schema.offers ? { offers: { ...data.schema.offers, url: data.canonicalUrl } } : {}) } : data.schema;
+  html = html.replace("</head>", '<link rel="canonical" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
+    '<link rel="alternate" hreflang="en-KE" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
+    '<link rel="alternate" hreflang="x-default" href="' + esc(data.canonicalUrl || data.url) + '" />\n' +
+    '<script type="application/ld+json">' + JSON.stringify(schema).replace(/</g, "\\u003c") +
     "</script>\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + data.body + "</div>");
 }
@@ -89,7 +90,32 @@ for (const p of products) {
   if (p.school_id) bySchool.set(p.school_id, (bySchool.get(p.school_id) || []).concat(p));
 }
 const urls = new Map();
+const validPrices = (p) => sizes(p.sizes).filter((x) => x && String(x.size || "").trim() && Number.isFinite(Number(x.price)) && Number(x.price) > 0);
+const richProduct = (p) => Boolean(String(p.name || "").trim() && String(p.type || "").trim() &&
+  (String(p.description || "").trim().length >= 60 || validPrices(p).length >= 2));
+const schoolIsIndexable = (items) => {
+  const rich = items.filter(richProduct);
+  return items.length >= 3 && rich.length >= 2 &&
+    new Set(rich.map((p) => String(p.name || "").trim().toLowerCase())).size >= 2;
+};
+const productFingerprint = (p) => JSON.stringify({
+  school_id: p.school_id || null,
+  name: String(p.name || "").trim().toLowerCase().replace(/\s+/g, " "),
+  type: String(p.type || "").trim().toLowerCase(),
+  description: String(p.description || "").trim().toLowerCase().replace(/\s+/g, " "),
+  image_url: String(p.image_url || "").trim(),
+  sizes: validPrices(p).map((x) => [String(x.size).trim().toLowerCase(), Number(x.price)]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+});
 const addUrl = (url, updated) => urls.set(url, updated || urls.get(url) || null);
+const primaryProductByFingerprint = new Map();
+for (const p of products) {
+  const fingerprint = productFingerprint(p);
+  if (!primaryProductByFingerprint.has(fingerprint)) primaryProductByFingerprint.set(fingerprint, p.id);
+}
+let indexableProductCount = 0;
+let duplicateProductCount = 0;
+
+
 [ "/", "/shop", "/uniform-shop", "/about", "/contact" ].forEach((p) => addUrl(SITE + p));
 
 const schoolLinks = [];
@@ -120,9 +146,10 @@ for (const s of schools) {
       { "@type": "ListItem", position: 2, name: "School Uniforms", item: SITE + "/uniform-shop" },
       { "@type": "ListItem", position: 3, name: s.name + " Uniforms", item: url }
     ] } };
-  await writePage("uniform-shop/school/" + slugValue, render(template, { title, description, url, body, schema, image: s.logo_url }));
+  const indexable = schoolIsIndexable(related);
+  await writePage("uniform-shop/school/" + slugValue, render(template, { title, description, url, body, schema, image: s.logo_url, robots: indexable ? "index, follow, max-image-preview:large" : "noindex, follow" }));
   schoolLinks.push('<li><a href="/uniform-shop/school/' + slugValue + '">' + esc(s.name) + ' uniforms</a></li>');
-  addUrl(url, s.updated_at);
+  if (indexable) addUrl(url, s.updated_at);
 }
 
 for (const p of products) {
@@ -152,8 +179,20 @@ for (const p of products) {
     offers: { "@type": "Offer", url, priceCurrency: "KES", ...(lowest !== null ? { price: lowest } : {}),
       availability: p.in_stock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       seller: { "@type": "ClothingStore", name: "Patrichia Kavingo Uniform Store", url: SITE } } };
-  await writePage("shop/product/" + p.id, render(template, { title, description, url, body, schema, image: p.image_url, type: "product" }));
-  addUrl(url, p.updated_at);
+  const fingerprint = productFingerprint(p);
+  const primaryId = primaryProductByFingerprint.get(fingerprint);
+  const isExactDuplicate = primaryId !== p.id;
+  const indexable = richProduct(p) && !isExactDuplicate;
+  const canonicalUrl = isExactDuplicate ? SITE + "/shop/product/" + encodeURIComponent(primaryId) : url;
+  await writePage("shop/product/" + p.id, render(template, {
+    title, description, url, canonicalUrl, body, schema, image: p.image_url, type: "product",
+    robots: indexable || isExactDuplicate ? "index, follow, max-image-preview:large" : "noindex, follow"
+  }));
+  if (isExactDuplicate) duplicateProductCount++;
+  if (indexable) {
+    indexableProductCount++;
+    addUrl(url, p.updated_at);
+  }
 }
 
 const schoolBody = '<main><h1>School Uniforms in Nairobi and Kenya</h1><p>Browse school uniform pages by school name. Patrichia Kavingo Uniform Store is at Uhuru Market, Store F47, Jogoo Road, Nairobi.</p><ul>' +
@@ -174,4 +213,11 @@ const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
     (updated ? "<lastmod>" + esc(String(updated).slice(0, 10)) + "</lastmod>" : "") + "</url>").join("\n") +
   "\n</urlset>\n";
 await writeFile(path.join(DIST, "sitemap.xml"), xml, "utf8");
-console.log("SEO prerender complete: " + schools.length + " schools, " + products.length + " products, " + urls.size + " sitemap URLs.");
+const indexableSchoolCount = schools.filter((s) => schoolIsIndexable(bySchool.get(s.id) || [])).length;
+const eligibleCount = indexableSchoolCount + indexableProductCount;
+const candidateCount = schools.length + products.length;
+const eligiblePercent = candidateCount ? Math.round((eligibleCount / candidateCount) * 100) : 0;
+console.log("SEO prerender complete: " + schools.length + " schools (" + indexableSchoolCount + " indexable), " +
+  products.length + " products (" + indexableProductCount + " indexable, " + duplicateProductCount + " exact duplicates excluded), " +
+  eligiblePercent + "% of candidate pages pass quality gates; " + urls.size + " sitemap URLs.");
+if (eligiblePercent < 50) console.warn("SEO quality gate: fewer than 50% of candidate school/product pages currently qualify. Improve real product data before indexing more pages.");

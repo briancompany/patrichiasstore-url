@@ -20,6 +20,7 @@ interface Product {
   id: string;
   name: string;
   type: string;
+  description: string | null;
   image_url: string | null;
   sizes: ProductSize[];
   in_stock: boolean;
@@ -70,7 +71,7 @@ export default function SchoolUniformPage() {
 
       const { data: productData } = await supabase
         .from('products')
-        .select('id, name, type, image_url, sizes, in_stock, stock_quantity')
+        .select('id, name, type, description, image_url, sizes, in_stock, stock_quantity')
         .eq('school_id', match.id)
         .order('type')
         .range(0, 999);
@@ -92,6 +93,10 @@ export default function SchoolUniformPage() {
   useEffect(() => {
     if (!school || !schoolSlug) return;
     trackVisitorEvent('school_viewed', { school: school.name, meta: { name: school.name } });
+  }, [school, schoolSlug]);
+
+  useEffect(() => {
+    if (!school || !schoolSlug) return;
 
     const title = `${school.name} Uniform | Patrichia Kavingo Store`;
     const description = `Shop ${school.name} school uniform in Nairobi. Affordable tracksuits, T-shirts, shorts and accessories at Uhuru Market, Jogoo Road. Call +254 726 075 180.`;
@@ -110,14 +115,6 @@ export default function SchoolUniformPage() {
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
     setMeta('meta[name="twitter:title"]', 'content', title);
     setMeta('meta[name="twitter:description"]', 'content', description);
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', canonicalUrl);
 
     // Give Google explicit school-page context after the page data is available.
     let jsonLd = document.getElementById('school-page-jsonld');
@@ -152,7 +149,7 @@ export default function SchoolUniformPage() {
         ],
       },
     });
-  }, [school, schoolSlug]);
+  }, [school, schoolSlug, products]);
 
   const handleOrderThisSchool = () => {
     if (school) {

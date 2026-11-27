@@ -115,14 +115,6 @@ export default function ProductPage() {
       setMeta('meta[name="twitter:image"]', 'content', product.image_url);
     }
 
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', canonicalUrl);
-
     // Product + breadcrumb structured data helps search engines understand the landing page.
     let jsonLd = document.getElementById('product-page-jsonld');
     if (!jsonLd) {
