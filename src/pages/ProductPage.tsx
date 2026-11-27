@@ -104,6 +104,19 @@ export default function ProductPage() {
     };
 
     setMeta('meta[name="description"]', 'content', description);
+    const validPrices = product.sizes.filter((size) => size.size?.trim() && Number.isFinite(Number(size.price)) && Number(size.price) > 0);
+    const hasMeaningfulContent = Boolean(
+      product.name.trim() && product.type.trim() &&
+      ((product.image_url && (String(product.description || '').trim().length >= 40 || validPrices.length >= 2)) ||
+        (String(product.description || '').trim().length >= 100 && validPrices.length >= 2))
+    );
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.setAttribute('name', 'robots');
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute('content', hasMeaningfulContent ? 'index, follow, max-image-preview:large' : 'noindex, follow');
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', description);
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
