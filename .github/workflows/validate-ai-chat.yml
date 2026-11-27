@@ -1,0 +1,26 @@
+name: Validate Patrichia AI chat Edge Function
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/ai-chat/**"
+      - "supabase/config.toml"
+      - ".github/workflows/validate-ai-chat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deno-check:
+    name: Type-check ai-chat Edge Function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Function
+        run: deno check --no-lock --node-modules-dir=none supabase/functions/ai-chat/index.ts

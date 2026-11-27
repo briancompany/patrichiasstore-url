@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +32,7 @@ export function ProductTypeManager() {
     const next = slugify(editName);
     if (!next) return;
     if (next !== slug) {
-      const { data: products } = await supabase.from('products').select('id').eq('type', slug).limit(1);
+      const { data: products } = await supabase.from('products').select('id').eq('type', slug as Database['public']['Enums']['uniform_type']).limit(1);
       const { data: charts } = await supabase.from('pricing_chart').select('id').eq('uniform_type', slug).limit(1);
       if ((products?.length || 0) + (charts?.length || 0)) { toast.error('This type is already used. Keep its code and change only its display name.'); return; }
     }

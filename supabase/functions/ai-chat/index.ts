@@ -1,10 +1,10 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { streamText, generateText, tool, stepCountIs, Output } from "npm:ai@5";
+import { generateObject, generateText, tool, stepCountIs } from "npm:ai@5";
 import { createGroq } from "npm:@ai-sdk/groq@2";
 import { z } from "npm:zod@3.25.76";
 
-const MODEL = "llama3-70b-8192"; strongest model on this Groq account; llama-3.3-70b-versatile is no longer offered
+const MODEL = "openai/gpt-oss-120b"; // Current Groq production model configured for Patrichia chat.
 const STORE_PHONE = "254726075180";
 const SESSION_LIMIT_PER_HOUR = 20;
 const DEVICE_LIMIT_PER_HOUR = 60;
@@ -35,12 +35,12 @@ async function hash(value: string): Promise<string> {
 }
 
 const SHADES: Record<string, string[]> = {
-  grey: ["grey", "gray", "charcoal", "ash", "slate"],
-  blue: ["blue", "royal blue", "sky blue", "azure"],
-  navy: ["navy", "dark blue", "midnight"],
-  red: ["red", "crimson", "cherry"],
+  grey: ["grey", "gray", "charcoal", "ash", "slate", "dark grey", "light grey", "silver"],
+  blue: ["blue", "royal blue", "sky blue", "azure", "light blue", "baby blue"],
+  navy: ["navy", "navy blue", "dark blue", "midnight"],
+  red: ["red", "crimson", "cherry", "scarlet"],
   maroon: ["maroon", "wine", "burgundy"],
-  green: ["green", "emerald", "olive", "bottle green", "lime"],
+  green: ["green", "emerald", "olive", "bottle green", "lime", "forest green"],
   black: ["black", "jet"],
   white: ["white", "cream", "off-white", "ivory"],
   brown: ["brown", "tan", "chocolate"],
@@ -51,15 +51,93 @@ const SHADES: Record<string, string[]> = {
   orange: ["orange", "rust"],
   pink: ["pink", "rose"],
 };
-const SW: Record<string, string> = { kijivu: "grey", bluu: "blue", buluu: "blue", nyekundu: "red", kijani: "green", nyeusi: "black", nyeupe: "white", kahawia: "brown", njano: "yellow", zambarau: "purple" };
+const SW: Record<string, string> = {
+  kijivu: "grey", bluu: "blue", buluu: "blue", samawati: "blue",
+  nyekundu: "red", kijani: "green", nyeusi: "black", nyeupe: "white",
+  kahawia: "brown", njano: "yellow", zambarau: "purple", waridi: "pink",
+};
+const COLOR_ALIASES = Object.entries(SHADES)
+  .flatMap(([canonical, aliases]) => aliases.map((alias) => ({ canonical, alias })))
+  .sort((a, b) => b.alias.length - a.alias.length);
+function normalizeColor(value: string | null | undefined): string | null {
+  const normalized = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!normalized) return null;
+  if (SW[normalized]) return SW[normalized];
+  const direct = COLOR_ALIASES.find(({ alias }) => normalized === alias);
+  return direct?.canonical ?? null;
+}
+function detectColor(value: string): string | null {
+  const normalized = " " + String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
+  const matches: { canonical: string; index: number; length: number }[] = [];
+  for (const { canonical, alias } of COLOR_ALIASES) {
+    const term = " " + alias.replace(/[^a-z0-9]+/g, " ").trim() + " ";
+    const index = normalized.lastIndexOf(term);
+    if (index >= 0) matches.push({ canonical, index, length: term.length });
+  }
+  for (const [swahili, canonical] of Object.entries(SW)) {
+    const term = " " + swahili + " ";
+    const index = normalized.lastIndexOf(term);
+    if (index >= 0) matches.push({ canonical, index, length: term.length });
+  }
+  matches.sort((a, b) => b.index - a.index || b.length - a.length);
+  return matches[0]?.canonical ?? null;
+}
 function colorShades(c: string): string[] {
-  const k = c.toLowerCase().replace(/[^a-z -]/g, "").trim().slice(0, 30);
-  const base = SW[k] ?? (k === "gray" ? "grey" : k);
-  return (SHADES[base] ?? [base]).filter(Boolean).slice(0, 8);
+  const base = normalizeColor(c) ?? c.toLowerCase().replace(/[^a-z -]/g, "").trim();
+  return (SHADES[base] ?? [base]).filter(Boolean).slice(0, 12);
 }
 function containsColor(value: string, terms: string[]): boolean {
   const normalized = " " + value.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
   return terms.some((term) => normalized.includes(" " + term.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " "));
+}
+
+// Best-effort visual fallback. Cache by product + image URL in each warm Edge
+// Function instance so repeat customer searches do not repeatedly analyse photos.
+const visualColorCache = new Map<string, { colors: string[]; expiresAt: number }>();
+const VISUAL_COLOR_MODEL = "qwen/qwen3.8-27b";
+async function detectImageColors(productId: string, imageUrl: string): Promise<string[]> {
+  if (!imageUrl || !imageUrl.startsWith("https://")) return [];
+  const cacheKey = productId + ":" + imageUrl;
+  const cached = visualColorCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.colors;
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) return [];
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: VISUAL_COLOR_MODEL,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Identify only the clearly visible main garment/product colours in this product photo. Ignore background, labels, text and lighting effects. Return JSON only: {\"colors\":[\"canonical colour names\"]}. Use simple names such as black, white, grey, blue, navy, red, maroon, green, brown, khaki, yellow, gold, purple, orange or pink. If the garment colour is unclear, return an empty array. Do not guess." },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ],
+        }],
+        temperature: 0,
+        max_completion_tokens: 100,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    const parsed = JSON.parse(typeof content === "string" ? content : "{}");
+    const colors: string[] = [];
+    if (Array.isArray(parsed.colors)) {
+      for (const value of parsed.colors as unknown[]) {
+        const normalized = normalizeColor(String(value));
+        if (normalized && !colors.includes(normalized)) colors.push(normalized);
+      }
+    }
+    visualColorCache.set(cacheKey, { colors, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+    return colors;
+  } catch (error) {
+    console.warn("visual product colour analysis unavailable", String(error).slice(0, 180));
+    return [];
+  }
 }
 
 function sanitize(input: string, max = MAX_INPUT): string {
@@ -157,11 +235,10 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("phone_hash", session.phone_hash)
     .eq("device_hash", session.device_hash)
     .maybeSingle();
-    const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
-  const result = streamText({
+  const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
+  const result = await generateObject({
     model: groqModel(),
-    output: Output.object({
-      schema: z.object({
+    schema: z.object({
         customer_first_name: z.string().nullable(),
         preferred_language: z.string().nullable(),
         school_preference: z.string().nullable(),
@@ -170,10 +247,9 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
         past_orders: z.string().nullable(),
         notes: z.string().nullable(),
       }),
-    }),
     prompt: `Update the customer profile from this chat. Keep existing facts unless the chat changes them. Keep each field under 150 characters. Never include phone numbers, emails, payment codes or addresses. Use null when unknown.\n\nEXISTING PROFILE (json): ${JSON.stringify(existing?.facts ?? {})}\n\nCHAT:\n${transcript}`,
   });
-  const out = await result.output;
+  const out = result.object;
   const facts: Record<string, string> = {};
   for (const [k, v] of Object.entries(out ?? {})) if (typeof v === "string" && v.trim()) facts[k] = maskPhones(v).slice(0, 150);
   await admin.from("ai_memory").upsert(
@@ -305,11 +381,14 @@ Deno.serve(async (req) => {
       execute: async ({ text: t, school, type, color, size }) => {
         toolsUsed.add("search_products");
         let q = admin.from("products").select("id, name, type, description, colors, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(100);
+        // Recover the requested colour from the original customer message as well as
+        // the model's tool arguments, so a missed tool argument cannot drop the filter.
+        const requestedColor = normalizeColor(color) ?? detectColor(`${text} ${t ?? ""}`);
         if (t) {
           let textSearch = sanitize(t, 60);
-          // Colour matching is handled against structured colours and descriptions below.
-          if (color) {
-            const colourWords = new Set(colorShades(color).flatMap((shade) => shade.split(/\s+/)));
+          // Match colour separately against structured colours, names and descriptions.
+          if (requestedColor) {
+            const colourWords = new Set(colorShades(requestedColor).flatMap((shade) => shade.split(/\s+/)));
             textSearch = textSearch.split(/\s+/).filter((word) => !colourWords.has(word.toLowerCase())).join(" ");
           }
           const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
@@ -326,12 +405,28 @@ Deno.serve(async (req) => {
         }
         const { data: rawProducts, error } = await q;
         if (error) throw new Error("product lookup failed");
-        const shades = color ? colorShades(color) : [];
-        const data = (rawProducts ?? []).filter((p) => {
-          if (!color) return true;
-          const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
-          return containsColor(colourText, shades);
-        }).slice(0, 8);
+        const shades = requestedColor ? colorShades(requestedColor) : [];
+        const candidates = rawProducts ?? [];
+        let data = candidates;
+        if (requestedColor) {
+          const metadataMatches = candidates.filter((p) => {
+            const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
+            return containsColor(colourText, shades);
+          });
+          const metadataMatchIds = new Set(metadataMatches.map((p) => p.id));
+          // Only inspect a small number of unmatched catalogue photos; metadata remains
+          // authoritative when present, and image analysis is a fallback for missing colours.
+          const visualCandidates = candidates
+            .filter((p) => !metadataMatchIds.has(p.id) && typeof p.image_url === "string" && p.image_url.startsWith("https://"))
+            .slice(0, 3);
+          const visualResults = await Promise.all(visualCandidates.map(async (p) => ({
+            id: p.id,
+            matches: containsColor((await detectImageColors(String(p.id), p.image_url)).join(" "), shades),
+          })));
+          const visualMatchIds = new Set(visualResults.filter((p) => p.matches).map((p) => p.id));
+          data = candidates.filter((p) => metadataMatchIds.has(p.id) || visualMatchIds.has(p.id));
+        }
+        data = data.slice(0, 8);
         const { data: flash } = await admin.rpc("get_active_flash_sales");
         const fmap = new Map((flash ?? []).map((f: { product_id: string; sale_price: number }) => [f.product_id, f.sale_price]));
         const products = (data ?? []).map((p) => {
@@ -594,7 +689,8 @@ Deno.serve(async (req) => {
           .in("tracking_code", ["PS-" + code, code])
           .limit(1)
           .maybeSingle();
-        const o = t?.orders as Record<string, unknown> | null;
+        const orderRelation = t?.orders;
+        const o = (Array.isArray(orderRelation) ? orderRelation[0] : orderRelation) as Record<string, unknown> | null;
         if (!o || normalizePhone(String(o.customer_phone ?? "")) !== p) {
           return { found: false, error: "No order matches that phone number and order code." };
         }
