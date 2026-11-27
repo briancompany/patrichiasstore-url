@@ -21,6 +21,7 @@ import { ShoppingCart, X, Search, ChevronRight, Package, Clock } from 'lucide-re
 import { Input } from '@/components/ui/input';
 import { ShopPriceChart } from '@/components/ShopPriceChart';
 import { useFlashSales } from '@/lib/flash-sales';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Shop() {
   const [searchParams] = useSearchParams();
@@ -32,6 +33,8 @@ export default function Shop() {
   // Shared cached hooks — no duplicate API calls
   const { products: rawGeneralProducts, loaded: generalLoaded } = useGeneralProducts();
   const { byProduct: flashByProduct } = useFlashSales();
+  const [productTypes, setProductTypes] = useState<{ slug: string; name: string }[]>([]);
+  useEffect(() => { let active = true; supabase.from('product_types').select('slug, name').eq('is_active', true).order('sort_order').order('name').then(({ data }) => { if (active) setProductTypes(data || []); }); return () => { active = false; }; }, []);
 
   // Map DB products to the Product type used by ProductCard
   const generalProducts: Product[] = useMemo(() => {
@@ -52,10 +55,11 @@ export default function Shop() {
     return generalProducts.filter((product) => {
       const typeMatch = selectedType === 'all' || product.type === selectedType;
       const query = searchQuery.trim().toLowerCase();
-      const searchMatch = !query || [product.name, product.school, product.type, product.description || ''].some((value) => value.toLowerCase().includes(query));
+      const typeName = productTypes.find((item) => item.slug === product.type)?.name || product.type.replace(/_/g, ' ');
+      const searchMatch = !query || [product.name, product.school, product.type, typeName, product.description || ''].some((value) => value.toLowerCase().includes(query));
       return typeMatch && searchMatch;
     });
-  }, [generalProducts, selectedType, searchQuery]);
+  }, [generalProducts, selectedType, searchQuery, productTypes]);
 
   const handleAddToCart = (product: Product, size: string, quantity: number, price: number) => {
     const existingIndex = cart.findIndex(
@@ -92,24 +96,6 @@ export default function Shop() {
   const handleGoToUniformShop = () => {
     navigate('/uniform-shop');
   };
-
-  const typeLabels: Record<string, string> = {
-    all: 'All Types',
-    tshirt: 'T-Shirts',
-    shirts: 'Shirts',
-    tracksuit: 'Tracksuits',
-    socks: 'Socks',
-    shorts: 'Shorts',
-    trousers: 'Trousers',
-    skirt: 'Skirts',
-    sweater: 'Sweaters',
-    tie: 'Ties',
-    dress: 'Dresses',
-    fleece_jacket: 'Fleece Jackets',
-    other: 'Other',
-  };
-
-  const uniformTypes = ['tshirt', 'shirts', 'tracksuit', 'socks', 'shorts', 'trousers', 'skirt', 'sweater', 'tie', 'dress', 'fleece_jacket'];
 
   return (
     <Layout>
@@ -162,9 +148,9 @@ export default function Shop() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {uniformTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {typeLabels[type]}
+              {productTypes.map((type) => (
+                <SelectItem key={type.slug} value={type.slug}>
+                  {type.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -237,9 +223,9 @@ export default function Shop() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                 <Clock className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-xl font-bold text-foreground mb-2">Products Coming Soon!</h3>
+              <h3 className="text-xl font-bold text-foreground mb-2">{selectedType !== 'all' || searchQuery.trim() ? 'No matching products found' : 'Products Coming Soon!'}</h3>
               <p className="text-muted-foreground max-w-md mb-4">
-                We're updating our collection with fresh uniforms. Check back soon or search for your school's specific uniforms.
+                {selectedType !== 'all' || searchQuery.trim() ? 'Try another product name or category.' : "We're updating our collection with fresh uniforms. Check back soon or search for your school's specific uniforms."}
               </p>
               <Button onClick={() => handleGoToUniformShop()} className="gap-2">
                 <Search className="h-4 w-4" />

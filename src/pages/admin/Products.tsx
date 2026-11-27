@@ -30,6 +30,7 @@ import { StockControl } from '@/components/admin/StockControl';
 import { StockBadge } from '@/components/StockBadge';
 import { FlashSaleManager } from '@/components/admin/FlashSaleManager';
 import { usePricingChart } from '@/hooks/useProductCache';
+import { ProductTypeManager } from '@/components/admin/ProductTypeManager';
 
 interface ProductSize {
   size: string;
@@ -64,10 +65,12 @@ export default function AdminProducts() {
   const [filterSchool, setFilterSchool] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
+  const [productTypes, setProductTypes] = useState<{ slug: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchProducts();
     fetchSchools();
+    fetchProductTypes();
   }, []);
 
   const fetchProducts = async () => {
@@ -89,6 +92,8 @@ export default function AdminProducts() {
     }
     setIsLoading(false);
   };
+
+  const fetchProductTypes = async () => { const { data } = await supabase.from('product_types').select('slug, name').order('sort_order').order('name'); setProductTypes(data || []); };
 
   const fetchSchools = async () => {
     const { data } = await supabase.from('schools').select('id, name').order('name');
@@ -125,36 +130,7 @@ export default function AdminProducts() {
     );
   };
 
-  const typeLabels: Record<string, string> = {
-    tshirt: 'T-Shirt',
-    shirts: 'Shirts',
-    shirts_york: 'Shirts – York',
-    shirts_normal_plain: 'Shirts – Normal (Plain)',
-    t_shirts_kids: 'T-Shirts – Kids',
-    t_shirts_adults: 'T-Shirts – Adults',
-    polo_shirts: 'Polo Shirts',
-    long_sleeve_shirts_plain: 'Long Sleeve Shirts – Plain',
-    long_sleeve_shirts_stripes: 'Long Sleeve Shirts – Stripes',
-    tracksuit: 'Tracksuits',
-    socks: 'Socks',
-    shorts: 'Shorts',
-    shorts_summit: 'Shorts – Summit',
-    shorts_grey: 'Shorts – Grey',
-    trousers: 'Trousers',
-    trousers_primary_school_summit: 'Trousers – Primary – Summit',
-    trousers_primary_school_grey: 'Trousers – Primary – Grey',
-    trousers_high_school_summit: 'Trousers – High School – Summit',
-    trousers_high_school_grey: 'Trousers – High School – Grey',
-    skirt: 'Skirt',
-    sweater: 'Sweater',
-    tie: 'Tie',
-    dress: 'Dress',
-    fleece_jacket: 'Fleeze',
-    blazers: 'Blazers',
-    lab_coats: 'Lab Coats',
-    scrubs: 'Scrubs',
-    other: 'Other',
-  };
+
 
   const getMinPrice = (sizes: { size: string; price: number }[]) => {
     if (!sizes || sizes.length === 0) return 0;
@@ -177,6 +153,7 @@ export default function AdminProducts() {
           </Button>
         </div>
 
+        <ProductTypeManager />
         <FlashSaleManager products={products} />
 
         {/* Filters */}
@@ -209,9 +186,9 @@ export default function AdminProducts() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {Object.entries(typeLabels).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
+              {productTypes.map(({ slug, name }) => (
+                <SelectItem key={slug} value={slug}>
+                  {name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -279,7 +256,7 @@ export default function AdminProducts() {
                         {product.schools?.name || 'No school'}
                       </p>
                     </div>
-                    <Badge variant="secondary">{typeLabels[product.type] || product.type}</Badge>
+                    <Badge variant="secondary">{productTypes.find((type) => type.slug === product.type)?.name || product.type.replace(/_/g, ' ')}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
                     {product.sizes?.length || 0} sizes • From Ksh{' '}
