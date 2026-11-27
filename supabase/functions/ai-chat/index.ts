@@ -35,12 +35,12 @@ async function hash(value: string): Promise<string> {
 }
 
 const SHADES: Record<string, string[]> = {
-  grey: ["grey", "gray", "charcoal", "ash", "slate"],
-  blue: ["blue", "royal blue", "sky blue", "azure"],
-  navy: ["navy", "dark blue", "midnight"],
-  red: ["red", "crimson", "cherry"],
+  grey: ["grey", "gray", "charcoal", "ash", "slate", "dark grey", "light grey", "silver"],
+  blue: ["blue", "royal blue", "sky blue", "azure", "light blue", "baby blue"],
+  navy: ["navy", "navy blue", "dark blue", "midnight"],
+  red: ["red", "crimson", "cherry", "scarlet"],
   maroon: ["maroon", "wine", "burgundy"],
-  green: ["green", "emerald", "olive", "bottle green", "lime"],
+  green: ["green", "emerald", "olive", "bottle green", "lime", "forest green"],
   black: ["black", "jet"],
   white: ["white", "cream", "off-white", "ivory"],
   brown: ["brown", "tan", "chocolate"],
@@ -51,11 +51,35 @@ const SHADES: Record<string, string[]> = {
   orange: ["orange", "rust"],
   pink: ["pink", "rose"],
 };
-const SW: Record<string, string> = { kijivu: "grey", bluu: "blue", buluu: "blue", nyekundu: "red", kijani: "green", nyeusi: "black", nyeupe: "white", kahawia: "brown", njano: "yellow", zambarau: "purple" };
+const SW: Record<string, string> = {
+  kijivu: "grey", bluu: "blue", buluu: "blue", samawati: "blue",
+  nyekundu: "red", kijani: "green", nyeusi: "black", nyeupe: "white",
+  kahawia: "brown", njano: "yellow", zambarau: "purple", waridi: "pink",
+};
+const COLOR_ALIASES = Object.entries(SHADES)
+  .flatMap(([canonical, aliases]) => aliases.map((alias) => ({ canonical, alias })))
+  .sort((a, b) => b.alias.length - a.alias.length);
+function normalizeColor(value: string | null | undefined): string | null {
+  const normalized = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!normalized) return null;
+  if (SW[normalized]) return SW[normalized];
+  const direct = COLOR_ALIASES.find(({ alias }) => normalized === alias);
+  return direct?.canonical ?? null;
+}
+function detectColor(value: string): string | null {
+  const normalized = " " + String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
+  for (const { canonical, alias } of COLOR_ALIASES) {
+    const term = " " + alias.replace(/[^a-z0-9]+/g, " ").trim() + " ";
+    if (normalized.includes(term)) return canonical;
+  }
+  for (const [swahili, canonical] of Object.entries(SW)) {
+    if (normalized.includes(" " + swahili + " ")) return canonical;
+  }
+  return null;
+}
 function colorShades(c: string): string[] {
-  const k = c.toLowerCase().replace(/[^a-z -]/g, "").trim().slice(0, 30);
-  const base = SW[k] ?? (k === "gray" ? "grey" : k);
-  return (SHADES[base] ?? [base]).filter(Boolean).slice(0, 8);
+  const base = normalizeColor(c) ?? c.toLowerCase().replace(/[^a-z -]/g, "").trim();
+  return (SHADES[base] ?? [base]).filter(Boolean).slice(0, 12);
 }
 function containsColor(value: string, terms: string[]): boolean {
   const normalized = " " + value.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
@@ -305,14 +329,17 @@ Deno.serve(async (req) => {
       execute: async ({ text: t, school, type, color, size }) => {
         toolsUsed.add("search_products");
         let q = admin.from("products").select("id, name, type, description, colors, sizes, in_stock, stock_quantity, image_url, schools(name)").limit(100);
+        // Recover the requested colour from the original customer message as well as
+        // the model's tool arguments, so a missed tool argument cannot drop the filter.
+        const requestedColor = normalizeColor(color) ?? detectColor(`${text} ${t ?? ""}`);
         if (t) {
           let textSearch = sanitize(t, 60);
-          // Colour matching is handled against structured colours and descriptions below.
-          if (color) {
-            const colourWords = new Set(colorShades(color).flatMap((shade) => shade.split(/\s+/)));
+          // Match colour separately against structured colours, names and descriptions.
+          if (requestedColor) {
+            const colourWords = new Set(colorShades(requestedColor).flatMap((shade) => shade.split(/\s+/)));
             textSearch = textSearch.split(/\s+/).filter((word) => !colourWords.has(word.toLowerCase())).join(" ");
           }
-          const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
+        const w = textSearch.replace(/[%_,()]/g, "").trim().replace(/\s+/g, " ");
           if (w) q = q.or(`name.ilike.%${w}%,description.ilike.%${w}%`);
         }
         if (type) q = q.eq("type", type);
@@ -326,9 +353,9 @@ Deno.serve(async (req) => {
         }
         const { data: rawProducts, error } = await q;
         if (error) throw new Error("product lookup failed");
-        const shades = color ? colorShades(color) : [];
+        const shades = requestedColor ? colorShades(requestedColor) : [];
         const data = (rawProducts ?? []).filter((p) => {
-          if (!color) return true;
+          if (!requestedColor) return true;
           const colourText = [p.name, p.description ?? "", ...((p.colors as string[] | null) ?? [])].join(" ");
           return containsColor(colourText, shades);
         }).slice(0, 8);
