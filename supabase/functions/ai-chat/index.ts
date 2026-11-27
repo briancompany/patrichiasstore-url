@@ -1,6 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { generateText, tool, stepCountIs, Output } from "npm:ai@5";
+import { generateObject, generateText, tool, stepCountIs } from "npm:ai@5";
 import { createGroq } from "npm:@ai-sdk/groq@2";
 import { z } from "npm:zod@3.25.76";
 
@@ -236,10 +236,9 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
     .eq("device_hash", session.device_hash)
     .maybeSingle();
     const transcript = msgs.slice(-20).map((m) => `${m.role}: ${m.content}`).join("\n").slice(0, 6000);
-  const result = await generateText({
+  const result = await generateObject({
     model: groqModel(),
-    output: Output.object({
-      schema: z.object({
+    schema: z.object({
         customer_first_name: z.string().nullable(),
         preferred_language: z.string().nullable(),
         school_preference: z.string().nullable(),
@@ -248,10 +247,9 @@ async function extractMemory(session: { id: string; phone_hash: string | null; d
         past_orders: z.string().nullable(),
         notes: z.string().nullable(),
       }),
-    }),
     prompt: `Update the customer profile from this chat. Keep existing facts unless the chat changes them. Keep each field under 150 characters. Never include phone numbers, emails, payment codes or addresses. Use null when unknown.\n\nEXISTING PROFILE (json): ${JSON.stringify(existing?.facts ?? {})}\n\nCHAT:\n${transcript}`,
   });
-  const out = result.output;
+  const out = result.object;
   const facts: Record<string, string> = {};
   for (const [k, v] of Object.entries(out ?? {})) if (typeof v === "string" && v.trim()) facts[k] = maskPhones(v).slice(0, 150);
   await admin.from("ai_memory").upsert(
