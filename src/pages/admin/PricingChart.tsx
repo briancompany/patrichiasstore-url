@@ -105,6 +105,8 @@ export default function PricingChart() {
     if (!type || !size || !newEntry.price.trim()) { toast.error('Enter a product category, size and price'); return; }
     if (!isSupportedType(type)) { toast.error('Choose a supported uniform category from the current price list'); return; }
     if (!Number.isSafeInteger(price) || price <= 0) { toast.error('Enter a valid whole-number price'); return; }
+    const { error: catalogueError } = await supabase.from('product_types').upsert({ slug: type, name: type.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) }, { onConflict: 'slug', ignoreDuplicates: true });
+    if (catalogueError) { toast.error(catalogueError.message); return; }
     const { error } = await supabase.from('pricing_chart').upsert({ uniform_type: type, size, price }, { onConflict: 'uniform_type,size' });
     if (error) { toast.error(error.message || 'Could not save price'); return; }
     toast.success('Size and price saved');
@@ -174,7 +176,7 @@ export default function PricingChart() {
     if (!importRows.length || invalidRows.length) { toast.error('Fix invalid rows before importing'); return; }
     setIsSaving(true);
     const payload = importRows.map(({ uniform_type, size, price }) => ({ uniform_type, size, price }));
-    const newTypes = [...new Set(payload.map(row => row.uniform_type))].map(slug => ({ slug, name: slug.replace(/_/g, ' ').replace(/\\b\\w/g, char => char.toUpperCase()) }));
+    const newTypes = [...new Set(payload.map(row => row.uniform_type))].map(slug => ({ slug, name: slug.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) }));
     const { error: catalogueError } = await supabase.from('product_types').upsert(newTypes, { onConflict: 'slug', ignoreDuplicates: true });
     if (catalogueError) { setIsSaving(false); toast.error(catalogueError.message || 'Could not register product types'); return; }
     const { error } = await supabase.from('pricing_chart').upsert(payload, { onConflict: 'uniform_type,size' });
