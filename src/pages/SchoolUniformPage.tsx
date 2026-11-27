@@ -110,13 +110,6 @@ export default function SchoolUniformPage() {
     };
 
     setMeta('meta[name="description"]', 'content', description);
-    const richProducts = products.filter((product) => {
-      const validPrices = product.sizes.filter((size) => size.size?.trim() && Number.isFinite(Number(size.price)) && Number(size.price) > 0);
-      return Boolean(product.name.trim() && product.type.trim() &&
-        (String(product.description || '').trim().length >= 60 || validPrices.length >= 2));
-    });
-    const indexable = products.length >= 3 && richProducts.length >= 2 &&
-      new Set(richProducts.map((product) => product.type.trim().toLowerCase())).size >= 2;
     setMeta('meta[property="og:title"]', 'content', title);
     setMeta('meta[property="og:description"]', 'content', description);
     setMeta('meta[property="og:url"]', 'content', canonicalUrl);
