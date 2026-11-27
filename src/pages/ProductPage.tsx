@@ -107,7 +107,7 @@ export default function ProductPage() {
     const validPrices = product.sizes.filter((size) => size.size?.trim() && Number.isFinite(Number(size.price)) && Number(size.price) > 0);
     const hasMeaningfulContent = Boolean(
       product.name.trim() && product.type.trim() &&
-      product.image_url && (String(product.description || '').trim().length >= 40 || validPrices.length >= 2)
+      (String(product.description || '').trim().length >= 60 || validPrices.length >= 2)
     );
     let robots = document.querySelector('meta[name="robots"]');
     if (!robots) {
