@@ -40,6 +40,7 @@ const AdminDiscounts = lazy(() => import("./pages/admin/Discounts"));
 const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
 const AdminVisitors = lazy(() => import("./pages/admin/Visitors"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const AdminCommunications = lazy(() => import("./pages/admin/Communications"));
 const PricingChart = lazy(() => import("./pages/admin/PricingChart"));
 const AdminPayments = lazy(() => import("./pages/admin/Payments"));
 const AdminSystemMonitor = lazy(() => import("./pages/admin/SystemMonitor"));
@@ -117,6 +118,7 @@ const App = () => (
             <Route path="/admin/analytics" element={<LazyPage><AdminAnalytics /></LazyPage>} />
             <Route path="/admin/visitors" element={<LazyPage><AdminVisitors /></LazyPage>} />
             <Route path="/admin/settings" element={<LazyPage><AdminSettings /></LazyPage>} />
+            <Route path="/admin/communications" element={<LazyPage><AdminCommunications /></LazyPage>} />
             <Route path="/admin/pricing" element={<LazyPage><PricingChart /></LazyPage>} />
             <Route path="/admin/payments" element={<LazyPage><AdminPayments /></LazyPage>} />
             <Route path="/admin/monitor" element={<LazyPage><AdminSystemMonitor /></LazyPage>} />
