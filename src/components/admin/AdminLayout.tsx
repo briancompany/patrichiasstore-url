@@ -133,24 +133,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-primary text-primary-foreground border-r border-primary/30 z-50 shadow-2xl transform transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 h-[100dvh] max-h-[100dvh] w-64 flex flex-col overflow-hidden bg-primary text-primary-foreground border-r border-primary/30 z-50 shadow-2xl transform transition-transform duration-200 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-5 border-b border-primary-foreground/15">
+        <div className="shrink-0 p-5 border-b border-primary-foreground/15">
           <Link to="/admin/dashboard" className="flex items-center gap-2">
             <img src={storeLogo} alt="Patrichia's Store" className="h-8 w-8 object-contain" />
             <span className="font-bold text-xl">Patrichia's</span>
           </Link>
         </div>
 
-        <nav className="p-4 space-y-1.5">
+        <nav aria-label="Admin navigation" className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-6 space-y-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.35)_transparent]">
           {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex min-h-12 items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
                 location.pathname === item.path
                   ? 'bg-accent text-primary shadow-md'
                   : 'text-primary-foreground/75 hover:bg-primary-foreground/10 hover:text-primary-foreground'
@@ -167,13 +167,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-primary-foreground/15">
+        <div className="shrink-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-primary-foreground/15 bg-primary">
           <div className="mb-3 px-3">
             <p className="text-sm font-medium text-primary-foreground">{profile?.full_name || profile?.email}</p>
             <p className="text-xs text-primary-foreground/60">Administrator</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild className="flex-1">
+            <Button variant="default" size="sm" asChild className="flex-1 border border-accent bg-accent text-accent-foreground font-semibold shadow-md hover:bg-accent/90 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary">
               <Link to="/">View Store</Link>
             </Button>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
