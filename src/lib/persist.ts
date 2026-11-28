@@ -2,6 +2,8 @@ export const STORAGE_KEYS = {
   shopCart: 'ps_shop_cart_v1',
   uniformCheckout: 'ps_uniform_checkout_v1',
   pendingOrder: 'ps_pending_order_v1',
+  orderDraft: 'ps_order_draft_v1',
+  checkoutDraft: 'ps_checkout_draft_v1',
   pesapalTrackingId: 'ps_pesapal_tracking_id',
   generalProductsCache: 'ps_general_products_cache_v1',
   schoolsCache: 'ps_schools_cache_v1',
