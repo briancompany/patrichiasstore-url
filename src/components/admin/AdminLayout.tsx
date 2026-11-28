@@ -43,6 +43,7 @@ const navItems = [
   { name: 'Visitor Heatmap', path: '/admin/visitors', icon: MousePointerClick },
   { name: 'Store Content', path: '/admin/store-content', icon: FileImage },
   { name: 'Monitor', path: '/admin/monitor', icon: AlertTriangle },
+  { name: 'Customer Communications', path: '/admin/communications', icon: BellRing },
   { name: 'Settings', path: '/admin/settings', icon: Settings },
 ];
 
