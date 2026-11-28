@@ -46,7 +46,6 @@ export default function Order() {
     if (navCart && navCart.length > 0) storageSet(STORAGE_KEYS.shopCart, navCart);
   }, [navCart]);
 
-  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<{
     product_id: string; product_name: string; size: string; requested: number; available: number;
@@ -58,15 +57,20 @@ export default function Order() {
   const [schoolSuggestions, setSchoolSuggestions] = useState<DBSchoolResult[]>([]);
   const [showSchoolSuggestions, setShowSchoolSuggestions] = useState(false);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    school: '',
-    deliveryType: 'pickup' as 'pickup' | 'delivery',
-    location: '',
-    notes: '',
-  });
+  const initialFormData = {
+    fullName: '', email: '', phone: '', school: '',
+    deliveryType: 'pickup' as 'pickup' | 'delivery', location: '', notes: '',
+  };
+  const [formData, setFormData] = useState(() =>
+    storageGet<{ formData: typeof initialFormData }>(STORAGE_KEYS.orderDraft)?.formData ?? initialFormData
+  );
+  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>(() =>
+    storageGet<{ paymentMethod: 'pesapal' | 'mpesa' | 'cash' }>(STORAGE_KEYS.orderDraft)?.paymentMethod ?? 'pesapal'
+  );
+
+  useEffect(() => {
+    storageSet(STORAGE_KEYS.orderDraft, { formData, paymentMethod });
+  }, [formData, paymentMethod]);
 
   useEffect(() => {
     const query = formData.school.trim();
@@ -249,6 +253,7 @@ export default function Order() {
 
       // Persist so refresh in published site doesn't lose the order/payment state
       storageSet(STORAGE_KEYS.pendingOrder, paymentState);
+      storageRemove(STORAGE_KEYS.orderDraft);
       storageRemove(STORAGE_KEYS.shopCart);
 
       // Navigate to payment page

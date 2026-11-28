@@ -47,20 +47,8 @@ export async function registerServiceWorker() {
     return;
   }
 
-  // Keep the current app session stable when a deployment is published.
-  // A waiting worker is activated only after the visitor explicitly accepts.
-  let updateSW: (reloadPage?: boolean) => Promise<void> = async () => {};
-  updateSW = registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      const accepted = window.confirm(
-        "A new version of Patrichia's Store is ready. Update now?",
-      );
-      if (accepted) {
-        void updateSW(true).catch((error) => {
-          console.error("App update failed", error);
-        });
-      }
-    },
-  });
+  // Do not interrupt active shoppers with update prompts or forced reloads.
+  // With prompt registration, the new worker waits until existing app clients
+  // are closed; the next visit then receives the new version naturally.
+  registerSW({ immediate: true });
 }

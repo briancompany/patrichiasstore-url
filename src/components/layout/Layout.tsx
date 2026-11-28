@@ -5,6 +5,7 @@ import { WhatsAppButton } from '../WhatsAppButton';
 import { FlashSaleAlert } from '../FlashSaleAlert';
 import { ChatAssistant } from '../ChatAssistant';
 import { MobileBottomNav } from './MobileBottomNav';
+import { CustomerAnnouncements } from '../CustomerAnnouncements';
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export function Layout({ children }: LayoutProps) {
       {/* Reserve the fixed header's space so it never covers page content. */}
       <div aria-hidden="true" className="h-[4.5rem] shrink-0" />
       <FlashSaleAlert />
+      <CustomerAnnouncements />
       <main className="store-page w-full min-w-0 flex-1 pb-8">{children}</main>
       <Footer />
       <MobileBottomNav />
