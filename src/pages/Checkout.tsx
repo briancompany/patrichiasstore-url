@@ -94,8 +94,12 @@ export default function Checkout() {
   >([]);
   const [showSpecialDialog, setShowSpecialDialog] = useState(false);
   const [specialNote, setSpecialNote] = useState('');
-  const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(null);
+  const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(() =>
+    storageGet<{ deliveryZone: { id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null }>(STORAGE_KEYS.checkoutDraft)?.deliveryZone ?? null
+  );
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(() =>
+    storageGet<{ appliedCoupon: { code: string; amount: number; description: string } | null }>(STORAGE_KEYS.checkoutDraft)?.appliedCoupon ?? null
+  );
   const initialFormData = {
     fullName: '', email: '', phone: '',
     deliveryType: 'pickup' as 'pickup' | 'delivery', location: '', notes: '',
@@ -105,8 +109,8 @@ export default function Checkout() {
   );
 
   useEffect(() => {
-    storageSet(STORAGE_KEYS.checkoutDraft, { formData, paymentMethod });
-  }, [formData, paymentMethod]);
+    storageSet(STORAGE_KEYS.checkoutDraft, { formData, paymentMethod, deliveryZone, appliedCoupon });
+  }, [formData, paymentMethod, deliveryZone, appliedCoupon]);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const deliveryFee = formData.deliveryType === 'delivery' && deliveryZone ? deliveryZone.delivery_fee : 0;
