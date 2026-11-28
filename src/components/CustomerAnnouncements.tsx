@@ -55,7 +55,7 @@ export function CustomerAnnouncements() {
         <Bell className="h-5 w-5" />
         {items.length > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">{items.length > 9 ? '9+' : items.length}</span>}
       </Button>
-      {open && <div className="absolute right-0 mt-2 w-[min( min( calc(100vw - 1.5rem), 22rem), 22rem)] max-h-[65vh] overflow-y-auto rounded-xl border bg-background p-3 shadow-xl">
+      {open && <div className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-1.5rem))] max-h-[65vh] overflow-y-auto rounded-xl border bg-background p-3 shadow-xl">
         <div className="mb-2 flex items-center justify-between"><p className="font-semibold">Store notifications</p><button onClick={() => setOpen(false)} aria-label="Close notifications"><X className="h-4 w-4" /></button></div>
         {items.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">You're all caught up.</p> : <div className="space-y-3">
           {items.map(item => <article key={item.id} className="rounded-lg border p-3">
