@@ -85,7 +85,9 @@ export default function Checkout() {
   const printingRequired = checkoutState?.printingRequired || false;
   const isNewSchool = checkoutState?.isNewSchool || !selectedSchool?.isFromDB;
 
-  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>('pesapal');
+  const [paymentMethod, setPaymentMethod] = useState<'pesapal' | 'mpesa' | 'cash'>(() =>
+    storageGet<{ paymentMethod: 'pesapal' | 'mpesa' | 'cash' }>(STORAGE_KEYS.checkoutDraft)?.paymentMethod ?? 'pesapal'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shortfalls, setShortfalls] = useState<
     { product_id: string; product_name: string; size: string; requested: number; available: number }[]
@@ -94,14 +96,17 @@ export default function Checkout() {
   const [specialNote, setSpecialNote] = useState('');
   const [deliveryZone, setDeliveryZone] = useState<{ id: string; zone_name: string; delivery_fee: number; estimated_days: number } | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; amount: number; description: string } | null>(null);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    deliveryType: 'pickup' as 'pickup' | 'delivery',
-    location: '',
-    notes: '',
-  });
+  const initialFormData = {
+    fullName: '', email: '', phone: '',
+    deliveryType: 'pickup' as 'pickup' | 'delivery', location: '', notes: '',
+  };
+  const [formData, setFormData] = useState(() =>
+    storageGet<{ formData: typeof initialFormData }>(STORAGE_KEYS.checkoutDraft)?.formData ?? initialFormData
+  );
+
+  useEffect(() => {
+    storageSet(STORAGE_KEYS.checkoutDraft, { formData, paymentMethod });
+  }, [formData, paymentMethod]);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const deliveryFee = formData.deliveryType === 'delivery' && deliveryZone ? deliveryZone.delivery_fee : 0;
@@ -232,6 +237,7 @@ export default function Checkout() {
 
       // Persist so refresh in published site doesn't lose the order/payment state
       storageSet(STORAGE_KEYS.pendingOrder, paymentState);
+      storageRemove(STORAGE_KEYS.checkoutDraft);
       storageRemove(STORAGE_KEYS.uniformCheckout);
 
       // Navigate to payment page with order details
